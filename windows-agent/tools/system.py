@@ -43,3 +43,33 @@ def lock_pc():
             "message": "No he podido bloquear el ordenador.",
             "error": str(error)
         }
+
+
+def get_power_status():
+    battery = psutil.sensors_battery()
+    if battery is None:
+        return {"success": True, "available": False}
+
+    seconds_left = battery.secsleft
+    if seconds_left in (psutil.POWER_TIME_UNKNOWN, psutil.POWER_TIME_UNLIMITED):
+        seconds_left = None
+    return {
+        "success": True,
+        "available": True,
+        "percent": battery.percent,
+        "plugged": battery.power_plugged,
+        "seconds_left": seconds_left,
+    }
+
+
+def get_network_status():
+    return {
+        "success": True,
+        "interfaces": {
+            name: {
+                "is_up": stats.isup,
+                "speed_mbps": stats.speed,
+            }
+            for name, stats in psutil.net_if_stats().items()
+        },
+    }

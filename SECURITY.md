@@ -19,6 +19,8 @@ No se considera todavía un producto de autenticación listo para producción.
   procedimiento de recuperación probado.
 - No registrar dispositivos sin una confirmación explícita y verificable de su
   fingerprint.
+- No enviar mensajes de WhatsApp ni realizar acciones externas sin confirmación
+  explícita del usuario.
 
 ## Datos que nunca deben entrar en Git
 
@@ -52,6 +54,9 @@ autorización real. Los tickets son de un solo uso y el broker informa siempre
 El simulador de dispositivo solo existe para pruebas automatizadas: genera su
 clave privada en memoria y no ofrece exportación ni persistencia. No debe
 usarse como sustituto de un móvil o Waveshare real.
+
+WhatsApp se limita a construir enlaces `wa.me` con texto prellenado. El agente
+no lee cookies, contactos o historial y nunca pulsa el botón de envío.
 
 ## Reportar problemas
 

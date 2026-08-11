@@ -12,8 +12,12 @@ from tools.commands import (
 )
 from tools.league import LeagueClientError, with_client
 from tools.system import get_system_status, lock_pc
+from tools.system import get_network_status, get_power_status
 from tools.audio import get_volume, set_volume, mute, unmute
+from tools.media import send_media_action
+from tools.timers import TimerManager, TimerNotFoundError
 from tools.urls import validate_external_url
+from tools.whatsapp import build_whatsapp_compose_url
 
 
 app = FastAPI(
@@ -44,6 +48,23 @@ class MusicRequest(BaseModel):
 
 class LeagueQueueRequest(BaseModel):
     queue: str
+
+
+class MediaRequest(BaseModel):
+    action: str
+
+
+class TimerRequest(BaseModel):
+    seconds: int
+    label: str = "Pipα timer"
+
+
+class WhatsAppRequest(BaseModel):
+    phone: str
+    message: str
+
+
+timer_manager = TimerManager()
 
 
 @app.get("/")
@@ -162,6 +183,63 @@ def api_system_status():
 @app.post("/system/lock")
 def api_lock_pc():
     return lock_pc()
+
+
+@app.get("/system/power")
+def api_power_status():
+    return get_power_status()
+
+
+@app.get("/system/network")
+def api_network_status():
+    return get_network_status()
+
+
+@app.post("/media/action")
+def api_media_action(request: MediaRequest):
+    try:
+        return send_media_action(request.action)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+
+@app.get("/timers")
+def api_list_timers():
+    return {"success": True, "timers": timer_manager.list()}
+
+
+@app.post("/timers")
+def api_create_timer(request: TimerRequest):
+    try:
+        return {"success": True, "timer": timer_manager.create(request.seconds, request.label)}
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.delete("/timers/{timer_id}")
+def api_cancel_timer(timer_id: str):
+    try:
+        return {"success": True, "timer": timer_manager.cancel(timer_id)}
+    except TimerNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@app.post("/whatsapp/compose")
+def api_whatsapp_compose(request: WhatsAppRequest):
+    try:
+        url = build_whatsapp_compose_url(request.phone, request.message)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    webbrowser.open(url)
+    return {
+        "success": True,
+        "url": url,
+        "sent": False,
+        "message": "Chat preparado; debes pulsar Enviar manualmente.",
+    }
 
 
 @app.get("/audio/volume")

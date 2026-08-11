@@ -11,6 +11,7 @@ from tools.commands import (  # noqa: E402
     build_web_search_url,
 )
 from tools.league import parse_client_command_line, resolve_queue_id  # noqa: E402
+from tools.whatsapp import build_whatsapp_compose_url, normalize_phone  # noqa: E402
 from tools.urls import validate_external_url  # noqa: E402
 
 
@@ -72,6 +73,17 @@ class AppsAndUrlsTests(unittest.TestCase):
 
         self.assertEqual(connection.port, 54321)
         self.assertEqual(connection.token, "secret-token")
+
+    def test_whatsapp_compose_url_normalizes_phone_and_encodes_message(self):
+        self.assertEqual(normalize_phone("+34 600-123-456"), "34600123456")
+        url = build_whatsapp_compose_url("+34 600-123-456", "Hola, Pipα")
+
+        self.assertTrue(url.startswith("https://wa.me/34600123456?text="))
+        self.assertIn("Pip%CE%B1", url)
+
+    def test_whatsapp_rejects_invalid_phone(self):
+        with self.assertRaises(ValueError):
+            build_whatsapp_compose_url("not-a-phone", "Hola")
 
 
 if __name__ == "__main__":

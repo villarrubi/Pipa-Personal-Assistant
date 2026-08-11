@@ -10,6 +10,8 @@ Unlock controlado criptográficamente.
   bloquear el equipo.
 - También puede abrir búsquedas web, búsquedas de Apple Music y aplicaciones
   configuradas como League o Codex, sin automatizar sus interfaces.
+- Incluye control multimedia, estado de batería/red, temporizadores locales y
+  preparación segura de mensajes de WhatsApp sin envío automático.
 - El Credential Provider aparece como opción adicional en LogonUI.
 - La tile de Pipα no autentica ni desbloquea Windows.
 - El protocolo Ed25519 de desafío/respuesta tiene pruebas unitarias.

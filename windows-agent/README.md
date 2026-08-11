@@ -83,6 +83,13 @@ POST /codex/open       {}
 GET  /league/status
 POST /league/search    {"queue":"ranked_solo"}
 DELETE /league/search
+POST /media/action     {"action":"play_pause"}
+GET  /system/power
+GET  /system/network
+POST /timers           {"seconds":300,"label":"Descanso"}
+GET  /timers
+DELETE /timers/{id}
+POST /whatsapp/compose {"phone":"+34600123456","message":"Hola"}
 ```
 
 Las búsquedas solo abren resultados en el navegador. Apple Music no reproduce
@@ -91,3 +98,8 @@ lobby y empezar/cancelar la búsqueda en una cola permitida cuando el cliente ya
 está abierto y autenticado. Codex solo se abre si existe una entrada `codex`
 explícita en la configuración local ignorada por Git. No se automatiza texto ni
 se accede a interfaces de terceros fuera de las rutas locales previstas.
+
+Los comandos multimedia permitidos son `play_pause`, `next`, `previous` y
+`stop`. Los temporizadores viven en memoria y se consultan mediante polling;
+no persisten tras reiniciar el agente. WhatsApp abre un enlace `wa.me` con el
+mensaje preparado, pero siempre requiere pulsar `Enviar` manualmente.
