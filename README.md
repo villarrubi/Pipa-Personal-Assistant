@@ -14,6 +14,10 @@ Unlock controlado criptográficamente.
   preparación segura de mensajes de WhatsApp sin envío automático.
 - Puede abrir un DM o canal de Discord para preparar una llamada, que siempre
   debe confirmarse manualmente.
+- Tiene un núcleo de protocolo para el futuro dispositivo: sesiones, estados
+  de UI, catálogo tipado de herramientas y confirmaciones de acciones.
+- El simulador de protocolo puede ejecutarse con
+  `python backend/pipa_simulator.py` sin hardware ni claves persistentes.
 - El Credential Provider aparece como opción adicional en LogonUI.
 - La tile de Pipα no autentica ni desbloquea Windows.
 - El protocolo Ed25519 de desafío/respuesta tiene pruebas unitarias.

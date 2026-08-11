@@ -1,0 +1,104 @@
+"""Typed tool catalog and confirmation-aware invocation router."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Callable, Mapping
+
+from .confirmations import ConfirmationError, ConfirmationManager
+
+
+ToolHandler = Callable[[dict[str, Any]], Mapping[str, Any]]
+ToolSummary = Callable[[dict[str, Any]], str]
+
+
+@dataclass(frozen=True)
+class ToolDefinition:
+    name: str
+    handler: ToolHandler
+    safety: str = "safe"
+    confirm_summary: ToolSummary | None = None
+
+    def __post_init__(self) -> None:
+        if self.safety not in {"safe", "unsafe"}:
+            raise ValueError("tool safety must be safe or unsafe")
+        if self.safety == "unsafe" and self.confirm_summary is None:
+            raise ValueError("unsafe tools need a confirmation summary")
+
+
+class ToolCatalog:
+    def __init__(self, definitions: list[ToolDefinition] | None = None) -> None:
+        self._definitions: dict[str, ToolDefinition] = {}
+        for definition in definitions or []:
+            self.register(definition)
+
+    def register(self, definition: ToolDefinition) -> None:
+        if definition.name in self._definitions:
+            raise ValueError(f"tool already registered: {definition.name}")
+        self._definitions[definition.name] = definition
+
+    def get(self, name: str) -> ToolDefinition:
+        try:
+            return self._definitions[name]
+        except KeyError as error:
+            raise KeyError(f"unknown tool: {name}") from error
+
+    def names(self) -> list[str]:
+        return sorted(self._definitions)
+
+
+class ToolRouter:
+    def __init__(self, catalog: ToolCatalog, confirmations: ConfirmationManager | None = None) -> None:
+        self.catalog = catalog
+        self.confirmations = confirmations or ConfirmationManager()
+
+    def invoke(
+        self,
+        name: str,
+        arguments: Mapping[str, Any] | None = None,
+        *,
+        confirmation_id: str | None = None,
+        owner_id: str | None = None,
+    ) -> dict[str, Any]:
+        definition = self.catalog.get(name)
+        values = dict(arguments or {})
+
+        if definition.safety == "unsafe" and confirmation_id is None:
+            assert definition.confirm_summary is not None
+            pending = self.confirmations.create(
+                name,
+                values,
+                definition.confirm_summary(values),
+                owner_id=owner_id,
+            )
+            return {"status": "needs_confirmation", "confirmation": pending.as_dict()}
+
+        if definition.safety == "unsafe":
+            pending = self.confirmations.consume(confirmation_id or "", owner_id=owner_id)
+            if pending.tool_name != name:
+                raise ConfirmationError("confirmation does not match the requested tool")
+            values = pending.arguments
+
+        return self._execute(definition, values)
+
+    def resolve_confirmation(
+        self,
+        confirmation_id: str,
+        accepted: bool,
+        *,
+        owner_id: str | None = None,
+    ) -> dict[str, Any]:
+        pending = self.confirmations.consume(confirmation_id, owner_id=owner_id)
+        if not accepted:
+            return {
+                "status": "rejected",
+                "tool_name": pending.tool_name,
+                "message": "Acción cancelada por el usuario.",
+            }
+        definition = self.catalog.get(pending.tool_name)
+        return self._execute(definition, pending.arguments)
+
+    @staticmethod
+    def _execute(definition: ToolDefinition, arguments: dict[str, Any]) -> dict[str, Any]:
+        result = definition.handler(arguments)
+        return {"status": "completed", "result": dict(result)}

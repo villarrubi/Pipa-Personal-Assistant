@@ -255,8 +255,10 @@ class AuthorizationVerifier:
         *,
         now: int | float | None = None,
         ttl_seconds: int = DEFAULT_TTL_SECONDS,
+        operation: str = UNLOCK_OPERATION,
     ) -> Challenge:
         _validate_identifier(device_id, "device_id")
+        _validate_identifier(operation, "operation")
         if ttl_seconds < 1 or ttl_seconds > MAX_TTL_SECONDS:
             raise ValueError(f"ttl_seconds must be between 1 and {MAX_TTL_SECONDS}")
 
@@ -267,6 +269,7 @@ class AuthorizationVerifier:
             nonce=_encode_base64url(secrets.token_bytes(NONCE_BYTES)),
             issued_at=issued_at,
             expires_at=issued_at + ttl_seconds,
+            operation=operation,
         )
 
         with self._lock:

@@ -1,8 +1,18 @@
+import platform
+import sys
 import webbrowser
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.pipa_core.core import PipaCore
+from backend.pipa_core.protocol import ProtocolError, server_message
+from backend.pipa_core.tools import ToolRouter
 from tools.apps import open_app, load_apps
 from tools.commands import (
     build_apple_music_search_url,
@@ -19,11 +29,17 @@ from tools.media import send_media_action
 from tools.timers import TimerManager, TimerNotFoundError
 from tools.urls import validate_external_url
 from tools.whatsapp import build_whatsapp_compose_url
+from trusted_unlock_devices import (
+    InMemoryDeviceStore,
+    WindowsRegistryDeviceStore,
+    verifier_from_store,
+)
+from trusted_unlock_protocol import TrustedUnlockError
 
 
 app = FastAPI(
     title="Pipα Windows Agent",
-    version="0.3.0"
+    version="0.4.0"
 )
 
 
@@ -70,14 +86,35 @@ class DiscordChannelRequest(BaseModel):
     guild_id: str | None = None
 
 
+class PipaChallengeRequest(BaseModel):
+    device_id: str
+
+
 timer_manager = TimerManager()
+
+
+def _build_pipa_core() -> PipaCore:
+    if platform.system() == "Windows":
+        try:
+            store = WindowsRegistryDeviceStore()
+            verifier = verifier_from_store(store)
+        except Exception:
+            verifier = verifier_from_store(InMemoryDeviceStore())
+    else:
+        verifier = verifier_from_store(InMemoryDeviceStore())
+    from tools.agent_catalog import build_agent_catalog
+
+    return PipaCore(verifier, ToolRouter(build_agent_catalog(timer_manager)))
+
+
+pipa_core = _build_pipa_core()
 
 
 @app.get("/")
 def root():
     return {
         "name": "Pipα Windows Agent",
-        "version": "0.3.0",
+        "version": "0.4.0",
         "status": "online"
     }
 
@@ -254,6 +291,82 @@ def api_discord_channel_open(request: DiscordChannelRequest):
         return open_discord_channel(request.channel_id, request.guild_id)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.get("/pipa/protocol")
+def api_pipa_protocol():
+    return {
+        "success": True,
+        "protocol_version": 1,
+        "websocket": "/pipa/ws",
+        "tool_names": pipa_core.tool_names(),
+        "connected_sessions": pipa_core.sessions.count(),
+    }
+
+
+@app.post("/pipa/challenge")
+def api_pipa_challenge(request: PipaChallengeRequest):
+    try:
+        challenge = pipa_core.create_challenge(request.device_id)
+    except (TrustedUnlockError, ValueError) as error:
+        raise HTTPException(status_code=404, detail="Dispositivo Pipa no emparejado.") from error
+    return {"success": True, "challenge": challenge.as_dict()}
+
+
+@app.websocket("/pipa/ws")
+async def api_pipa_websocket(websocket: WebSocket):
+    client_host = websocket.client.host if websocket.client else None
+    if client_host not in {"127.0.0.1", "::1", "localhost"}:
+        await websocket.close(code=1008, reason="Pipa Core solo acepta conexiones locales por ahora")
+        return
+
+    await websocket.accept()
+    session_id = None
+    try:
+        while True:
+            payload = await websocket.receive_json()
+            try:
+                from backend.pipa_core.protocol import parse_client_message
+
+                message = parse_client_message(payload)
+            except ProtocolError as error:
+                await websocket.send_json(server_message("error", code="protocol_error", message=str(error)))
+                continue
+
+            if session_id is None:
+                if message.type != "hello":
+                    await websocket.send_json(
+                        server_message("error", code="authentication_required", message="Envía hello primero.")
+                    )
+                    continue
+                try:
+                    session = pipa_core.authenticate(
+                        message.fields["device_id"],
+                        message.fields["challenge_id"],
+                        message.fields["signature"],
+                    )
+                except (TrustedUnlockError, ValueError) as error:
+                    await websocket.send_json(
+                        server_message("error", code="authentication_failed", message="Autenticación rechazada.")
+                    )
+                    await websocket.close(code=1008, reason="authentication failed")
+                    return
+                session_id = session.session_id
+                await websocket.send_json(
+                    server_message("ready", session_id=session_id, ui_state=session.ui_message())
+                )
+                continue
+
+            if message.type == "hello":
+                await websocket.send_json(server_message("error", code="already_authenticated"))
+                continue
+            for output in pipa_core.handle(session_id, message):
+                await websocket.send_json(output)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        if session_id is not None:
+            pipa_core.close(session_id)
 
 
 @app.get("/audio/volume")

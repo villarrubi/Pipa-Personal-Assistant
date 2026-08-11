@@ -91,6 +91,9 @@ GET  /timers
 DELETE /timers/{id}
 POST /whatsapp/compose {"phone":"+34600123456","message":"Hola"}
 POST /discord/channel/open {"channel_id":"12345678901234567"}
+GET  /pipa/protocol
+POST /pipa/challenge   {"device_id":"waveshare-01"}
+WS   /pipa/ws
 ```
 
 Las búsquedas solo abren resultados en el navegador. Apple Music no reproduce
@@ -108,3 +111,8 @@ Discord puede abrir un DM, un grupo o un canal de servidor con un ID de
 Discord válido. La llamada no se inicia automáticamente: el usuario debe
 confirmarla en Discord. No se automatizan cuentas personales ni se leen
 contactos, mensajes o tokens.
+
+El WebSocket `/pipa/ws` usa el mismo desafío/respuesta Ed25519 del Trusted
+Unlock. El primer mensaje debe ser `hello`; después admite `text_input`,
+`tool_call`, `confirm`, gestos y estados de interacción. El simulador de
+desarrollo vive en `backend/pipa_core/simulator.py` y no persiste claves.

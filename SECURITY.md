@@ -62,6 +62,12 @@ Discord se limita a abrir un canal conocido a partir de un ID validado. No se
 automatizan cuentas personales, no se usan self-bots, no se leen contactos o
 mensajes y no se inicia una llamada sin confirmación en el cliente Discord.
 
+El canal `/pipa/ws` solo escucha en loopback en esta fase y exige un desafío /
+respuesta Ed25519 de un dispositivo emparejado. Las confirmaciones de acciones
+externas están ligadas a la sesión que las creó y caducan en 30 segundos. La
+memoria del núcleo es temporal y acotada; todavía no se persiste información
+personal hasta definir cifrado, borrado y exportación.
+
 ## Reportar problemas
 
 No publiques detalles sensibles en issues públicos. Conserva el contenido
