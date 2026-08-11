@@ -49,6 +49,10 @@ intentar hablar con el pipe; por eso la firma del dispositivo sigue siendo la
 autorización real. Los tickets son de un solo uso y el broker informa siempre
 `unlock_enabled = false`.
 
+El simulador de dispositivo solo existe para pruebas automatizadas: genera su
+clave privada en memoria y no ofrece exportación ni persistencia. No debe
+usarse como sustituto de un móvil o Waveshare real.
+
 ## Reportar problemas
 
 No publiques detalles sensibles en issues públicos. Conserva el contenido

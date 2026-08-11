@@ -3,20 +3,18 @@ import sys
 import unittest
 from pathlib import Path
 
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from trusted_unlock_broker import TrustedUnlockBroker  # noqa: E402
 from trusted_unlock_devices import InMemoryDeviceStore  # noqa: E402
-from trusted_unlock_protocol import create_signed_response  # noqa: E402
+from trusted_unlock_simulator import InMemoryTrustedDevice  # noqa: E402
 
 
 class TrustedUnlockBrokerTests(unittest.TestCase):
     def setUp(self):
-        self.private_key = Ed25519PrivateKey.generate()
+        self.device = InMemoryTrustedDevice.generate("phone-main")
         store = InMemoryDeviceStore()
-        store.register("phone-main", self.private_key.public_key(), created_at=1000)
+        store.register("phone-main", self.device.public_key, created_at=1000)
         self.broker = TrustedUnlockBroker.from_store(store)
 
     def request(self, command, payload=None):
@@ -46,7 +44,7 @@ class TrustedUnlockBrokerTests(unittest.TestCase):
         from trusted_unlock_protocol import Challenge
 
         challenge = Challenge(**challenge_data)
-        signed = create_signed_response(challenge, self.private_key)
+        signed = self.device.sign(challenge)
         submit_response = self.request(
             "challenge.submit",
             {"response": {

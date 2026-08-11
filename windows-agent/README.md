@@ -51,6 +51,10 @@ automáticamente. El cliente del pipe está preparado para las pruebas del
 Credential Provider, pero no existe ninguna ruta que pueda producir una
 serialización de Windows.
 
+Las pruebas usan `trusted_unlock_simulator.py`, que genera una identidad
+efímera únicamente en memoria. No hay un simulador de producción ni una
+clave privada de prueba guardada en el ordenador.
+
 ## Inicio sin ventana
 
 Para el inicio automático, configura la tarea existente para ejecutar
