@@ -1,11 +1,12 @@
 import webbrowser
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from tools.apps import open_app, load_apps
 from tools.system import get_system_status, lock_pc
 from tools.audio import get_volume, set_volume, mute, unmute
+from tools.urls import validate_external_url
 
 
 app = FastAPI(
@@ -63,11 +64,16 @@ def api_open_app(request: AppRequest):
 
 @app.post("/open-url")
 def api_open_url(request: UrlRequest):
-    webbrowser.open(request.url)
+    try:
+        url = validate_external_url(request.url)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    webbrowser.open(url)
 
     return {
         "success": True,
-        "message": f"Abriendo {request.url}"
+        "message": f"Abriendo {url}"
     }
 
 

@@ -1,0 +1,72 @@
+# OS and editor metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+.vs/
+*.suo
+*.user
+
+# Python caches, virtual environments and local tooling
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.kdbx
+*secret*
+*secrets*
+*credential*
+*credentials*
+*token*
+*.sqlite
+*.sqlite3
+
+# Build products and generated native-toolchain files
+**/build/
+**/out/
+**/bin/
+**/obj/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.sln
+*.slnx
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.pdb
+*.ilk
+*.obj
+*.dll
+*.exe
+*.exp
+*.lib
+*.tlog/
+
+# Logs, dumps and local reports
+*.log
+*.dmp
+*.tmp
+*.bak
+
+# Machine-specific application configuration
+windows-agent/config/apps.json
+windows-agent/config/*.local.json
+windows-agent/config/*.private.json

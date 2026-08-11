@@ -46,3 +46,9 @@ add_executable(
     PipaProviderTest
     tests/provider_smoke_test.cpp
 )
+
+target_link_libraries(
+    PipaProviderTest
+    PRIVATE
+    ole32
+)

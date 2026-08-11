@@ -1,0 +1,36 @@
+{
+  "calculator": {
+    "aliases": ["calculator", "calculadora"],
+    "command": ["calc.exe"]
+  },
+  "notepad": {
+    "aliases": ["notepad", "bloc de notas"],
+    "command": ["notepad.exe"]
+  },
+  "explorer": {
+    "aliases": ["explorer", "explorador", "archivos"],
+    "command": ["explorer.exe"]
+  },
+  "chrome": {
+    "aliases": ["chrome", "google chrome"],
+    "command": ["cmd", "/c", "start", "", "chrome"]
+  },
+  "vscode": {
+    "aliases": ["vscode", "visual studio code", "code"],
+    "command": ["cmd", "/c", "start", "", "code"]
+  },
+  "apple_music": {
+    "aliases": ["apple music", "music", "música"],
+    "command": [
+      "cmd",
+      "/c",
+      "start",
+      "",
+      "shell:AppsFolder\\AppleInc.AppleMusicWin_nzyj5cx40ttqa!App"
+    ]
+  },
+  "league_of_legends": {
+    "aliases": ["lol", "league", "league of legends"],
+    "command": ["LeagueClient.exe"]
+  }
+}
