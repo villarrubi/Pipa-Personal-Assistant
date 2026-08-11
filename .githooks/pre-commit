@@ -1,0 +1,4 @@
+#!/bin/sh
+
+exec powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass \
+  -File scripts/check_repo_hygiene.ps1

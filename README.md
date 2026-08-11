@@ -89,6 +89,15 @@ El agente no deja una ventana CMD abierta. Su log está en
 
 ## Validación
 
+Activa una vez los hooks locales de seguridad de este repositorio:
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+Desde entonces, cada commit revisa los archivos publicables y cada push vuelve
+a revisar tanto esos archivos como todo el historial alcanzable.
+
 ```powershell
 python -B -m unittest discover -s backend/tests -p "test_*.py"
 python -B -m unittest discover -s windows-agent/tests -p "test_*.py"
