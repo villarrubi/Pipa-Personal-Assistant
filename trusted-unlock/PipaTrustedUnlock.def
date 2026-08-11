@@ -1,0 +1,5 @@
+LIBRARY PipaTrustedUnlock
+
+EXPORTS
+    DllGetClassObject PRIVATE
+    DllCanUnloadNow   PRIVATE

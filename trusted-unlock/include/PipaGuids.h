@@ -1,0 +1,12 @@
+#pragma once
+
+#include <guiddef.h>
+
+// {7D886843-37F4-4C64-A45A-8550F112E57A}
+DEFINE_GUID(
+    CLSID_PipaCredentialProvider,
+    0x7d886843,
+    0x37f4,
+    0x4c64,
+    0xa4, 0x5a, 0x85, 0x50, 0xf1, 0x12, 0xe5, 0x7a
+);
