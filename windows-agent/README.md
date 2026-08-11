@@ -27,6 +27,30 @@ python .\trusted_unlock_admin.py revoke --device-id phone-main --yes
 
 La clave privada debe permanecer en el móvil o hardware autorizado.
 
+## Broker local Trusted Unlock
+
+El broker separado (`trusted_unlock_broker.py`) usa el Named Pipe
+`\\.\pipe\PipaTrustedUnlock`. Su ACL permite acceso únicamente al usuario que
+lo ejecuta y a `SYSTEM`. Acepta salud, desafíos, respuestas firmadas y
+tickets de un solo uso; no tiene ningún comando de desbloqueo y anuncia
+`unlock_enabled = false`.
+
+Para probarlo manualmente en Windows, instala las dependencias y ejecútalo
+desde una consola del agente:
+
+```powershell
+python -m pip install -r .\requirements.txt
+python .\trusted_unlock_broker.py
+```
+
+El emparejamiento y la revocación siguen siendo operaciones administrativas
+separadas. Reinicia el broker después de cambiar las claves del Registro.
+
+Esta primera versión no se registra todavía como servicio ni se inicia
+automáticamente. El cliente del pipe está preparado para las pruebas del
+Credential Provider, pero no existe ninguna ruta que pueda producir una
+serialización de Windows.
+
 ## Inicio sin ventana
 
 Para el inicio automático, configura la tarea existente para ejecutar

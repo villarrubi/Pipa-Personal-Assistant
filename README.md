@@ -13,7 +13,9 @@ Unlock controlado criptográficamente.
 - El protocolo Ed25519 de desafío/respuesta tiene pruebas unitarias.
 - Existe almacenamiento administrativo de claves públicas y tickets de una
   sola operación en memoria.
-- Todavía no existe un broker Windows ni un flujo de desbloqueo real.
+- Existe un broker local experimental con Named Pipe y ACL explícita, pero no
+  tiene capacidad de desbloqueo.
+- Todavía no existe un flujo de desbloqueo real ni integración con Waveshare.
 
 La contraseña, el PIN, Windows Hello y los Credential Providers normales no se
 sustituyen ni se desactivan.
@@ -54,7 +56,7 @@ python main.py
 ```
 
 No se debe exponer este servidor a la red ni añadirle un endpoint de
-desbloqueo. La autorización Trusted Unlock tendrá un broker y un IPC propios.
+desbloqueo. Trusted Unlock usa un broker separado y un Named Pipe propio.
 
 ## Compilar y probar el Credential Provider
 
@@ -131,8 +133,8 @@ depuración.
 ## Roadmap
 
 1. Endurecer instalación, desinstalación y recuperación.
-2. Crear un broker Windows con IPC local y ACL explícita.
-3. Probar el broker con un dispositivo simulado.
+2. Ejecutar el broker como proceso controlado y probar reinicios, ACL y reloj.
+3. Probar el broker con un dispositivo simulado y fallos adversarios.
 4. Integrar el Credential Provider sin activar todavía la serialización.
 5. Emparejar el futuro Waveshare mediante una clave privada que nunca salga
    del dispositivo.

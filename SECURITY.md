@@ -13,6 +13,8 @@ No se considera todavía un producto de autenticación listo para producción.
 - No desactivar contraseña, PIN, Windows Hello ni otros Credential Providers.
 - No exponer el Windows Agent en una interfaz de red pública.
 - No añadir un endpoint HTTP que desbloquee Windows.
+- No convertir el broker experimental en un servicio privilegiado ni activar
+  el desbloqueo antes de completar las pruebas de IPC, ACL y recuperación.
 - No generar una serialización de Windows sin una revisión de seguridad y un
   procedimiento de recuperación probado.
 - No registrar dispositivos sin una confirmación explícita y verificable de su
@@ -39,6 +41,13 @@ Cada fase debe probar al menos:
 4. Registro o DLL ausentes o modificados;
 5. broker apagado, reinicio y reloj incorrecto;
 6. recuperación mediante el método normal de Windows.
+
+El broker actual usa un Named Pipe con acceso para el usuario de la sesión y
+`SYSTEM`, además de exigir una firma Ed25519 del dispositivo emparejado para
+crear un ticket. Un proceso que comparta la misma cuenta de Windows puede
+intentar hablar con el pipe; por eso la firma del dispositivo sigue siendo la
+autorización real. Los tickets son de un solo uso y el broker informa siempre
+`unlock_enabled = false`.
 
 ## Reportar problemas
 
