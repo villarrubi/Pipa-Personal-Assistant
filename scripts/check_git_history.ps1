@@ -50,3 +50,4 @@ if ($violations.Count -gt 0) {
 }
 
 Write-Host "Historial Git OK: $($revisions.Count) revisiones comprobadas." -ForegroundColor Green
+exit 0
