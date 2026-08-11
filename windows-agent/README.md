@@ -70,3 +70,20 @@ permisos para cambiar su acción):
 
 `start_agent.bat` se mantiene como lanzador manual y de depuración; ese sí
 abre una consola para poder ver los mensajes del agente.
+
+## Comandos de navegador y aplicaciones
+
+Además de `/open-app` y `/open-url`, están disponibles:
+
+```text
+POST /web/search       {"query":"..."}
+POST /music/search     {"term":"..."}
+POST /league/open      {}
+POST /codex/open       {}
+```
+
+Las búsquedas solo abren resultados en el navegador. Apple Music no reproduce
+automáticamente una canción; abre su búsqueda web. League solo se inicia y
+Codex solo se abre si existe una entrada `codex` explícita en la configuración
+local ignorada por Git. No se automatiza texto, matchmaking ni interfaces de
+terceros.

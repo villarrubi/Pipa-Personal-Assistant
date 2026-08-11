@@ -6,6 +6,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tools.apps import validate_apps_config  # noqa: E402
+from tools.commands import (  # noqa: E402
+    build_apple_music_search_url,
+    build_web_search_url,
+)
 from tools.urls import validate_external_url  # noqa: E402
 
 
@@ -36,6 +40,22 @@ class AppsAndUrlsTests(unittest.TestCase):
     def test_urls_with_embedded_credentials_are_rejected(self):
         with self.assertRaises(ValueError):
             validate_external_url("https://user:password@example.com/")
+
+    def test_web_search_url_is_bounded_and_encoded(self):
+        url = build_web_search_url("qué buscar")
+
+        self.assertTrue(url.startswith("https://www.google.com/search?q="))
+        self.assertIn("%C3%A9", url)
+
+    def test_apple_music_search_url_is_bounded_and_encoded(self):
+        url = build_apple_music_search_url("artista canción")
+
+        self.assertTrue(url.startswith("https://music.apple.com/es/search?term="))
+        self.assertIn("%C3%B3", url)
+
+    def test_search_queries_cannot_be_unbounded(self):
+        with self.assertRaises(ValueError):
+            build_web_search_url("x" * 201)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from tools.apps import open_app, load_apps
+from tools.commands import (
+    build_apple_music_search_url,
+    build_web_search_url,
+    open_codex,
+    open_league,
+)
 from tools.system import get_system_status, lock_pc
 from tools.audio import get_volume, set_volume, mute, unmute
 from tools.urls import validate_external_url
@@ -25,6 +31,14 @@ class UrlRequest(BaseModel):
 
 class VolumeRequest(BaseModel):
     percent: int
+
+
+class QueryRequest(BaseModel):
+    query: str
+
+
+class MusicRequest(BaseModel):
+    term: str
 
 
 @app.get("/")
@@ -75,6 +89,38 @@ def api_open_url(request: UrlRequest):
         "success": True,
         "message": f"Abriendo {url}"
     }
+
+
+@app.post("/web/search")
+def api_web_search(request: QueryRequest):
+    try:
+        url = build_web_search_url(request.query)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    webbrowser.open(url)
+    return {"success": True, "url": url, "message": "Búsqueda abierta en el navegador."}
+
+
+@app.post("/music/search")
+def api_music_search(request: MusicRequest):
+    try:
+        url = build_apple_music_search_url(request.term)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    webbrowser.open(url)
+    return {"success": True, "url": url, "message": "Búsqueda de Apple Music abierta."}
+
+
+@app.post("/league/open")
+def api_open_league():
+    return open_league()
+
+
+@app.post("/codex/open")
+def api_open_codex():
+    return open_codex()
 
 
 @app.get("/system/status")

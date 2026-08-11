@@ -8,6 +8,8 @@ Unlock controlado criptográficamente.
 
 - El Windows Agent puede consultar el sistema, controlar audio, abrir apps y
   bloquear el equipo.
+- También puede abrir búsquedas web, búsquedas de Apple Music y aplicaciones
+  configuradas como League o Codex, sin automatizar sus interfaces.
 - El Credential Provider aparece como opción adicional en LogonUI.
 - La tile de Pipα no autentica ni desbloquea Windows.
 - El protocolo Ed25519 de desafío/respuesta tiene pruebas unitarias.
