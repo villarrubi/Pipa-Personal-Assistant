@@ -124,7 +124,7 @@ retirarse de su historial, primero hay que hacer una limpieza histórica
 revisada y después un push coordinado.
 
 El agente puede arrancarse automáticamente sin una ventana visible usando
-`windows-agent/start_agent.vbs` y `windows-agent/install_agent_task.ps1`.
+`windows-agent/start_agent_hidden.ps1` y `windows-agent/install_agent_task.ps1`.
 El archivo `start_agent.bat` queda reservado para ejecución manual y
 depuración.
 

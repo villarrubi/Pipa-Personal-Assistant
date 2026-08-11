@@ -30,9 +30,10 @@ La clave privada debe permanecer en el móvil o hardware autorizado.
 ## Inicio sin ventana
 
 Para el inicio automático, configura la tarea existente para ejecutar
-`start_agent.vbs` mediante `wscript.exe`. Así el agente se inicia sin dejar
-una ventana CMD visible. Ejecuta PowerShell como administrador (la tarea de
-Windows requiere permisos para cambiar su acción):
+PowerShell oculto y `start_agent_hidden.ps1`. El lanzador usa `pyw.exe` o
+`pythonw.exe`, por lo que el agente se inicia sin dejar una ventana CMD
+visible. Ejecuta PowerShell como administrador (la tarea de Windows requiere
+permisos para cambiar su acción):
 
 ```powershell
 .\install_agent_task.ps1 -WhatIf
