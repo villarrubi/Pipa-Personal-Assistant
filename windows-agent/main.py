@@ -10,6 +10,7 @@ from tools.commands import (
     open_codex,
     open_league,
 )
+from tools.discord import open_discord_channel
 from tools.league import LeagueClientError, with_client
 from tools.system import get_system_status, lock_pc
 from tools.system import get_network_status, get_power_status
@@ -62,6 +63,11 @@ class TimerRequest(BaseModel):
 class WhatsAppRequest(BaseModel):
     phone: str
     message: str
+
+
+class DiscordChannelRequest(BaseModel):
+    channel_id: str
+    guild_id: str | None = None
 
 
 timer_manager = TimerManager()
@@ -240,6 +246,14 @@ def api_whatsapp_compose(request: WhatsAppRequest):
         "sent": False,
         "message": "Chat preparado; debes pulsar Enviar manualmente.",
     }
+
+
+@app.post("/discord/channel/open")
+def api_discord_channel_open(request: DiscordChannelRequest):
+    try:
+        return open_discord_channel(request.channel_id, request.guild_id)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
 
 @app.get("/audio/volume")

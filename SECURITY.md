@@ -58,6 +58,10 @@ usarse como sustituto de un móvil o Waveshare real.
 WhatsApp se limita a construir enlaces `wa.me` con texto prellenado. El agente
 no lee cookies, contactos o historial y nunca pulsa el botón de envío.
 
+Discord se limita a abrir un canal conocido a partir de un ID validado. No se
+automatizan cuentas personales, no se usan self-bots, no se leen contactos o
+mensajes y no se inicia una llamada sin confirmación en el cliente Discord.
+
 ## Reportar problemas
 
 No publiques detalles sensibles en issues públicos. Conserva el contenido

@@ -90,6 +90,7 @@ POST /timers           {"seconds":300,"label":"Descanso"}
 GET  /timers
 DELETE /timers/{id}
 POST /whatsapp/compose {"phone":"+34600123456","message":"Hola"}
+POST /discord/channel/open {"channel_id":"12345678901234567"}
 ```
 
 Las búsquedas solo abren resultados en el navegador. Apple Music no reproduce
@@ -103,3 +104,7 @@ Los comandos multimedia permitidos son `play_pause`, `next`, `previous` y
 `stop`. Los temporizadores viven en memoria y se consultan mediante polling;
 no persisten tras reiniciar el agente. WhatsApp abre un enlace `wa.me` con el
 mensaje preparado, pero siempre requiere pulsar `Enviar` manualmente.
+Discord puede abrir un DM, un grupo o un canal de servidor con un ID de
+Discord válido. La llamada no se inicia automáticamente: el usuario debe
+confirmarla en Discord. No se automatizan cuentas personales ni se leen
+contactos, mensajes o tokens.
