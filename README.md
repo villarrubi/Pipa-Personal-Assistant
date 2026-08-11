@@ -25,7 +25,9 @@ Unlock controlado criptográficamente.
   sola operación en memoria.
 - Existe un broker local experimental con Named Pipe y ACL explícita, pero no
   tiene capacidad de desbloqueo.
-- Todavía no existe un flujo de desbloqueo real ni integración con Waveshare.
+- El firmware inicial para Waveshare ESP32-S3-Touch-LCD-1.85C-BOX está en
+  `firmware/`: identidad Ed25519, USB CDC, táctil y Wake-on-LAN.
+- Todavía no existe un flujo de desbloqueo real ni serialización de Windows.
 
 La contraseña, el PIN, Windows Hello y los Credential Providers normales no se
 sustituyen ni se desactivan.
@@ -37,7 +39,7 @@ Pipa/
 ├── trusted-unlock/       Credential Provider x64 y scripts de instalación
 ├── windows-agent/        Agente local y núcleo de autorización
 ├── backend/              Espacio reservado para el backend futuro
-└── firmware/             Espacio reservado para ESP32/Waveshare
+└── firmware/             Firmware ESP32-S3/Waveshare y configuración local
 ```
 
 ## Requisitos

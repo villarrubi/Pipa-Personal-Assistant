@@ -10,6 +10,13 @@ from backend.pipa_core.protocol import ProtocolError, parse_client_message  # no
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_parses_challenge_request(self):
+        message = parse_client_message(
+            {"protocol_version": 1, "type": "challenge_request", "device_id": "waveshare-01"}
+        )
+        self.assertEqual(message.type, "challenge_request")
+        self.assertEqual(message.fields["device_id"], "waveshare-01")
+
     def test_parses_tool_call(self):
         message = parse_client_message(
             {

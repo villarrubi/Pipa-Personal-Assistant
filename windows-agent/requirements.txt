@@ -4,4 +4,5 @@ psutil
 pycaw
 comtypes
 cryptography>=41.0
+pyserial
 pywin32>=306; platform_system == "Windows"

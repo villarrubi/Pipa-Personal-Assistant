@@ -51,6 +51,31 @@ automáticamente. El cliente del pipe está preparado para las pruebas del
 Credential Provider, pero no existe ninguna ruta que pueda producir una
 serialización de Windows.
 
+## Waveshare por USB
+
+El agente incluye un gateway serie opcional para el
+`ESP32-S3-Touch-LCD-1.85C-BOX`. No se activa por defecto. Para activarlo,
+instala las dependencias y define explícitamente el puerto COM:
+
+```powershell
+python -m pip install -r .\requirements.txt
+$env:PIPA_SERIAL_PORT = "COM7"
+python .\main.py
+```
+
+Para que la tarea automática lo herede después de iniciar sesión, guarda el
+puerto como variable del usuario y vuelve a iniciar sesión:
+
+```powershell
+[Environment]::SetEnvironmentVariable("PIPA_SERIAL_PORT", "COM7", "User")
+```
+
+El dispositivo envía `challenge_request`, recibe un desafío efímero, firma el
+objeto con su clave Ed25519 y continúa por el mismo protocolo autenticado del
+WebSocket. El gateway serie no expone el agente a la red. Para el arranque
+automático, la variable debe configurarse en el entorno de la tarea de
+Windows, no escribirse en el repositorio.
+
 Las pruebas usan `trusted_unlock_simulator.py`, que genera una identidad
 efímera únicamente en memoria. No hay un simulador de producción ni una
 clave privada de prueba guardada en el ordenador.
