@@ -80,10 +80,14 @@ POST /web/search       {"query":"..."}
 POST /music/search     {"term":"..."}
 POST /league/open      {}
 POST /codex/open       {}
+GET  /league/status
+POST /league/search    {"queue":"ranked_solo"}
+DELETE /league/search
 ```
 
 Las búsquedas solo abren resultados en el navegador. Apple Music no reproduce
-automáticamente una canción; abre su búsqueda web. League solo se inicia y
-Codex solo se abre si existe una entrada `codex` explícita en la configuración
-local ignorada por Git. No se automatiza texto, matchmaking ni interfaces de
-terceros.
+automáticamente una canción; abre su búsqueda web. League puede consultar el
+lobby y empezar/cancelar la búsqueda en una cola permitida cuando el cliente ya
+está abierto y autenticado. Codex solo se abre si existe una entrada `codex`
+explícita en la configuración local ignorada por Git. No se automatiza texto ni
+se accede a interfaces de terceros fuera de las rutas locales previstas.

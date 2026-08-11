@@ -10,6 +10,7 @@ from tools.commands import (
     open_codex,
     open_league,
 )
+from tools.league import LeagueClientError, with_client
 from tools.system import get_system_status, lock_pc
 from tools.audio import get_volume, set_volume, mute, unmute
 from tools.urls import validate_external_url
@@ -39,6 +40,10 @@ class QueryRequest(BaseModel):
 
 class MusicRequest(BaseModel):
     term: str
+
+
+class LeagueQueueRequest(BaseModel):
+    queue: str
 
 
 @app.get("/")
@@ -116,6 +121,32 @@ def api_music_search(request: MusicRequest):
 @app.post("/league/open")
 def api_open_league():
     return open_league()
+
+
+@app.get("/league/status")
+def api_league_status():
+    try:
+        return with_client(lambda client: client.status())
+    except LeagueClientError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+
+@app.post("/league/search")
+def api_league_search(request: LeagueQueueRequest):
+    try:
+        return with_client(lambda client: client.start_search(request.queue))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except LeagueClientError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+
+@app.delete("/league/search")
+def api_league_cancel_search():
+    try:
+        return with_client(lambda client: client.cancel_search())
+    except LeagueClientError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
 
 
 @app.post("/codex/open")

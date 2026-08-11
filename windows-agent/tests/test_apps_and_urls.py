@@ -10,6 +10,7 @@ from tools.commands import (  # noqa: E402
     build_apple_music_search_url,
     build_web_search_url,
 )
+from tools.league import parse_client_command_line, resolve_queue_id  # noqa: E402
 from tools.urls import validate_external_url  # noqa: E402
 
 
@@ -56,6 +57,21 @@ class AppsAndUrlsTests(unittest.TestCase):
     def test_search_queries_cannot_be_unbounded(self):
         with self.assertRaises(ValueError):
             build_web_search_url("x" * 201)
+
+    def test_league_queue_allowlist(self):
+        self.assertEqual(resolve_queue_id("ranked_solo"), 420)
+        with self.assertRaises(ValueError):
+            resolve_queue_id("custom-dangerous-queue")
+
+    def test_league_client_arguments_are_parsed_without_exposing_token(self):
+        connection = parse_client_command_line([
+            "LeagueClientUx.exe",
+            "--app-port=54321",
+            "--remoting-auth-token=secret-token",
+        ])
+
+        self.assertEqual(connection.port, 54321)
+        self.assertEqual(connection.token, "secret-token")
 
 
 if __name__ == "__main__":
