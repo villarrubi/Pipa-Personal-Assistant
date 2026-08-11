@@ -50,7 +50,9 @@ def parse_client_message(payload: Mapping[str, Any]) -> ClientMessage:
     version = _protocol_version(payload)
     fields: dict[str, Any] = {"protocol_version": version}
 
-    if message_type == "hello":
+    if message_type == "challenge_request":
+        fields["device_id"] = _string(payload, "device_id", maximum=64)
+    elif message_type == "hello":
         fields.update(
             device_id=_string(payload, "device_id", maximum=64),
             challenge_id=_string(payload, "challenge_id", maximum=128),

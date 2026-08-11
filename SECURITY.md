@@ -68,6 +68,16 @@ externas están ligadas a la sesión que las creó y caducan en 30 segundos. La
 memoria del núcleo es temporal y acotada; todavía no se persiste información
 personal hasta definir cifrado, borrado y exportación.
 
+El transporte USB del Waveshare es opcional y requiere configurar
+`PIPA_SERIAL_PORT` de forma explícita. No abre un puerto de red: intercambia
+JSON por USB CDC y reutiliza el mismo desafío Ed25519. Al desconectarse el
+dispositivo, la sesión se cierra. Wake-on-LAN solo se emite desde el
+dispositivo hacia la red local y no constituye un canal de desbloqueo.
+
+En el firmware de desarrollo la clave privada vive en NVS. No se habilitará
+Trusted Unlock real hasta validar el cifrado de Flash, Secure Boot, el proceso
+de actualización y la recuperación física del ESP32-S3.
+
 ## Reportar problemas
 
 No publiques detalles sensibles en issues públicos. Conserva el contenido

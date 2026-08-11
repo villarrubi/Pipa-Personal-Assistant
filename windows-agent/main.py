@@ -1,6 +1,7 @@
 import platform
 import sys
 import webbrowser
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -37,9 +38,27 @@ from trusted_unlock_devices import (
 from trusted_unlock_protocol import TrustedUnlockError
 
 
+_serial_gateway = None
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    global _serial_gateway
+    try:
+        from pipa_serial_gateway import start_configured_gateway
+
+        _serial_gateway = start_configured_gateway(pipa_core)
+        yield
+    finally:
+        if _serial_gateway is not None:
+            _serial_gateway.stop()
+            _serial_gateway = None
+
+
 app = FastAPI(
     title="Pipα Windows Agent",
-    version="0.4.0"
+    version="0.4.0",
+    lifespan=lifespan,
 )
 
 
@@ -301,6 +320,7 @@ def api_pipa_protocol():
         "websocket": "/pipa/ws",
         "tool_names": pipa_core.tool_names(),
         "connected_sessions": pipa_core.sessions.count(),
+        "serial_gateway": _serial_gateway is not None,
     }
 
 

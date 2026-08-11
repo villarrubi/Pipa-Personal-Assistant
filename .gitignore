@@ -19,6 +19,9 @@ ENV/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.pio/
+.pioenvs/
+firmware/libdeps/
 
 # Environment files and local secrets
 .env
@@ -70,3 +73,6 @@ Makefile
 windows-agent/config/apps.json
 windows-agent/config/*.local.json
 windows-agent/config/*.private.json
+
+# Device-local Wi-Fi, MAC and firmware provisioning values
+firmware/include/pipa_device_config.local.h
