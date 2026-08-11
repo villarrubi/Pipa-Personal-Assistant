@@ -21,10 +21,10 @@ def get_system_status():
         "os_version": platform.version(),
         "cpu_usage": psutil.cpu_percent(interval=0.5),
         "ram_usage": memory.percent,
-        "ram_available_gb": round(memory.available / (1024 ** 3), 2),
+        "ram_available_gb": round(memory.available / (1024**3), 2),
         "disk_usage": disk.percent,
-        "disk_free_gb": round(disk.free / (1024 ** 3), 2),
-        "uptime_seconds": uptime_seconds
+        "disk_free_gb": round(disk.free / (1024**3), 2),
+        "uptime_seconds": uptime_seconds,
     }
 
 
@@ -32,17 +32,10 @@ def lock_pc():
     try:
         ctypes.windll.user32.LockWorkStation()
 
-        return {
-            "success": True,
-            "message": "Orden de bloqueo enviada."
-        }
+        return {"success": True, "message": "Orden de bloqueo enviada."}
 
     except Exception as error:
-        return {
-            "success": False,
-            "message": "No he podido bloquear el ordenador.",
-            "error": str(error)
-        }
+        return {"success": False, "message": "No he podido bloquear el ordenador.", "error": str(error)}
 
 
 def get_power_status():

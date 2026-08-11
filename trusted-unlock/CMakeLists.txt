@@ -47,6 +47,12 @@ add_executable(
     tests/provider_smoke_test.cpp
 )
 
+target_compile_options(
+    PipaProviderTest
+    PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/EHsc>
+)
+
 target_link_libraries(
     PipaProviderTest
     PRIVATE

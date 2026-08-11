@@ -19,8 +19,12 @@ ENV/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
 .pio/
 .pioenvs/
+.platformio/
 firmware/libdeps/
 
 # Environment files and local secrets
@@ -42,9 +46,12 @@ firmware/libdeps/
 
 # Build products and generated native-toolchain files
 **/build/
+**/build-ci/
 **/out/
 **/bin/
 **/obj/
+**/dist/
+.local-backups/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
@@ -62,6 +69,12 @@ Makefile
 *.exp
 *.lib
 *.tlog/
+*.bin
+*.elf
+*.hex
+*.map
+*.uf2
+*.sarif
 
 # Logs, dumps and local reports
 *.log

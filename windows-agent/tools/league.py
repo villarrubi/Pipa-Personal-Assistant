@@ -19,7 +19,6 @@ from typing import Any
 
 import psutil
 
-
 QUEUE_IDS = {
     "normal_draft": 400,
     "ranked_solo": 420,
@@ -97,9 +96,7 @@ class LeagueClientApi:
         if not path.startswith("/lol-lobby/v2/"):
             raise LeagueClientError("Ruta League no permitida.")
 
-        auth = base64.b64encode(
-            f"riot:{self._connection.token}".encode("utf-8")
-        ).decode("ascii")
+        auth = base64.b64encode(f"riot:{self._connection.token}".encode()).decode("ascii")
         context = ssl._create_unverified_context()
         connection = http.client.HTTPSConnection(
             "127.0.0.1",

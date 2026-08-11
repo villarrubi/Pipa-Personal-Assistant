@@ -16,7 +16,6 @@ from trusted_unlock_protocol import (
     VerifiedAuthorization,
 )
 
-
 TICKET_TTL_SECONDS = 5
 MAX_TICKET_TTL_SECONDS = 10
 
@@ -72,9 +71,7 @@ class TicketIssuer:
         if authorization.operation != UNLOCK_OPERATION:
             raise TicketOperationError("only the unlock operation can issue a ticket")
         if ttl_seconds < 1 or ttl_seconds > MAX_TICKET_TTL_SECONDS:
-            raise ValueError(
-                f"ttl_seconds must be between 1 and {MAX_TICKET_TTL_SECONDS}"
-            )
+            raise ValueError(f"ttl_seconds must be between 1 and {MAX_TICKET_TTL_SECONDS}")
 
         issued_at = int(time.time() if now is None else now)
         if issued_at > authorization.expires_at:
@@ -131,18 +128,10 @@ class TicketIssuer:
             return len(self._tickets)
 
     def _prune(self, now: int) -> None:
-        expired = [
-            token
-            for token, ticket in self._tickets.items()
-            if ticket.expires_at < now
-        ]
+        expired = [token for token, ticket in self._tickets.items() if ticket.expires_at < now]
         for token in expired:
             del self._tickets[token]
 
-        expired_consumed = [
-            token
-            for token, expires_at in self._consumed.items()
-            if expires_at < now
-        ]
+        expired_consumed = [token for token, expires_at in self._consumed.items() if expires_at < now]
         for token in expired_consumed:
             del self._consumed[token]

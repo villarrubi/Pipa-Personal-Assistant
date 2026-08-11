@@ -1,44 +1,50 @@
-# Firmware de Pipα para Waveshare ESP32-S3-Touch-LCD-1.85C
+# Firmware Pipα — Waveshare ESP32-S3-Touch-LCD-1.85C
 
-Esta carpeta contiene el firmware específico para el modelo comprado:
-**ESP32-S3-Touch-LCD-1.85C-BOX, SKU 30684**.
+Firmware específico para el **ESP32-S3-Touch-LCD-1.85C-BOX, SKU 30684,
+N16R8**. Usa PlatformIO, Arduino-ESP32, 16 MB de Flash, 8 MB de PSRAM y USB
+CDC. La referencia física está en la
+[documentación oficial de Waveshare](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.85C).
 
-La placa aporta Wi‑Fi 2,4 GHz, BLE 5, pantalla táctil circular, micrófono,
-audio y USB-C. La documentación y el mapa de pines oficiales están en
-[Waveshare](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.85C).
+## Implementado y compilado
 
-## Qué está implementado
-
-- Identidad Ed25519 generada en el propio dispositivo y guardada en NVS.
-- Petición de desafío y respuesta firmada por USB CDC.
-- Transporte JSON delimitado por líneas, compatible con `pipa_core`.
-- Wake-on-LAN local al tocar la pantalla.
+- Definición PlatformIO propia para la variante N16R8.
+- Identidad Ed25519 generada en el dispositivo y persistida en NVS.
+- Fallo cerrado si la identidad NVS existe pero está corrupta.
+- Desafío/respuesta firmado y JSON por líneas sobre USB CDC.
+- Diagnósticos separados del protocolo mediante líneas que empiezan por `#`.
+- Reconexión tras reinicio del agente y timeout de heartbeat.
+- Límites de tamaño de mensaje y validación estricta de desafíos.
 - Lectura básica del controlador táctil CST816.
-- Reintento de autenticación si Windows todavía no tiene el agente listo.
-- Configuración local separada de Git.
+- Wake-on-LAN con MAC estricta, cooldown y Wi‑Fi no bloqueante.
+- Heartbeat y telemetría de RSSI.
 
-El firmware no contiene contraseñas, tokens ni claves privadas del repositorio.
-La clave privada se genera en el dispositivo en el primer arranque. La clave
-pública aparece una sola vez por el monitor serie para poder emparejarla con
-la CLI administrativa de Windows.
+La compilación verificada ocupa aproximadamente un 6,2 % de la partición de
+aplicación y un 7,9 % de la RAM interna. Es una validación de software; no
+demuestra todavía que el pinout, touch, red o periféricos funcionen en la
+unidad física.
 
-Durante desarrollo la clave se guarda en NVS. Antes de considerar el
-desbloqueo apto para uso real hay que activar y verificar el cifrado de Flash
-y Secure Boot del ESP32-S3; hasta entonces el firmware solo debe usarse para
-pruebas de conexión, pantalla y Wake-on-LAN.
+## Deliberadamente pendiente
 
-## Preparación
+- Driver y diseño visual de la pantalla redonda.
+- Micrófono, altavoz, codec/I2S y cancelación de eco.
+- Reconocimiento de voz local o streaming STT.
+- Gestos más ricos que el toque básico.
+- Indicador de batería real.
+- OTA, partición de recuperación, Secure Boot y cifrado de Flash.
 
-Se recomienda PlatformIO con Arduino-ESP32. Waveshare también ofrece ejemplos
-oficiales para Arduino y ESP-IDF; esta primera integración usa Arduino para
-mantener el transporte y las pruebas sencillos mientras no tenemos la placa.
+La capacidad `text_input` significa que el protocolo puede enviar texto ya
+reconocido; no significa que el firmware actual escuche voz.
+
+## Configuración local
+
+Copia la plantilla al archivo local ignorado:
 
 ```powershell
 Copy-Item .\firmware\include\pipa_device_config.example.h `
   .\firmware\include\pipa_device_config.local.h
 ```
 
-Edita únicamente `pipa_device_config.local.h`:
+Edita solo `pipa_device_config.local.h`:
 
 ```cpp
 #define PIPA_WIFI_SSID "tu-wifi-2.4GHz"
@@ -47,66 +53,62 @@ Edita únicamente `pipa_device_config.local.h`:
 #define PIPA_DEVICE_ID "waveshare-01"
 ```
 
-Ese archivo está ignorado por Git.
+Nunca edites con valores reales el archivo rastreado
+`include/pipa_device_config.h`: contiene defaults vacíos para que CI compile
+sin secretos.
 
-## Compilar y cargar
-
-Con PlatformIO instalado:
+## Compilar
 
 ```powershell
-pio run -d firmware
-pio run -d firmware -t upload
-pio device monitor -d firmware
+python -m venv .\firmware\.venv
+.\firmware\.venv\Scripts\python.exe -m pip install platformio==6.1.19
+.\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c
 ```
 
-El entorno usa un `esp32-s3-devkitc-1` como base, 16 MB de Flash y USB CDC.
-El mapa real de pantalla/audio puede variar entre V1 y V2; la revisión se
-selecciona con `PIPA_BOARD_REVISION` y se comprobará con la placa física.
-
-## Emparejamiento
-
-1. Abre el monitor serie a 115200 baudios.
-2. Copia el valor `PIPA_PUBLIC_KEY=...` que muestra el dispositivo.
-3. En una consola elevada del agente ejecuta:
+Con la placa conectada:
 
 ```powershell
-python .\windows-agent\trusted_unlock_admin.py pair `
+.\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c -t upload
+.\firmware\.venv\Scripts\pio.exe device monitor -d firmware -b 115200
+```
+
+## Emparejamiento físico
+
+En cada arranque aparece una línea similar a:
+
+```text
+# PIPA_PUBLIC_KEY=<CLAVE_PUBLICA_BASE64URL>
+```
+
+La clave pública no es secreta, pero hay que comprobar su fingerprint por un
+canal físico antes de autorizarla:
+
+```powershell
+.\windows-agent\.venv\Scripts\python.exe `
+  .\windows-agent\trusted_unlock_admin.py pair `
   --device-id waveshare-01 `
-  --public-key CLAVE_PUBLICA_BASE64URL
+  --public-key <CLAVE_PUBLICA_BASE64URL>
 ```
 
-4. Configura el puerto USB del dispositivo para el agente:
+Después configura el COM como variable del usuario y vuelve a iniciar sesión:
 
 ```powershell
-$env:PIPA_SERIAL_PORT = "COM7"
-python .\windows-agent\main.py
+[Environment]::SetEnvironmentVariable('PIPA_SERIAL_PORT', 'COM7', 'User')
 ```
 
-En la instalación automática, esa variable debe formar parte de la
-configuración del usuario que ejecuta la tarea. El gateway serie está
-desactivado si `PIPA_SERIAL_PORT` no está definido.
+El gateway se mantiene desactivado si esa variable no existe.
 
-## Seguridad
+## Comportamiento del touch
 
-- El gateway serie no abre ningún puerto de red.
-- El desafío caduca y solo puede consumirse una vez.
-- La clave privada nunca se envía por USB ni por Wi‑Fi.
-- El almacenamiento NVS sin cifrado de Flash no se considera una protección
-  suficiente para desbloquear Windows.
-- El dispositivo no puede ejecutar una herramienta peligrosa sin la
-  confirmación prevista por el protocolo.
-- El firmware actual todavía no produce una serialización de Windows ni
-  habilita el desbloqueo automático. Esa será una fase posterior, después de
-  probar emparejamiento, reinicios, pérdida de conexión y recuperación.
+- Sin sesión USB autenticada: intenta Wake-on-LAN si Wi‑Fi y MAC están listas.
+- Con sesión autenticada: envía un gesto `tap` al Pipα Core.
+- Wake-on-LAN nunca desbloquea Windows; solo puede encender o despertar un PC
+  configurado para aceptarlo.
 
-## Sin hardware
+## Seguridad antes de uso sensible
 
-La parte Python se puede probar sin la placa:
-
-```powershell
-python -m unittest discover -s backend/tests -p "test_*.py"
-python -m unittest discover -s windows-agent/tests -p "test_*.py"
-```
-
-La compilación y la validación de pantalla, micrófono, altavoz y Wake-on-LAN
-requieren conectar el Waveshare real.
+La clave privada no sale por USB, pero NVS sin cifrado no basta para un factor
+de autenticación de Windows. Antes de habilitar cualquier desbloqueo hay que
+provisionar y verificar Secure Boot, cifrado de Flash, anti-rollback,
+actualización firmada y recuperación física. Hasta entonces, este firmware es
+para comandos, Wake-on-LAN y validación del hardware.

@@ -1,5 +1,4 @@
 import comtypes
-
 from pycaw.pycaw import AudioUtilities
 
 
@@ -20,7 +19,7 @@ def get_volume():
             "success": True,
             "device": device.FriendlyName,
             "volume": round(current * 100),
-            "muted": muted
+            "muted": muted,
         }
 
     finally:
@@ -34,15 +33,9 @@ def set_volume(percent: int):
         device = get_audio_device()
         volume = device.EndpointVolume
 
-        volume.SetMasterVolumeLevelScalar(
-            percent / 100,
-            None
-        )
+        volume.SetMasterVolumeLevelScalar(percent / 100, None)
 
-        return {
-            "success": True,
-            "volume": percent
-        }
+        return {"success": True, "volume": percent}
 
     finally:
         comtypes.CoUninitialize()
@@ -55,10 +48,7 @@ def mute():
 
         volume.SetMute(1, None)
 
-        return {
-            "success": True,
-            "muted": True
-        }
+        return {"success": True, "muted": True}
 
     finally:
         comtypes.CoUninitialize()
@@ -71,10 +61,7 @@ def unmute():
 
         volume.SetMute(0, None)
 
-        return {
-            "success": True,
-            "muted": False
-        }
+        return {"success": True, "muted": False}
 
     finally:
         comtypes.CoUninitialize()

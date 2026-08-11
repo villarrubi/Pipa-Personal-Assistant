@@ -5,7 +5,6 @@ from __future__ import annotations
 import threading
 from collections import defaultdict
 
-
 MAX_FACT_LENGTH = 500
 MAX_FACTS_PER_DEVICE = 100
 

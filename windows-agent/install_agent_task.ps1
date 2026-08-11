@@ -19,17 +19,40 @@ if (-not (Test-Path -LiteralPath $powershell -PathType Leaf)) {
     throw "No se encuentra Windows PowerShell: $powershell"
 }
 
-$task = Get-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath -ErrorAction SilentlyContinue
-if ($null -eq $task) {
-    throw "No se encuentra la tarea '$TaskPath$TaskName'. Indica el nombre correcto con -TaskName."
-}
-
 $arguments = '-NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f $launcher
 $actionDescription = "Ejecutar PowerShell oculto usando $launcher"
 
 if ($PSCmdlet.ShouldProcess("$TaskPath$TaskName", $actionDescription)) {
     $action = New-ScheduledTaskAction -Execute $powershell -Argument $arguments
-    Set-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath -Action $action | Out-Null
-    Write-Host "Tarea actualizada: $TaskPath$TaskName"
+    $settings = New-ScheduledTaskSettingsSet `
+        -AllowStartIfOnBatteries `
+        -DontStopIfGoingOnBatteries `
+        -ExecutionTimeLimit ([TimeSpan]::Zero) `
+        -RestartCount 3 `
+        -RestartInterval (New-TimeSpan -Minutes 1)
+    $task = Get-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath -ErrorAction SilentlyContinue
+    if ($null -eq $task) {
+        $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
+        $trigger = New-ScheduledTaskTrigger -AtLogOn -User $currentUser
+        $principal = New-ScheduledTaskPrincipal `
+            -UserId $currentUser `
+            -LogonType Interactive `
+            -RunLevel Limited
+        Register-ScheduledTask `
+            -TaskName $TaskName `
+            -TaskPath $TaskPath `
+            -Action $action `
+            -Trigger $trigger `
+            -Settings $settings `
+            -Principal $principal | Out-Null
+        Write-Host "Tarea creada: $TaskPath$TaskName"
+    } else {
+        Set-ScheduledTask `
+            -TaskName $TaskName `
+            -TaskPath $TaskPath `
+            -Action $action `
+            -Settings $settings | Out-Null
+        Write-Host "Tarea actualizada: $TaskPath$TaskName"
+    }
     Write-Host "Accion: $powershell $arguments"
 }

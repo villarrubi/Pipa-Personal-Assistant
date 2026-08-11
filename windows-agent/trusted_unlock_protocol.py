@@ -13,8 +13,8 @@ import re
 import secrets
 import threading
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
@@ -23,7 +23,6 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PublicKey,
 )
 
-
 PROTOCOL_VERSION = 1
 AUDIENCE = "pipa-trusted-unlock"
 UNLOCK_OPERATION = "unlock"
@@ -31,6 +30,8 @@ DEFAULT_TTL_SECONDS = 30
 MAX_TTL_SECONDS = 60
 DEFAULT_CLOCK_SKEW_SECONDS = 5
 NONCE_BYTES = 32
+MAX_PENDING_CHALLENGES = 256
+MAX_PENDING_PER_DEVICE = 8
 
 _IDENTIFIER_PATTERN = re.compile(r"^[^\x00-\x1f]{1,128}$")
 _BASE64URL_PATTERN = re.compile(r"^[A-Za-z0-9_-]+={0,2}$")
@@ -62,6 +63,10 @@ class InvalidResponseError(TrustedUnlockError):
 
 class ReplayDetectedError(TrustedUnlockError):
     """A previously accepted challenge response was presented again."""
+
+
+class ChallengeLimitError(TrustedUnlockError):
+    """Too many unexpired challenges are already pending."""
 
 
 def _validate_identifier(value: str, field_name: str) -> str:
@@ -276,6 +281,9 @@ class AuthorizationVerifier:
             self._prune(issued_at)
             if device_id not in self._trusted_devices:
                 raise UnknownDeviceError(f"device is not trusted: {device_id}")
+            pending_for_device = sum(challenge.device_id == device_id for challenge in self._pending.values())
+            if len(self._pending) >= MAX_PENDING_CHALLENGES or pending_for_device >= MAX_PENDING_PER_DEVICE:
+                raise ChallengeLimitError("too many challenges are pending")
             self._pending[challenge.challenge_id] = challenge
 
         return challenge
@@ -336,17 +344,13 @@ class AuthorizationVerifier:
 
     def _prune(self, now: int) -> None:
         expired_pending = [
-            challenge_id
-            for challenge_id, challenge in self._pending.items()
-            if challenge.expires_at < now
+            challenge_id for challenge_id, challenge in self._pending.items() if challenge.expires_at < now
         ]
         for challenge_id in expired_pending:
             del self._pending[challenge_id]
 
         expired_consumed = [
-            challenge_id
-            for challenge_id, expires_at in self._consumed.items()
-            if expires_at < now
+            challenge_id for challenge_id, expires_at in self._consumed.items() if expires_at < now
         ]
         for challenge_id in expired_consumed:
             del self._consumed[challenge_id]

@@ -47,11 +47,13 @@ class TrustedUnlockBrokerTests(unittest.TestCase):
         signed = self.device.sign(challenge)
         submit_response = self.request(
             "challenge.submit",
-            {"response": {
-                "challenge_id": signed.challenge_id,
-                "device_id": signed.device_id,
-                "signature": signed.signature,
-            }},
+            {
+                "response": {
+                    "challenge_id": signed.challenge_id,
+                    "device_id": signed.device_id,
+                    "signature": signed.signature,
+                }
+            },
         )
 
         self.assertTrue(submit_response["ok"])

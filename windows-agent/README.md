@@ -1,143 +1,152 @@
 # Pipα Windows Agent
 
-Agente local para automatización del PC. En su estado actual ofrece consulta
-de estado, apertura de aplicaciones y URLs HTTP/HTTPS, bloqueo del equipo y
-control del audio.
+Agente local para automatización de Windows y puente autenticado con el futuro
+Waveshare. Escucha exclusivamente en `127.0.0.1:8765`; no debe publicarse en
+la LAN ni reutilizarse como servicio de desbloqueo.
 
-El servidor se enlaza a `127.0.0.1:8765`. No debe cambiarse a `0.0.0.0` ni
-usarse como broker de Trusted Unlock. El agente vive en la sesión del usuario;
-el futuro flujo de LogonUI necesitará un servicio separado y un IPC protegido.
-
-## Configuración
-
-`config/apps.example.json` es la configuración segura para compartir. Para
-rutas específicas del ordenador, crea `config/apps.json`; ese archivo está
-ignorado por Git.
-
-## Administración de dispositivos
-
-La CLI administrativa guarda solo claves públicas en el Registro x64 de
-Windows y requiere una consola elevada para modificarlo:
+## Instalar y ejecutar
 
 ```powershell
-python .\trusted_unlock_admin.py list
-python .\trusted_unlock_admin.py pair --device-id phone-main --public-key CLAVE_PUBLICA_BASE64URL
-python .\trusted_unlock_admin.py revoke --device-id phone-main --yes
+python -m venv .\.venv
+.\.venv\Scripts\python.exe -m pip install -r .\requirements.txt
+.\.venv\Scripts\python.exe .\main.py
 ```
 
-La clave privada debe permanecer en el móvil o hardware autorizado.
-
-## Broker local Trusted Unlock
-
-El broker separado (`trusted_unlock_broker.py`) usa el Named Pipe
-`\\.\pipe\PipaTrustedUnlock`. Su ACL permite acceso únicamente al usuario que
-lo ejecuta y a `SYSTEM`. Acepta salud, desafíos, respuestas firmadas y
-tickets de un solo uso; no tiene ningún comando de desbloqueo y anuncia
-`unlock_enabled = false`.
-
-Para probarlo manualmente en Windows, instala las dependencias y ejecútalo
-desde una consola del agente:
+El archivo `requirements.txt` fija las dependencias directas verificadas. Para
+inicio silencioso desde la raíz del repositorio:
 
 ```powershell
-python -m pip install -r .\requirements.txt
-python .\trusted_unlock_broker.py
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+  -File .\windows-agent\start_agent_hidden.ps1
+
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+  -File .\windows-agent\check_agent_status.ps1
 ```
 
-El emparejamiento y la revocación siguen siendo operaciones administrativas
-separadas. Reinicia el broker después de cambiar las claves del Registro.
+`start_agent_hidden.ps1` prioriza `.venv\Scripts\pythonw.exe`, evita iniciar
+un segundo Pipα si ya responde y no muestra CMD. El log rotativo está en
+`%LOCALAPPDATA%\Pipa\logs\agent.log`.
 
-Esta primera versión no se registra todavía como servicio ni se inicia
-automáticamente. El cliente del pipe está preparado para las pruebas del
-Credential Provider, pero no existe ninguna ruta que pueda producir una
-serialización de Windows.
+Para instalar o actualizar la tarea de inicio de sesión, abre PowerShell como
+administrador:
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+  -File .\windows-agent\install_agent_task.ps1
+```
+
+La tarea corre como el usuario interactivo con nivel limitado, reinicia el
+agente hasta tres veces y funciona también con batería. Se retira con
+`uninstall_agent_task.ps1`.
+
+## API local
+
+| Método | Ruta | Función |
+| --- | --- | --- |
+| GET | `/status` | Salud del agente |
+| GET | `/apps` | Aplicaciones configuradas |
+| POST | `/open-app` | Abrir una app allowlisted |
+| POST | `/open-url` | Abrir URL HTTP(S) validada |
+| POST | `/web/search` | Abrir búsqueda web |
+| POST | `/music/search` | Abrir búsqueda de Apple Music |
+| GET/POST/DELETE | `/league/status`, `/league/search` | Estado y matchmaking allowlisted |
+| GET/POST | `/audio/*`, `/media/action` | Volumen y teclas multimedia |
+| GET/POST/DELETE | `/timers` | Temporizadores en memoria |
+| POST | `/whatsapp/compose` | Preparar chat, sin enviar |
+| POST | `/discord/channel/open` | Abrir canal, sin iniciar llamada |
+| GET | `/pipa/protocol` | Estado del Core y gateway USB |
+| POST | `/pipa/challenge` | Desafío Ed25519 local |
+| WS | `/pipa/ws` | Sesión autenticada de dispositivo |
+
+La API rechaza hosts no locales, cuerpos grandes y campos inesperados; añade
+cabeceras `no-store` y no habilita CORS. Toda petición REST que cambie estado
+debe incluir `X-Pipa-Local-Request: 1`, lo que bloquea formularios web
+cross-origin. Los clientes WebSocket de navegador se rechazan mientras no
+exista una UI local con orígenes explícitos.
+
+Ejemplo de llamada local:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8765/media/action' `
+  -Headers @{ 'X-Pipa-Local-Request' = '1' } `
+  -ContentType 'application/json' -Body '{"action":"play_pause"}'
+```
+
+Aun así, los endpoints REST directos son una API para procesos del mismo
+usuario, no una frontera frente a software local malicioso. El canal de
+dispositivo sí exige firma Ed25519 y confirmación para herramientas externas.
+
+## Capacidades y límites
+
+- Las búsquedas abren resultados; Apple Music no garantiza reproducción
+  automática de una pista concreta.
+- League usa únicamente rutas locales allowlisted del cliente. Puede crear el
+  lobby e iniciar/cancelar búsqueda, pero Riot puede cambiar esa API interna.
+- Codex solo se abre si existe una entrada local `codex`.
+- WhatsApp prepara `wa.me`; el usuario pulsa `Enviar`.
+- Discord abre un ID validado; el usuario inicia la llamada.
+- No se escriben mensajes ni comandos dentro del chat de Codex.
+- Los temporizadores y la memoria del Core se pierden al reiniciar.
+
+## Configuración de aplicaciones
+
+Copia `config/apps.example.json` como `config/apps.json` y personaliza allí
+las rutas. `apps.json` está ignorado y no debe entrar en Git. Los comandos se
+ejecutan como una lista de argumentos, sin `shell=True`.
 
 ## Waveshare por USB
 
-El agente incluye un gateway serie opcional para el
-`ESP32-S3-Touch-LCD-1.85C-BOX`. No se activa por defecto. Para activarlo,
-instala las dependencias y define explícitamente el puerto COM:
+El gateway solo se activa con un puerto explícito:
 
 ```powershell
-python -m pip install -r .\requirements.txt
-$env:PIPA_SERIAL_PORT = "COM7"
-python .\main.py
+[Environment]::SetEnvironmentVariable('PIPA_SERIAL_PORT', 'COM7', 'User')
 ```
 
-Para que la tarea automática lo herede después de iniciar sesión, guarda el
-puerto como variable del usuario y vuelve a iniciar sesión:
+Reinicia la sesión o el agente después. El puerto debe ser `COM1`–`COM999` y
+el baudrate permitido está acotado. El transporte usa JSON UTF‑8 por líneas;
+las líneas de diagnóstico del firmware empiezan por `#` y se ignoran.
+
+Cada conexión aplica:
+
+- desafío Ed25519 de un solo uso;
+- máximo de tres fallos de autenticación;
+- rate limit de desafíos;
+- 12 000 bytes por mensaje;
+- cierre tras diez minutos sin actividad;
+- limpieza de la sesión al desconectar.
+
+El endpoint de estado distingue `serial_gateway_configured` y
+`serial_gateway_running` para no confundir una configuración inválida con un
+gateway operativo.
+
+## Dispositivos emparejados
+
+La CLI guarda solo claves públicas en HKLM x64 y requiere elevación para
+modificarlas:
 
 ```powershell
-[Environment]::SetEnvironmentVariable("PIPA_SERIAL_PORT", "COM7", "User")
+.\.venv\Scripts\python.exe .\trusted_unlock_admin.py list
+.\.venv\Scripts\python.exe .\trusted_unlock_admin.py pair `
+  --device-id waveshare-01 --public-key <CLAVE_PUBLICA_BASE64URL>
+.\.venv\Scripts\python.exe .\trusted_unlock_admin.py revoke `
+  --device-id waveshare-01 --yes
 ```
 
-El dispositivo envía `challenge_request`, recibe un desafío efímero, firma el
-objeto con su clave Ed25519 y continúa por el mismo protocolo autenticado del
-WebSocket. El gateway serie no expone el agente a la red. Para el arranque
-automático, la variable debe configurarse en el entorno de la tarea de
-Windows, no escribirse en el repositorio.
+Reinicia el agente y el broker después de emparejar o revocar, porque sus
+verificadores cargan las claves públicas al arrancar.
 
-Las pruebas usan `trusted_unlock_simulator.py`, que genera una identidad
-efímera únicamente en memoria. No hay un simulador de producción ni una
-clave privada de prueba guardada en el ordenador.
+## Trusted Unlock
 
-## Inicio sin ventana
+`trusted_unlock_broker.py` usa un Named Pipe con ACL para el usuario de la
+sesión y `SYSTEM`, desafíos firmados y tickets de un solo uso. Siempre anuncia
+`unlock_enabled=false`; no contiene ningún comando que desbloquee ni produce
+una serialización para LogonUI.
 
-Para el inicio automático, configura la tarea existente para ejecutar
-PowerShell oculto y `start_agent_hidden.ps1`. El lanzador usa `pyw.exe` o
-`pythonw.exe`, por lo que el agente se inicia sin dejar una ventana CMD
-visible. Ejecuta PowerShell como administrador (la tarea de Windows requiere
-permisos para cambiar su acción):
+## Pruebas
+
+Desde la raíz:
 
 ```powershell
-.\install_agent_task.ps1 -WhatIf
-.\install_agent_task.ps1
+python -B -m unittest discover -s windows-agent/tests -p "test_*.py"
+python -m compileall -q windows-agent
 ```
-
-`start_agent.bat` se mantiene como lanzador manual y de depuración; ese sí
-abre una consola para poder ver los mensajes del agente.
-
-## Comandos de navegador y aplicaciones
-
-Además de `/open-app` y `/open-url`, están disponibles:
-
-```text
-POST /web/search       {"query":"..."}
-POST /music/search     {"term":"..."}
-POST /league/open      {}
-POST /codex/open       {}
-GET  /league/status
-POST /league/search    {"queue":"ranked_solo"}
-DELETE /league/search
-POST /media/action     {"action":"play_pause"}
-GET  /system/power
-GET  /system/network
-POST /timers           {"seconds":300,"label":"Descanso"}
-GET  /timers
-DELETE /timers/{id}
-POST /whatsapp/compose {"phone":"+34600123456","message":"Hola"}
-POST /discord/channel/open {"channel_id":"12345678901234567"}
-GET  /pipa/protocol
-POST /pipa/challenge   {"device_id":"waveshare-01"}
-WS   /pipa/ws
-```
-
-Las búsquedas solo abren resultados en el navegador. Apple Music no reproduce
-automáticamente una canción; abre su búsqueda web. League puede consultar el
-lobby y empezar/cancelar la búsqueda en una cola permitida cuando el cliente ya
-está abierto y autenticado. Codex solo se abre si existe una entrada `codex`
-explícita en la configuración local ignorada por Git. No se automatiza texto ni
-se accede a interfaces de terceros fuera de las rutas locales previstas.
-
-Los comandos multimedia permitidos son `play_pause`, `next`, `previous` y
-`stop`. Los temporizadores viven en memoria y se consultan mediante polling;
-no persisten tras reiniciar el agente. WhatsApp abre un enlace `wa.me` con el
-mensaje preparado, pero siempre requiere pulsar `Enviar` manualmente.
-Discord puede abrir un DM, un grupo o un canal de servidor con un ID de
-Discord válido. La llamada no se inicia automáticamente: el usuario debe
-confirmarla en Discord. No se automatizan cuentas personales ni se leen
-contactos, mensajes o tokens.
-
-El WebSocket `/pipa/ws` usa el mismo desafío/respuesta Ed25519 del Trusted
-Unlock. El primer mensaje debe ser `hello`; después admite `text_input`,
-`tool_call`, `confirm`, gestos y estados de interacción. El simulador de
-desarrollo vive en `backend/pipa_core/simulator.py` y no persiste claves.

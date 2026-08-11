@@ -2,13 +2,31 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
-
+from typing import Any
 
 PROTOCOL_VERSION = 1
 MAX_TEXT_LENGTH = 4000
 MAX_TOOL_NAME_LENGTH = 80
+MAX_CAPABILITIES = 16
+TEXT_SOURCES = frozenset({"voice", "touch", "mobile", "debug", "unknown"})
+_COMMON_FIELDS = frozenset({"protocol_version", "type"})
+_MESSAGE_FIELDS = {
+    "challenge_request": frozenset({"device_id"}),
+    "hello": frozenset({"device_id", "challenge_id", "signature", "firmware_version", "capabilities"}),
+    "text_input": frozenset({"text", "source"}),
+    "wake": frozenset(),
+    "hold_start": frozenset(),
+    "hold_end": frozenset(),
+    "audio_end": frozenset(),
+    "abort": frozenset(),
+    "ping": frozenset({"request_id"}),
+    "device_status": frozenset({"battery_percent", "wifi_rssi"}),
+    "gesture": frozenset({"gesture"}),
+    "tool_call": frozenset({"name", "arguments", "call_id"}),
+    "confirm": frozenset({"confirmation_id", "accepted"}),
+}
 
 
 class ProtocolError(ValueError):
@@ -29,6 +47,13 @@ def _protocol_version(payload: Mapping[str, Any]) -> int:
     return version
 
 
+def _optional_string(payload: Mapping[str, Any], name: str, *, maximum: int = 256) -> str | None:
+    value = payload.get(name)
+    if value is None:
+        return None
+    return _string(payload, name, maximum=maximum)
+
+
 @dataclass(frozen=True)
 class ClientMessage:
     type: str
@@ -46,6 +71,13 @@ def parse_client_message(payload: Mapping[str, Any]) -> ClientMessage:
     message_type = payload.get("type")
     if not isinstance(message_type, str):
         raise ProtocolError("message type is required")
+    allowed_fields = _MESSAGE_FIELDS.get(message_type)
+    if allowed_fields is None:
+        raise ProtocolError(f"unsupported message type: {message_type}")
+    unknown_fields = set(payload) - _COMMON_FIELDS - allowed_fields
+    if unknown_fields:
+        names = ", ".join(sorted(str(name) for name in unknown_fields))
+        raise ProtocolError(f"unexpected fields for {message_type}: {names}")
 
     version = _protocol_version(payload)
     fields: dict[str, Any] = {"protocol_version": version}
@@ -58,10 +90,47 @@ def parse_client_message(payload: Mapping[str, Any]) -> ClientMessage:
             challenge_id=_string(payload, "challenge_id", maximum=128),
             signature=_string(payload, "signature", maximum=256),
         )
+        firmware_version = _optional_string(payload, "firmware_version", maximum=32)
+        if firmware_version is not None:
+            fields["firmware_version"] = firmware_version
+        capabilities = payload.get("capabilities", [])
+        if not isinstance(capabilities, list) or len(capabilities) > MAX_CAPABILITIES:
+            raise ProtocolError(f"capabilities must be a list of at most {MAX_CAPABILITIES} items")
+        parsed_capabilities = []
+        for capability in capabilities:
+            if not isinstance(capability, str) or not capability.strip() or len(capability) > 32:
+                raise ProtocolError("capabilities must contain non-empty strings of at most 32 characters")
+            parsed_capabilities.append(capability.strip())
+        if len(set(parsed_capabilities)) != len(parsed_capabilities):
+            raise ProtocolError("capabilities must not contain duplicates")
+        fields["capabilities"] = parsed_capabilities
     elif message_type == "text_input":
         fields["text"] = _string(payload, "text", maximum=MAX_TEXT_LENGTH)
+        source = payload.get("source", "unknown")
+        if not isinstance(source, str) or source not in TEXT_SOURCES:
+            raise ProtocolError("unsupported text source")
+        fields["source"] = source
     elif message_type in {"wake", "hold_start", "hold_end", "audio_end", "abort"}:
         pass
+    elif message_type == "ping":
+        request_id = _optional_string(payload, "request_id", maximum=64)
+        if request_id is not None:
+            fields["request_id"] = request_id
+    elif message_type == "device_status":
+        battery_percent = payload.get("battery_percent")
+        if battery_percent is not None and (
+            not isinstance(battery_percent, int)
+            or isinstance(battery_percent, bool)
+            or not 0 <= battery_percent <= 100
+        ):
+            raise ProtocolError("battery_percent must be an integer between 0 and 100")
+        wifi_rssi = payload.get("wifi_rssi")
+        if wifi_rssi is not None and (
+            not isinstance(wifi_rssi, int) or isinstance(wifi_rssi, bool) or not -127 <= wifi_rssi <= 0
+        ):
+            raise ProtocolError("wifi_rssi must be an integer between -127 and 0")
+        fields["battery_percent"] = battery_percent
+        fields["wifi_rssi"] = wifi_rssi
     elif message_type == "gesture":
         gesture = _string(payload, "gesture", maximum=32)
         if gesture not in {"tap", "double_tap", "swipe_left", "swipe_right"}:
@@ -82,13 +151,12 @@ def parse_client_message(payload: Mapping[str, Any]) -> ClientMessage:
         if not isinstance(accepted, bool):
             raise ProtocolError("accepted must be boolean")
         fields["accepted"] = accepted
-    else:
-        raise ProtocolError(f"unsupported message type: {message_type}")
-
     return ClientMessage(message_type, fields)
 
 
 def server_message(message_type: str, **fields: Any) -> dict[str, Any]:
     if not isinstance(message_type, str) or not message_type.strip():
         raise ValueError("server message type is required")
+    if "type" in fields or "protocol_version" in fields:
+        raise ValueError("reserved server message fields cannot be overridden")
     return {"protocol_version": PROTOCOL_VERSION, "type": message_type, **fields}

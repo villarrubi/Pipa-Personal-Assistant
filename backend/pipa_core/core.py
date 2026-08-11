@@ -35,7 +35,15 @@ class PipaCore:
     def tool_names(self) -> list[str]:
         return sorted({*self.router.catalog.names(), "remember_fact", "recall_memory"})
 
-    def authenticate(self, device_id: str, challenge_id: str, signature: str):
+    def authenticate(
+        self,
+        device_id: str,
+        challenge_id: str,
+        signature: str,
+        *,
+        firmware_version: str | None = None,
+        capabilities: list[str] | None = None,
+    ):
         authorization = self.verifier.verify_response(
             SignedChallenge(
                 challenge_id=challenge_id,
@@ -43,7 +51,11 @@ class PipaCore:
                 signature=signature,
             )
         )
-        return self.sessions.create(authorization.device_id)
+        return self.sessions.create(
+            authorization.device_id,
+            firmware_version=firmware_version,
+            capabilities=tuple(capabilities or ()),
+        )
 
     def close(self, session_id: str) -> None:
         self.sessions.remove(session_id)
@@ -52,6 +64,15 @@ class PipaCore:
         session = self.sessions.get(session_id)
         if session is None:
             return [server_message("error", code="unknown_session", message="Sesión desconocida.")]
+
+        session.touch()
+
+        if message.type == "ping":
+            return [server_message("pong", request_id=message.fields.get("request_id"))]
+        if message.type == "device_status":
+            session.battery_percent = message.fields["battery_percent"]
+            session.wifi_rssi = message.fields["wifi_rssi"]
+            return [server_message("status_ack")]
 
         if message.type in {"wake", "hold_start"}:
             session.set_state("listening")
@@ -111,13 +132,18 @@ class PipaCore:
             try:
                 result = self.memory.remember(session.device_id, str(arguments.get("fact", "")))
             except ValueError as error:
-                return [server_message("error", code="memory_failed", message=str(error)), session.ui_message()]
+                return [
+                    server_message("error", code="memory_failed", message=str(error)),
+                    session.ui_message(),
+                ]
             session.set_state("idle")
             return [server_message("tool_result", status="completed", result=result), session.ui_message()]
         if tool_name == "recall_memory":
             session.set_state("idle")
             return [
-                server_message("tool_result", status="completed", result=self.memory.recall(session.device_id)),
+                server_message(
+                    "tool_result", status="completed", result=self.memory.recall(session.device_id)
+                ),
                 session.ui_message(),
             ]
         try:

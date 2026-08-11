@@ -1,8 +1,9 @@
-fastapi
-uvicorn
-psutil
-pycaw
-comtypes
-cryptography>=41.0
-pyserial
-pywin32>=306; platform_system == "Windows"
+fastapi==0.141.1
+uvicorn[standard]==0.48.0
+psutil==7.2.2
+pycaw==20251023
+comtypes==1.4.16
+cryptography==50.0.0
+pydantic==2.13.4
+pyserial==3.5
+pywin32==312; platform_system == "Windows"

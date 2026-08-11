@@ -17,13 +17,11 @@ from typing import Protocol
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
 from trusted_unlock_protocol import (
     AuthorizationVerifier,
     public_key_from_base64,
     public_key_to_base64,
 )
-
 
 REGISTRY_PATH = r"SOFTWARE\Pipa\TrustedUnlock\Devices"
 PUBLIC_KEY_VALUE = "PublicKey"
@@ -61,17 +59,13 @@ class DeviceStore(Protocol):
         public_key: Ed25519PublicKey,
         *,
         created_at: int | None = None,
-    ) -> RegisteredDevice:
-        ...
+    ) -> RegisteredDevice: ...
 
-    def revoke(self, device_id: str) -> None:
-        ...
+    def revoke(self, device_id: str) -> None: ...
 
-    def list_devices(self) -> list[RegisteredDevice]:
-        ...
+    def list_devices(self) -> list[RegisteredDevice]: ...
 
-    def trusted_public_keys(self) -> dict[str, Ed25519PublicKey]:
-        ...
+    def trusted_public_keys(self) -> dict[str, Ed25519PublicKey]: ...
 
 
 def validate_device_id(device_id: str) -> str:
@@ -90,7 +84,7 @@ def public_key_fingerprint(public_key_b64: str) -> str:
         format=serialization.PublicFormat.Raw,
     )
     digest = hashlib.sha256(raw_key).hexdigest().upper()
-    return ":".join(digest[index:index + 2] for index in range(0, len(digest), 2))
+    return ":".join(digest[index : index + 2] for index in range(0, len(digest), 2))
 
 
 def is_administrator() -> bool:
@@ -125,9 +119,7 @@ class InMemoryDeviceStore:
         with self._lock:
             existing = self._devices.get(device_id)
             if existing is not None and existing.public_key != public_key_b64:
-                raise DeviceAlreadyRegisteredError(
-                    f"device ID is already bound to another key: {device_id}"
-                )
+                raise DeviceAlreadyRegisteredError(f"device ID is already bound to another key: {device_id}")
             if existing is not None:
                 return existing
             self._devices[device_id] = record
@@ -183,9 +175,7 @@ class WindowsRegistryDeviceStore:
                 winreg.KEY_READ | winreg.KEY_WRITE | self._wow64,
             )
         except PermissionError as error:
-            raise DeviceStoreError(
-                "administrator permissions are required to pair a device"
-            ) from error
+            raise DeviceStoreError("administrator permissions are required to pair a device") from error
 
         try:
             try:
@@ -194,9 +184,7 @@ class WindowsRegistryDeviceStore:
                 existing_key = None
 
             if existing_key is not None and existing_key != public_key_b64:
-                raise DeviceAlreadyRegisteredError(
-                    f"device ID is already bound to another key: {device_id}"
-                )
+                raise DeviceAlreadyRegisteredError(f"device ID is already bound to another key: {device_id}")
 
             if existing_key is None:
                 key.SetValueEx(
@@ -231,9 +219,7 @@ class WindowsRegistryDeviceStore:
         except FileNotFoundError as error:
             raise DeviceNotFoundError(f"device is not registered: {device_id}") from error
         except PermissionError as error:
-            raise DeviceStoreError(
-                "administrator permissions are required to revoke a device"
-            ) from error
+            raise DeviceStoreError("administrator permissions are required to revoke a device") from error
 
     def list_devices(self) -> list[RegisteredDevice]:
         winreg = self._winreg
@@ -269,10 +255,7 @@ class WindowsRegistryDeviceStore:
         return sorted(devices, key=lambda item: item.device_id)
 
     def trusted_public_keys(self) -> dict[str, Ed25519PublicKey]:
-        return {
-            device.device_id: public_key_from_base64(device.public_key)
-            for device in self.list_devices()
-        }
+        return {device.device_id: public_key_from_base64(device.public_key) for device in self.list_devices()}
 
 
 def verifier_from_store(store: DeviceStore) -> AuthorizationVerifier:

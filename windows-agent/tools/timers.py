@@ -7,7 +7,6 @@ import threading
 import time
 from dataclasses import dataclass
 
-
 MAX_TIMER_SECONDS = 7 * 24 * 60 * 60
 
 

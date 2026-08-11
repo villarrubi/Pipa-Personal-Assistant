@@ -1,0 +1,22 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 110
+exclude = [
+    "**/build",
+    "**/build-ci",
+    "**/.pio",
+    "**/.venv",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"backend/pipa_core/__init__.py" = ["E402"]
+"windows-agent/main.py" = ["E402"]
+"**/tests/*.py" = ["E402"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

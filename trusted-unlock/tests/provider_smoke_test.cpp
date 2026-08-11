@@ -2,7 +2,9 @@
 #include <Unknwn.h>
 #include <credentialprovider.h>
 
+#include <filesystem>
 #include <iostream>
+#include <vector>
 
 #include <initguid.h>
 #include "../include/PipaGuids.h"
@@ -26,12 +28,30 @@ int main()
     std::wcout << L"Pipα Trusted Unlock - Smoke Test\n";
     std::wcout << L"--------------------------------\n";
 
-    const wchar_t* dllPath =
-        L"Release\\PipaTrustedUnlock.dll";
+    std::vector<wchar_t> executablePathBuffer(32768, L'\0');
+    DWORD executablePathLength = GetModuleFileNameW(
+        nullptr,
+        executablePathBuffer.data(),
+        static_cast<DWORD>(executablePathBuffer.size())
+    );
+
+    if (executablePathLength == 0 || executablePathLength >= executablePathBuffer.size())
+    {
+        std::wcerr << L"[ERROR] No se pudo resolver la ruta del smoke test\n";
+        return 1;
+    }
+
+    const std::filesystem::path dllPath =
+        std::filesystem::path(executablePathBuffer.data()).parent_path() /
+        L"PipaTrustedUnlock.dll";
 
 
     // 1. Cargar la DLL
-    HMODULE module = LoadLibraryW(dllPath);
+    HMODULE module = LoadLibraryExW(
+        dllPath.c_str(),
+        nullptr,
+        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32
+    );
 
     if (module == nullptr)
     {
@@ -187,6 +207,16 @@ int main()
         return 1;
     }
 
+    CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR* invalidDescriptor = nullptr;
+    if (provider->GetFieldDescriptorAt(fieldCount, &invalidDescriptor) != E_INVALIDARG ||
+        invalidDescriptor != nullptr)
+    {
+        std::wcerr << L"[ERROR] Se acepto un descriptor fuera de rango\n";
+        provider->Release();
+        FreeLibrary(module);
+        return 1;
+    }
+
     for (DWORD fieldIndex = 0; fieldIndex < fieldCount; ++fieldIndex)
     {
         CREDENTIAL_PROVIDER_FIELD_DESCRIPTOR* descriptor = nullptr;
@@ -252,6 +282,14 @@ int main()
         << L"[OK] AutoLogon: "
         << (autoLogon ? L"TRUE" : L"FALSE")
         << L"\n";
+
+    if (credentialCount != 1 || defaultCredential != 0 || autoLogon != FALSE)
+    {
+        std::wcerr << L"[ERROR] Conteo/default/autologon inseguros\n";
+        provider->Release();
+        FreeLibrary(module);
+        return 1;
+    }
 
 
     // 8. Obtener la credencial 0
@@ -360,6 +398,15 @@ int main()
         << L"[OK] Credential AutoLogon: "
         << (credentialAutoLogon ? L"TRUE" : L"FALSE")
         << L"\n";
+
+    if (credentialAutoLogon != FALSE)
+    {
+        std::wcerr << L"[ERROR] SetSelected intento habilitar autologon\n";
+        credential->Release();
+        provider->Release();
+        FreeLibrary(module);
+        return 1;
+    }
 
 
     // 12. Comprobar GetSerialization

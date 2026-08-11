@@ -5,7 +5,6 @@ from __future__ import annotations
 import ctypes
 import platform
 
-
 MEDIA_KEYS = {
     "play_pause": 0xB3,
     "next": 0xB0,

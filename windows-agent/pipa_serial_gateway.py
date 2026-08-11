@@ -1,9 +1,8 @@
-"""Optional USB-serial transport for the Waveshare device.
+"""Authenticated USB-serial transport for a paired Pipa device.
 
-The gateway is deliberately opt-in. It is not an HTTP listener and it never
-exposes the Windows Agent to the LAN. The device asks for a short-lived
-challenge, signs it locally, and then uses the existing authenticated Pipa
-Core session over newline-delimited JSON.
+The transport is opt-in, opens one explicitly configured serial port and never
+listens on a network interface. Messages are newline-delimited UTF-8 JSON.
+Human-readable device diagnostics must start with ``#`` and are ignored.
 """
 
 from __future__ import annotations
@@ -11,13 +10,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+import platform
+import re
 import threading
 from typing import Any
 
+from backend.pipa_core.connection import AuthenticatedConnection, ConnectionResult
 from backend.pipa_core.core import PipaCore
 from backend.pipa_core.protocol import ProtocolError, parse_client_message, server_message
-from trusted_unlock_protocol import TrustedUnlockError
-
 
 LOGGER = logging.getLogger("pipa.serial")
 MAX_LINE_BYTES = 12_000
@@ -27,18 +27,29 @@ class SerialGateway:
     """Serve one explicitly configured serial port in a background thread."""
 
     def __init__(self, core: PipaCore, port: str, *, baudrate: int = 115200) -> None:
-        if not port.strip():
-            raise ValueError("serial port is required")
-        if baudrate < 9_600:
-            raise ValueError("baudrate is too low")
+        clean_port = port.strip()
+        if not clean_port or len(clean_port) > 128 or any(ord(character) < 32 for character in clean_port):
+            raise ValueError("serial port is invalid")
+        if platform.system() == "Windows":
+            clean_port = clean_port.upper()
+            if re.fullmatch(r"COM(?:[1-9][0-9]{0,2})", clean_port) is None:
+                raise ValueError("serial port must be COM1 through COM999 on Windows")
+        elif re.fullmatch(r"/dev/[A-Za-z0-9._/-]+", clean_port) is None:
+            raise ValueError("serial port must be an explicit /dev path")
+        if not 9_600 <= baudrate <= 2_000_000:
+            raise ValueError("baudrate must be between 9600 and 2000000")
         self.core = core
-        self.port = port
+        self.port = clean_port
         self.baudrate = baudrate
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
 
+    @property
+    def running(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
     def start(self) -> None:
-        if self._thread is not None and self._thread.is_alive():
+        if self.running:
             return
         self._stop.clear()
         self._thread = threading.Thread(target=self._run, name="pipa-serial", daemon=True)
@@ -46,6 +57,8 @@ class SerialGateway:
 
     def stop(self) -> None:
         self._stop.set()
+        if self._thread is not None and self._thread is not threading.current_thread():
+            self._thread.join(timeout=2)
 
     def _run(self) -> None:
         try:
@@ -54,70 +67,59 @@ class SerialGateway:
             LOGGER.error("PIPA_SERIAL_PORT is configured but pyserial is not installed")
             return
 
+        warned = False
         while not self._stop.is_set():
             try:
-                connection = serial.Serial(self.port, self.baudrate, timeout=0.5)
+                connection = serial.Serial(
+                    self.port,
+                    self.baudrate,
+                    timeout=0.5,
+                    write_timeout=1,
+                )
+                warned = False
             except Exception:
-                LOGGER.warning("Could not open Pipa serial port %s; retrying", self.port)
+                if not warned:
+                    LOGGER.warning("Could not open Pipa serial port %s; retrying", self.port)
+                    warned = True
                 self._stop.wait(5)
                 continue
-
             self._serve_connection(connection)
 
     def _serve_connection(self, connection) -> None:
-        session_id: str | None = None
+        protocol = AuthenticatedConnection(self.core)
         try:
             with connection:
-                while not self._stop.is_set():
-                    raw = connection.readline()
+                while not self._stop.is_set() and not protocol.idle():
+                    raw = connection.read_until(b"\n", MAX_LINE_BYTES + 1)
                     if not raw:
                         continue
+                    if raw.startswith(b"#"):
+                        continue
                     if len(raw) > MAX_LINE_BYTES:
+                        connection.reset_input_buffer()
                         self._send(connection, server_message("error", code="message_too_large"))
                         continue
                     try:
                         payload = json.loads(raw.decode("utf-8"))
-                        message = parse_client_message(payload)
-                        output, session_id = self._handle(message, session_id)
+                        result = protocol.process(parse_client_message(payload))
                     except (UnicodeDecodeError, json.JSONDecodeError, ProtocolError) as error:
-                        output = [server_message("error", code="protocol_error", message=str(error))]
+                        result = ConnectionResult(
+                            [server_message("error", code="protocol_error", message=str(error))]
+                        )
                     except Exception:
                         LOGGER.exception("Unexpected serial gateway error")
-                        output = [server_message("error", code="internal_error")]
-                    for response in output:
+                        result = ConnectionResult(
+                            [server_message("error", code="internal_error")], close=True
+                        )
+
+                    for response in result.responses:
                         self._send(connection, response)
+                    if result.close:
+                        break
         except Exception:
             LOGGER.info("Pipa serial device disconnected")
         finally:
-            if session_id is not None:
-                self.core.close(session_id)
-
-    def _handle(self, message, session_id: str | None) -> tuple[list[dict[str, Any]], str | None]:
-        if message.type == "challenge_request":
-            if session_id is not None:
-                return [server_message("error", code="already_authenticated")], session_id
-            try:
-                challenge = self.core.create_challenge(message.fields["device_id"])
-            except (TrustedUnlockError, ValueError):
-                return [server_message("error", code="device_not_paired")], None
-            return [server_message("challenge", challenge=challenge.as_dict())], None
-
-        if session_id is None:
-            if message.type != "hello":
-                return [server_message("error", code="authentication_required")], None
-            try:
-                session = self.core.authenticate(
-                    message.fields["device_id"],
-                    message.fields["challenge_id"],
-                    message.fields["signature"],
-                )
-            except (TrustedUnlockError, ValueError):
-                return [server_message("error", code="authentication_failed")], None
-            return [server_message("ready", session_id=session.session_id, ui_state=session.ui_message())], session.session_id
-
-        if message.type in {"hello", "challenge_request"}:
-            return [server_message("error", code="already_authenticated")], session_id
-        return self.core.handle(session_id, message), session_id
+            protocol.close()
 
     @staticmethod
     def _send(connection, payload: dict[str, Any]) -> None:

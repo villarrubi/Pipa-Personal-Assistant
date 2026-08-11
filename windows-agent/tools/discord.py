@@ -11,7 +11,6 @@ import webbrowser
 
 from tools.urls import validate_external_url
 
-
 _SNOWFLAKE = re.compile(r"^[0-9]{17,20}$")
 
 

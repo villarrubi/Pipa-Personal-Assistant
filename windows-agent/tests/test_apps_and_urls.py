@@ -11,17 +11,13 @@ from tools.commands import (  # noqa: E402
     build_web_search_url,
 )
 from tools.league import parse_client_command_line, resolve_queue_id  # noqa: E402
-from tools.whatsapp import build_whatsapp_compose_url, normalize_phone  # noqa: E402
 from tools.urls import validate_external_url  # noqa: E402
+from tools.whatsapp import build_whatsapp_compose_url, normalize_phone  # noqa: E402
 
 
 class AppsAndUrlsTests(unittest.TestCase):
     def test_public_app_template_is_loadable(self):
-        template_path = (
-            Path(__file__).resolve().parents[1]
-            / "config"
-            / "apps.example.json"
-        )
+        template_path = Path(__file__).resolve().parents[1] / "config" / "apps.example.json"
         with template_path.open("r", encoding="utf-8") as file:
             apps = validate_apps_config(json.load(file))
 
@@ -65,11 +61,13 @@ class AppsAndUrlsTests(unittest.TestCase):
             resolve_queue_id("custom-dangerous-queue")
 
     def test_league_client_arguments_are_parsed_without_exposing_token(self):
-        connection = parse_client_command_line([
-            "LeagueClientUx.exe",
-            "--app-port=54321",
-            "--remoting-auth-token=secret-token",
-        ])
+        connection = parse_client_command_line(
+            [
+                "LeagueClientUx.exe",
+                "--app-port=54321",
+                "--remoting-auth-token=secret-token",
+            ]
+        )
 
         self.assertEqual(connection.port, 54321)
         self.assertEqual(connection.token, "secret-token")

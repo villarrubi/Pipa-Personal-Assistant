@@ -1,6 +1,6 @@
 #pragma once
 
-// Copy this file to pipa_device_config.h. The copy is ignored by Git.
+// Copy this file to pipa_device_config.local.h. The copy is ignored by Git.
 #define PIPA_WIFI_SSID "replace-me"
 #define PIPA_WIFI_PASSWORD "replace-me"
 

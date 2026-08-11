@@ -11,7 +11,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-
 from trusted_unlock_protocol import (
     Challenge,
     SignedChallenge,
@@ -28,7 +27,7 @@ class InMemoryTrustedDevice:
     _private_key: Ed25519PrivateKey
 
     @classmethod
-    def generate(cls, device_id: str) -> "InMemoryTrustedDevice":
+    def generate(cls, device_id: str) -> InMemoryTrustedDevice:
         return cls(device_id=device_id, _private_key=Ed25519PrivateKey.generate())
 
     @property

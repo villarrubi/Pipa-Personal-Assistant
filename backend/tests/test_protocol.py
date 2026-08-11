@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "windows-agent"))
 sys.path.insert(0, str(ROOT))
 
-from backend.pipa_core.protocol import ProtocolError, parse_client_message  # noqa: E402
+from backend.pipa_core.protocol import ProtocolError, parse_client_message, server_message  # noqa: E402
 
 
 class ProtocolTests(unittest.TestCase):
@@ -16,6 +16,64 @@ class ProtocolTests(unittest.TestCase):
         )
         self.assertEqual(message.type, "challenge_request")
         self.assertEqual(message.fields["device_id"], "waveshare-01")
+
+    def test_parses_device_metadata(self):
+        message = parse_client_message(
+            {
+                "protocol_version": 1,
+                "type": "hello",
+                "device_id": "waveshare-01",
+                "challenge_id": "challenge",
+                "signature": "signature",
+                "firmware_version": "0.2.0",
+                "capabilities": ["touch", "wol"],
+            }
+        )
+        self.assertEqual(message.fields["firmware_version"], "0.2.0")
+        self.assertEqual(message.fields["capabilities"], ["touch", "wol"])
+
+    def test_rejects_duplicate_capabilities(self):
+        with self.assertRaises(ProtocolError):
+            parse_client_message(
+                {
+                    "protocol_version": 1,
+                    "type": "hello",
+                    "device_id": "waveshare-01",
+                    "challenge_id": "challenge",
+                    "signature": "signature",
+                    "capabilities": ["touch", "touch"],
+                }
+            )
+
+    def test_validates_device_status_ranges(self):
+        message = parse_client_message(
+            {"protocol_version": 1, "type": "device_status", "battery_percent": 80, "wifi_rssi": -55}
+        )
+        self.assertEqual(message.fields["wifi_rssi"], -55)
+        with self.assertRaises(ProtocolError):
+            parse_client_message({"protocol_version": 1, "type": "device_status", "battery_percent": 101})
+
+    def test_text_input_has_a_bounded_source(self):
+        message = parse_client_message(
+            {"protocol_version": 1, "type": "text_input", "text": "pausa", "source": "voice"}
+        )
+        self.assertEqual(message.fields["source"], "voice")
+        with self.assertRaises(ProtocolError):
+            parse_client_message(
+                {"protocol_version": 1, "type": "text_input", "text": "pausa", "source": "remote-shell"}
+            )
+
+    def test_text_source_must_be_string(self):
+        with self.assertRaises(ProtocolError):
+            parse_client_message({"protocol_version": 1, "type": "text_input", "text": "hola", "source": []})
+
+    def test_unknown_fields_are_rejected(self):
+        with self.assertRaises(ProtocolError):
+            parse_client_message({"protocol_version": 1, "type": "ping", "unexpected": "value"})
+
+    def test_server_message_reserved_fields_cannot_be_overridden(self):
+        with self.assertRaises(ValueError):
+            server_message("ready", protocol_version=99)
 
     def test_parses_tool_call(self):
         message = parse_client_message(

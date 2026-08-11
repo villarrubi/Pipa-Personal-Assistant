@@ -1,20 +1,25 @@
+import asyncio
+import json
+import logging
+import os
 import platform
 import sys
 import webbrowser
 from contextlib import asynccontextmanager
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.pipa_core.core import PipaCore
-from backend.pipa_core.protocol import ProtocolError, server_message
-from backend.pipa_core.tools import ToolRouter
-from tools.apps import open_app, load_apps
+from tools.apps import load_apps, open_app
+from tools.audio import get_volume, mute, set_volume, unmute
 from tools.commands import (
     build_apple_music_search_url,
     build_web_search_url,
@@ -23,10 +28,8 @@ from tools.commands import (
 )
 from tools.discord import open_discord_channel
 from tools.league import LeagueClientError, with_client
-from tools.system import get_system_status, lock_pc
-from tools.system import get_network_status, get_power_status
-from tools.audio import get_volume, set_volume, mute, unmute
 from tools.media import send_media_action
+from tools.system import get_network_status, get_power_status, get_system_status, lock_pc
 from tools.timers import TimerManager, TimerNotFoundError
 from tools.urls import validate_external_url
 from tools.whatsapp import build_whatsapp_compose_url
@@ -37,8 +40,44 @@ from trusted_unlock_devices import (
 )
 from trusted_unlock_protocol import TrustedUnlockError
 
+from backend.pipa_core.connection import SESSION_IDLE_SECONDS, AuthenticatedConnection
+from backend.pipa_core.core import PipaCore
+from backend.pipa_core.protocol import ProtocolError, parse_client_message, server_message
+from backend.pipa_core.tools import ToolRouter
 
 _serial_gateway = None
+LOGGER = logging.getLogger("pipa.agent")
+MAX_REQUEST_BYTES = 16 * 1024
+MAX_WEBSOCKET_MESSAGE_BYTES = 12_000
+AUTHENTICATION_TIMEOUT_SECONDS = 20
+
+
+def configure_logging() -> Path | None:
+    """Write bounded operational logs outside the repository on Windows."""
+
+    local_app_data = os.environ.get("LOCALAPPDATA", "").strip()
+    if not local_app_data:
+        logging.basicConfig(level=logging.INFO)
+        return None
+    try:
+        log_directory = Path(local_app_data) / "Pipa" / "logs"
+        log_directory.mkdir(parents=True, exist_ok=True)
+        log_path = log_directory / "agent.log"
+        handler = RotatingFileHandler(
+            log_path,
+            maxBytes=1_000_000,
+            backupCount=2,
+            encoding="utf-8",
+        )
+    except OSError:
+        logging.basicConfig(level=logging.INFO)
+        return None
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
+    return log_path
+
+
+LOG_PATH = configure_logging()
 
 
 @asynccontextmanager
@@ -60,53 +99,85 @@ app = FastAPI(
     version="0.4.0",
     lifespan=lifespan,
 )
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["127.0.0.1", "localhost", "[::1]"],
+)
 
 
-class AppRequest(BaseModel):
-    app: str
+@app.middleware("http")
+async def protect_local_http(request, call_next):
+    if (
+        request.method not in {"GET", "HEAD", "OPTIONS"}
+        and request.headers.get("x-pipa-local-request") != "1"
+    ):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Falta la cabecera local de Pipα."},
+        )
+    content_length = request.headers.get("content-length")
+    if content_length is not None:
+        try:
+            if int(content_length) > MAX_REQUEST_BYTES:
+                return JSONResponse(status_code=413, content={"detail": "Solicitud demasiado grande."})
+        except ValueError:
+            return JSONResponse(status_code=400, content={"detail": "Content-Length no válido."})
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 
-class UrlRequest(BaseModel):
-    url: str
+class StrictRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
-class VolumeRequest(BaseModel):
-    percent: int
+class AppRequest(StrictRequest):
+    app: str = Field(min_length=1, max_length=64)
 
 
-class QueryRequest(BaseModel):
-    query: str
+class UrlRequest(StrictRequest):
+    url: str = Field(min_length=1, max_length=2048)
 
 
-class MusicRequest(BaseModel):
-    term: str
+class VolumeRequest(StrictRequest):
+    percent: int = Field(ge=0, le=100)
 
 
-class LeagueQueueRequest(BaseModel):
-    queue: str
+class QueryRequest(StrictRequest):
+    query: str = Field(min_length=1, max_length=500)
 
 
-class MediaRequest(BaseModel):
-    action: str
+class MusicRequest(StrictRequest):
+    term: str = Field(min_length=1, max_length=500)
 
 
-class TimerRequest(BaseModel):
-    seconds: int
-    label: str = "Pipα timer"
+class LeagueQueueRequest(StrictRequest):
+    queue: str = Field(min_length=1, max_length=64)
 
 
-class WhatsAppRequest(BaseModel):
-    phone: str
-    message: str
+class MediaRequest(StrictRequest):
+    action: str = Field(min_length=1, max_length=32)
 
 
-class DiscordChannelRequest(BaseModel):
-    channel_id: str
-    guild_id: str | None = None
+class TimerRequest(StrictRequest):
+    seconds: int = Field(ge=1, le=24 * 60 * 60)
+    label: str = Field(default="Pipα timer", min_length=1, max_length=120)
 
 
-class PipaChallengeRequest(BaseModel):
-    device_id: str
+class WhatsAppRequest(StrictRequest):
+    phone: str = Field(min_length=7, max_length=32)
+    message: str = Field(min_length=1, max_length=4096)
+
+
+class DiscordChannelRequest(StrictRequest):
+    channel_id: str = Field(min_length=17, max_length=20)
+    guild_id: str | None = Field(default=None, min_length=17, max_length=20)
+
+
+class PipaChallengeRequest(StrictRequest):
+    device_id: str = Field(min_length=1, max_length=64)
 
 
 timer_manager = TimerManager()
@@ -118,6 +189,7 @@ def _build_pipa_core() -> PipaCore:
             store = WindowsRegistryDeviceStore()
             verifier = verifier_from_store(store)
         except Exception:
+            LOGGER.exception("Windows device registry unavailable; no persistent device is trusted")
             verifier = verifier_from_store(InMemoryDeviceStore())
     else:
         verifier = verifier_from_store(InMemoryDeviceStore())
@@ -131,32 +203,19 @@ pipa_core = _build_pipa_core()
 
 @app.get("/")
 def root():
-    return {
-        "name": "Pipα Windows Agent",
-        "version": "0.4.0",
-        "status": "online"
-    }
+    return {"name": "Pipα Windows Agent", "version": "0.4.0", "status": "online"}
 
 
 @app.get("/status")
 def status():
-    return {
-        "success": True,
-        "pc": "online"
-    }
+    return {"success": True, "pc": "online"}
 
 
 @app.get("/apps")
 def get_apps():
     apps = load_apps()
 
-    return {
-        "success": True,
-        "apps": {
-            app_id: app_data["aliases"]
-            for app_id, app_data in apps.items()
-        }
-    }
+    return {"success": True, "apps": {app_id: app_data["aliases"] for app_id, app_data in apps.items()}}
 
 
 @app.post("/open-app")
@@ -173,10 +232,7 @@ def api_open_url(request: UrlRequest):
 
     webbrowser.open(url)
 
-    return {
-        "success": True,
-        "message": f"Abriendo {url}"
-    }
+    return {"success": True, "message": f"Abriendo {url}"}
 
 
 @app.post("/web/search")
@@ -320,7 +376,8 @@ def api_pipa_protocol():
         "websocket": "/pipa/ws",
         "tool_names": pipa_core.tool_names(),
         "connected_sessions": pipa_core.sessions.count(),
-        "serial_gateway": _serial_gateway is not None,
+        "serial_gateway_configured": _serial_gateway is not None,
+        "serial_gateway_running": bool(_serial_gateway and _serial_gateway.running),
     }
 
 
@@ -336,57 +393,42 @@ def api_pipa_challenge(request: PipaChallengeRequest):
 @app.websocket("/pipa/ws")
 async def api_pipa_websocket(websocket: WebSocket):
     client_host = websocket.client.host if websocket.client else None
-    if client_host not in {"127.0.0.1", "::1", "localhost"}:
+    browser_origin = websocket.headers.get("origin")
+    if client_host not in {"127.0.0.1", "::1", "localhost"} or browser_origin is not None:
         await websocket.close(code=1008, reason="Pipa Core solo acepta conexiones locales por ahora")
         return
 
     await websocket.accept()
-    session_id = None
+    connection = AuthenticatedConnection(pipa_core)
     try:
         while True:
-            payload = await websocket.receive_json()
             try:
-                from backend.pipa_core.protocol import parse_client_message
-
+                timeout = (
+                    AUTHENTICATION_TIMEOUT_SECONDS if connection.session_id is None else SESSION_IDLE_SECONDS
+                )
+                raw = await asyncio.wait_for(websocket.receive_text(), timeout=timeout)
+                if len(raw.encode("utf-8")) > MAX_WEBSOCKET_MESSAGE_BYTES:
+                    await websocket.close(code=1009, reason="message too large")
+                    return
+                payload = json.loads(raw)
                 message = parse_client_message(payload)
-            except ProtocolError as error:
+            except TimeoutError:
+                await websocket.close(code=1001, reason="connection timeout")
+                return
+            except (json.JSONDecodeError, ProtocolError) as error:
                 await websocket.send_json(server_message("error", code="protocol_error", message=str(error)))
                 continue
 
-            if session_id is None:
-                if message.type != "hello":
-                    await websocket.send_json(
-                        server_message("error", code="authentication_required", message="Envía hello primero.")
-                    )
-                    continue
-                try:
-                    session = pipa_core.authenticate(
-                        message.fields["device_id"],
-                        message.fields["challenge_id"],
-                        message.fields["signature"],
-                    )
-                except (TrustedUnlockError, ValueError) as error:
-                    await websocket.send_json(
-                        server_message("error", code="authentication_failed", message="Autenticación rechazada.")
-                    )
-                    await websocket.close(code=1008, reason="authentication failed")
-                    return
-                session_id = session.session_id
-                await websocket.send_json(
-                    server_message("ready", session_id=session_id, ui_state=session.ui_message())
-                )
-                continue
-
-            if message.type == "hello":
-                await websocket.send_json(server_message("error", code="already_authenticated"))
-                continue
-            for output in pipa_core.handle(session_id, message):
+            result = connection.process(message)
+            for output in result.responses:
                 await websocket.send_json(output)
+            if result.close:
+                await websocket.close(code=1008, reason="authentication failed")
+                return
     except WebSocketDisconnect:
         pass
     finally:
-        if session_id is not None:
-            pipa_core.close(session_id)
+        connection.close()
 
 
 @app.get("/audio/volume")
@@ -412,11 +454,17 @@ def api_unmute():
 if __name__ == "__main__":
     import uvicorn
 
-    print("Pipα Windows Agent")
+    print("Pipa Windows Agent")
     print("Listening on http://127.0.0.1:8765")
+    if LOG_PATH is not None:
+        LOGGER.info("Pipa Windows Agent starting; log=%s", LOG_PATH)
 
     uvicorn.run(
         app,
         host="127.0.0.1",
-        port=8765
+        port=8765,
+        ws_max_size=MAX_WEBSOCKET_MESSAGE_BYTES,
+        timeout_keep_alive=5,
+        access_log=False,
+        log_config=None,
     )

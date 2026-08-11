@@ -11,7 +11,6 @@ from urllib.parse import urlencode
 
 from tools.urls import validate_external_url
 
-
 MAX_MESSAGE_LENGTH = 4096
 _PHONE_ALLOWED = re.compile(r"^[0-9]{7,15}$")
 
@@ -34,6 +33,4 @@ def build_whatsapp_compose_url(phone: str, message: str) -> str:
     if len(message) > MAX_MESSAGE_LENGTH:
         raise ValueError(f"El mensaje no puede superar {MAX_MESSAGE_LENGTH} caracteres.")
 
-    return validate_external_url(
-        f"https://wa.me/{normalized_phone}?" + urlencode({"text": message})
-    )
+    return validate_external_url(f"https://wa.me/{normalized_phone}?" + urlencode({"text": message}))

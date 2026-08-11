@@ -9,7 +9,6 @@ from dataclasses import dataclass
 
 from .protocol import server_message
 
-
 UI_STATES = frozenset({"idle", "listening", "thinking", "confirm", "speaking", "focus", "dashboard"})
 
 
@@ -21,6 +20,14 @@ class DeviceSession:
     state: str = "idle"
     caption: str | None = None
     focus_remaining: int | None = None
+    firmware_version: str | None = None
+    capabilities: tuple[str, ...] = ()
+    last_seen_at: int | None = None
+    battery_percent: int | None = None
+    wifi_rssi: int | None = None
+
+    def touch(self) -> None:
+        self.last_seen_at = int(time.time())
 
     def set_state(self, state: str, *, caption: str | None = None) -> None:
         if state not in UI_STATES:
@@ -42,11 +49,21 @@ class SessionRegistry:
         self._sessions: dict[str, DeviceSession] = {}
         self._lock = threading.RLock()
 
-    def create(self, device_id: str) -> DeviceSession:
+    def create(
+        self,
+        device_id: str,
+        *,
+        firmware_version: str | None = None,
+        capabilities: tuple[str, ...] = (),
+    ) -> DeviceSession:
+        now = int(time.time())
         session = DeviceSession(
             session_id=secrets.token_urlsafe(16),
             device_id=device_id,
-            connected_at=int(time.time()),
+            connected_at=now,
+            firmware_version=firmware_version,
+            capabilities=capabilities,
+            last_seen_at=now,
         )
         with self._lock:
             self._sessions[session.session_id] = session

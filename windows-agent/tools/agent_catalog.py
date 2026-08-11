@@ -7,7 +7,7 @@ from typing import Any
 
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition
 from tools.apps import open_app
-from tools.audio import get_volume, mute, set_volume, unmute
+from tools.audio import mute, set_volume, unmute
 from tools.commands import build_apple_music_search_url, build_web_search_url, open_codex
 from tools.discord import build_discord_channel_url
 from tools.league import with_client

@@ -49,16 +49,11 @@ def main(argv: list[str] | None = None) -> int:
                 print("No hay dispositivos Pipa emparejados.")
                 return 0
             for device in devices:
-                print(
-                    f"{device.device_id}\tcreado={device.created_at}"
-                    f"\tfingerprint={device.fingerprint}"
-                )
+                print(f"{device.device_id}\tcreado={device.created_at}\tfingerprint={device.fingerprint}")
             return 0
 
         if not is_administrator():
-            raise DeviceStoreError(
-                "pair/revoke debe ejecutarse desde PowerShell como administrador"
-            )
+            raise DeviceStoreError("pair/revoke debe ejecutarse desde PowerShell como administrador")
 
         device_id = validate_device_id(args.device_id)
 

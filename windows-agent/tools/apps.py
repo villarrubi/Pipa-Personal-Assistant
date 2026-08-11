@@ -3,7 +3,6 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
 LOCAL_APPS_FILE = CONFIG_DIR / "apps.json"
@@ -50,7 +49,7 @@ def validate_apps_config(apps: Any) -> dict[str, dict[str, list[str]]]:
 def load_apps() -> dict[str, dict[str, list[str]]]:
     apps_file = _get_apps_file()
     try:
-        with open(apps_file, "r", encoding="utf-8") as file:
+        with open(apps_file, encoding="utf-8") as file:
             return validate_apps_config(json.load(file))
     except FileNotFoundError as error:
         raise AppsConfigError(f"No existe la configuración: {apps_file}") from error
@@ -75,24 +74,17 @@ def open_app(app_name: str):
     app_id, app_data = find_app(app_name)
 
     if app_data is None:
-        return {
-            "success": False,
-            "message": f"No conozco la aplicación '{app_name}'."
-        }
+        return {"success": False, "message": f"No conozco la aplicación '{app_name}'."}
 
     try:
         subprocess.Popen(app_data["command"])
 
-        return {
-            "success": True,
-            "app": app_id,
-            "message": f"Aplicación '{app_id}' abierta."
-        }
+        return {"success": True, "app": app_id, "message": f"Aplicación '{app_id}' abierta."}
 
     except OSError as error:
         return {
             "success": False,
             "app": app_id,
             "message": f"No he podido abrir '{app_id}'.",
-            "error": str(error)
+            "error": str(error),
         }

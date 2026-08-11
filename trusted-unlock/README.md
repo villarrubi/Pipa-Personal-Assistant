@@ -16,11 +16,15 @@ Compilar y probar
 Usa una consola **x64 Native Tools Command Prompt for VS 2026**:
 
 ```text
-cd trusted-unlock\build
-cmake --build . --config Release
-.\Release\PipaProviderTest.exe
-dumpbin /exports .\Release\PipaTrustedUnlock.dll
+cmake -S trusted-unlock -B trusted-unlock\build -A x64
+cmake --build trusted-unlock\build --config Release
+.\trusted-unlock\build\Release\PipaProviderTest.exe
+dumpbin /exports .\trusted-unlock\build\Release\PipaTrustedUnlock.dll
 ```
+
+El smoke test debe terminar con `SMOKE TEST COMPLETADO`, mantener autologon en
+`FALSE` y confirmar que no se entrega ninguna serialización. La CI repite una
+build x64 limpia en `build-ci`; los binarios nunca deben entrar en Git.
 
 Instalación controlada
 ----------------------

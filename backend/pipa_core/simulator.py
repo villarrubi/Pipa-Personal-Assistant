@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from trusted_unlock_devices import InMemoryDeviceStore
+from trusted_unlock_devices import InMemoryDeviceStore, verifier_from_store
 from trusted_unlock_simulator import InMemoryTrustedDevice
-from trusted_unlock_devices import verifier_from_store
 
 from .core import PipaCore
 from .protocol import PROTOCOL_VERSION, parse_client_message

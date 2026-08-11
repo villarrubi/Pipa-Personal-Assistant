@@ -83,7 +83,11 @@ class WindowsNamedPipeBrokerClient:
         if not isinstance(response, dict) or response.get("ok") is not True:
             error_data = response.get("error", {}) if isinstance(response, dict) else {}
             code = error_data.get("code", "broker_error") if isinstance(error_data, dict) else "broker_error"
-            message = error_data.get("message", "request rejected") if isinstance(error_data, dict) else "request rejected"
+            message = (
+                error_data.get("message", "request rejected")
+                if isinstance(error_data, dict)
+                else "request rejected"
+            )
             raise BrokerClientError(str(code), str(message))
 
         result = response.get("result")

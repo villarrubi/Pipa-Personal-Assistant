@@ -12,7 +12,6 @@ from urllib.parse import urlencode
 from tools.apps import open_app
 from tools.urls import validate_external_url
 
-
 MAX_QUERY_LENGTH = 200
 APPLE_MUSIC_STOREFRONT = "es"
 
@@ -28,16 +27,13 @@ def _validate_query(value: str, field_name: str) -> str:
 
 def build_web_search_url(query: str) -> str:
     query = _validate_query(query, "La búsqueda")
-    return validate_external_url(
-        "https://www.google.com/search?" + urlencode({"q": query})
-    )
+    return validate_external_url("https://www.google.com/search?" + urlencode({"q": query}))
 
 
 def build_apple_music_search_url(term: str) -> str:
     term = _validate_query(term, "La búsqueda musical")
     return validate_external_url(
-        f"https://music.apple.com/{APPLE_MUSIC_STOREFRONT}/search?"
-        + urlencode({"term": term})
+        f"https://music.apple.com/{APPLE_MUSIC_STOREFRONT}/search?" + urlencode({"term": term})
     )
 
 

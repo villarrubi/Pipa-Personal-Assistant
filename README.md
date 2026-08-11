@@ -1,153 +1,139 @@
-# Pipα — Personal AI Assistant
+# Pipα — asistente personal local
 
-Pipα es un proyecto de asistente personal para Windows que combina un agente
-local, automatización del PC, hardware ESP32/Waveshare y un futuro Trusted
-Unlock controlado criptográficamente.
+Pipα es un asistente para Windows con un agente local, un núcleo de comandos
+confirmables y firmware para el **Waveshare ESP32-S3-Touch-LCD-1.85C-BOX
+(SKU 30684)**. El diseño prioriza funcionamiento local, permisos mínimos y
+recuperación segura.
 
-## Estado actual
+## Estado real
 
-- El Windows Agent puede consultar el sistema, controlar audio, abrir apps y
-  bloquear el equipo.
-- También puede abrir búsquedas web, búsquedas de Apple Music y aplicaciones
-  configuradas como League o Codex, sin automatizar sus interfaces.
-- Incluye control multimedia, estado de batería/red, temporizadores locales y
-  preparación segura de mensajes de WhatsApp sin envío automático.
-- Puede abrir un DM o canal de Discord para preparar una llamada, que siempre
-  debe confirmarse manualmente.
-- Tiene un núcleo de protocolo para el futuro dispositivo: sesiones, estados
-  de UI, catálogo tipado de herramientas y confirmaciones de acciones.
-- El simulador de protocolo puede ejecutarse con
-  `python backend/pipa_simulator.py` sin hardware ni claves persistentes.
-- El Credential Provider aparece como opción adicional en LogonUI.
-- La tile de Pipα no autentica ni desbloquea Windows.
-- El protocolo Ed25519 de desafío/respuesta tiene pruebas unitarias.
-- Existe almacenamiento administrativo de claves públicas y tickets de una
-  sola operación en memoria.
-- Existe un broker local experimental con Named Pipe y ACL explícita, pero no
-  tiene capacidad de desbloqueo.
-- El firmware inicial para Waveshare ESP32-S3-Touch-LCD-1.85C-BOX está en
-  `firmware/`: identidad Ed25519, USB CDC, táctil y Wake-on-LAN.
-- Todavía no existe un flujo de desbloqueo real ni serialización de Windows.
+| Componente | Estado |
+| --- | --- |
+| Windows Agent | Operativo en `127.0.0.1:8765`, con inicio oculto y log local rotativo |
+| Comandos de PC | Operativos: apps, web, música, audio, multimedia, temporizadores, League, WhatsApp y Discord |
+| Núcleo Pipα | Operativo: sesiones, Ed25519, estados de UI, herramientas y confirmaciones |
+| Gateway Waveshare | Implementado por USB CDC; requiere configurar el futuro puerto COM |
+| Firmware SKU 30684 | Compila para ESP32-S3 N16R8; aún no se ha probado en la placa física |
+| Pantalla, micrófono y altavoz | Pendientes de validar e integrar con el hardware real |
+| Voz | El protocolo acepta texto reconocido; todavía no hay STT ejecutándose en el Waveshare |
+| Wake-on-LAN | Implementado en firmware; pendiente de prueba física y configuración de BIOS/red |
+| Trusted Unlock | **Desactivado**: la tile existe, pero no autentica ni entrega credenciales a Windows |
+| iPhone/remoto | No existe acceso remoto seguro; Wake-on-LAN del móvil depende de la red y de la app usada |
 
-La contraseña, el PIN, Windows Hello y los Credential Providers normales no se
-sustituyen ni se desactivan.
+Pipα no sustituye ni desactiva contraseña, PIN, Windows Hello u otros
+Credential Providers. Hoy no permite entrar en Windows sin uno de esos métodos.
+
+## Arquitectura
+
+```text
+Waveshare --USB JSON + firma Ed25519--> Gateway serie
+                                               |
+iPhone futuro --transporte aún no diseñado--> Pipα Core --> herramientas Windows
+                                               |                 |
+                                               |                 +--> confirmación si sale del PC
+                                               +--> sesión temporal
+
+Credential Provider --> broker local experimental --> siempre unlock_enabled=false
+```
+
+El agente HTTP y WebSocket solo escucha en loopback. El dispositivo se
+autentica mediante desafíos de un solo uso; las acciones externas se ligan a
+la sesión que las solicitó y caducan si no se confirman.
+
+## Qué puedes usar sin hardware
+
+- Abrir aplicaciones configuradas localmente y bloquear el PC.
+- Buscar en Internet y abrir búsquedas de Apple Music.
+- Controlar volumen y teclas multimedia.
+- Crear y consultar temporizadores en memoria.
+- Abrir League y comenzar/cancelar matchmaking en colas permitidas si el
+  cliente ya está abierto y autenticado.
+- Preparar un mensaje de WhatsApp sin pulsar `Enviar`.
+- Abrir un canal de Discord sin iniciar automáticamente una llamada.
+- Probar todo el protocolo de dispositivo con un simulador efímero.
+- Compilar el firmware exacto sin tener la placa.
+
+Consulta el catálogo y sus límites en
+[windows-agent/README.md](windows-agent/README.md).
+
+## Instalación del agente
+
+Desde PowerShell en la raíz:
+
+```powershell
+python -m venv .\windows-agent\.venv
+.\windows-agent\.venv\Scripts\python.exe -m pip install `
+  -r .\windows-agent\requirements.txt
+```
+
+Inícialo manualmente y comprueba el estado:
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+  -File .\windows-agent\start_agent_hidden.ps1
+
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+  -File .\windows-agent\check_agent_status.ps1
+```
+
+Para arrancarlo al iniciar sesión, ejecuta una vez PowerShell como
+administrador:
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+  -File .\windows-agent\install_agent_task.ps1
+```
+
+El agente no deja una ventana CMD abierta. Su log está en
+`%LOCALAPPDATA%\Pipa\logs\agent.log`, rota a 1 MB y conserva dos copias.
+
+## Validación
+
+```powershell
+python -B -m unittest discover -s backend/tests -p "test_*.py"
+python -B -m unittest discover -s windows-agent/tests -p "test_*.py"
+python -m compileall -q backend windows-agent
+
+.\scripts\check_repo_hygiene.ps1
+.\scripts\check_git_history.ps1
+```
+
+La CI repite esas comprobaciones, ejecuta Ruff, audita dependencias, compila
+el firmware y construye/prueba el Credential Provider x64.
+
+Para compilar el firmware:
+
+```powershell
+python -m venv .\firmware\.venv
+.\firmware\.venv\Scripts\python.exe -m pip install platformio==6.1.19
+.\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c
+```
+
+## Cuando llegue el Waveshare
+
+Solo quedará trabajo dependiente del dispositivo:
+
+1. confirmar revisión de placa, pines y controladores de pantalla/audio;
+2. cargar el firmware y comprobar USB, touch, Wi‑Fi y Wake-on-LAN;
+3. comparar físicamente la huella de la clave antes de emparejarla;
+4. implementar UI, captura de audio y STT sobre el protocolo ya probado;
+5. validar Secure Boot, cifrado de Flash, actualización y recuperación;
+6. revisar de nuevo el modelo de amenazas antes de plantear desbloqueo real.
+
+## Seguridad y privacidad
+
+Las configuraciones con rutas, Wi‑Fi, MAC o puertos viven en archivos locales
+ignorados. No deben entrar en Git claves privadas, tokens, builds, logs,
+capturas de LogonUI ni datos personales. Los controles y limitaciones están
+documentados en [SECURITY.md](SECURITY.md).
 
 ## Estructura
 
 ```text
 Pipa/
-├── trusted-unlock/       Credential Provider x64 y scripts de instalación
-├── windows-agent/        Agente local y núcleo de autorización
-├── backend/              Espacio reservado para el backend futuro
-└── firmware/             Firmware ESP32-S3/Waveshare y configuración local
+├── backend/          protocolo, sesiones, memoria temporal y simulador
+├── firmware/         firmware PlatformIO y definición de la placa N16R8
+├── scripts/          comprobaciones de higiene actual e histórica
+├── trusted-unlock/   Credential Provider experimental y rollback
+└── windows-agent/    API local, herramientas, gateway USB y arranque oculto
 ```
-
-## Requisitos
-
-- Windows 11 x64.
-- Python 3.12+.
-- Visual Studio Community con herramientas C++ x64.
-- Windows SDK.
-
-Instala las dependencias del agente en un entorno virtual local:
-
-```powershell
-cd windows-agent
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-```
-
-## Ejecutar el agente
-
-El agente escucha solo en `127.0.0.1:8765`:
-
-```powershell
-cd windows-agent
-python main.py
-```
-
-No se debe exponer este servidor a la red ni añadirle un endpoint de
-desbloqueo. Trusted Unlock usa un broker separado y un Named Pipe propio.
-
-## Compilar y probar el Credential Provider
-
-Desde **x64 Native Tools Command Prompt for VS 2026**:
-
-```text
-cd trusted-unlock\build
-cmake --build . --config Release
-.\Release\PipaProviderTest.exe
-dumpbin /exports .\Release\PipaTrustedUnlock.dll
-```
-
-El smoke test debe terminar con `SMOKE TEST COMPLETADO`, mostrar `AutoLogon:
-FALSE` y confirmar que no se entrega ninguna serialización.
-
-## Pruebas Python
-
-Desde la raíz del repositorio:
-
-```powershell
-python -B -m unittest discover -s windows-agent/tests -p "test_*.py"
-```
-
-Comprueba que el índice de Git no contiene builds, configuraciones locales ni
-patrones sensibles:
-
-```powershell
-.\scripts\check_repo_hygiene.ps1
-```
-
-## Configuración local de aplicaciones
-
-La configuración publicable es [apps.example.json](windows-agent/config/apps.example.json).
-Para personalizar rutas o comandos, copia esa plantilla como
-`windows-agent/config/apps.json`. Ese archivo está excluido por `.gitignore` y
-no debe subirse al repositorio.
-
-## Seguridad y recuperación
-
-Antes de registrar el Credential Provider se debe haber probado el smoke test.
-La instalación real usa:
-
-```powershell
-cd trusted-unlock
-.\install.ps1 -WhatIf
-```
-
-Para retirar la integración:
-
-```powershell
-.\uninstall.ps1 -WhatIf
-.\uninstall.ps1
-```
-
-El diseño completo y sus límites están en
-[TRUSTED_UNLOCK_PROTOCOL.md](trusted-unlock/TRUSTED_UNLOCK_PROTOCOL.md).
-
-## Higiene del repositorio
-
-No se deben subir builds, DLL, EXE, PDB, objetos, logs, entornos virtuales,
-`__pycache__`, claves privadas, certificados, tokens, archivos `.env`, dumps ni
-configuraciones con rutas del ordenador.
-
-El `.gitignore` evita nuevas inclusiones, pero no borra archivos que ya estén
-en la historia de Git. Si el repositorio remoto ya contiene datos que deban
-retirarse de su historial, primero hay que hacer una limpieza histórica
-revisada y después un push coordinado.
-
-El agente puede arrancarse automáticamente sin una ventana visible usando
-`windows-agent/start_agent_hidden.ps1` y `windows-agent/install_agent_task.ps1`.
-El archivo `start_agent.bat` queda reservado para ejecución manual y
-depuración.
-
-## Roadmap
-
-1. Endurecer instalación, desinstalación y recuperación.
-2. Ejecutar el broker como proceso controlado y probar reinicios, ACL y reloj.
-3. Probar el broker con un dispositivo simulado y fallos adversarios.
-4. Integrar el Credential Provider sin activar todavía la serialización.
-5. Emparejar el futuro Waveshare mediante una clave privada que nunca salga
-   del dispositivo.
-6. Diseñar y probar la serialización de Windows como último paso.

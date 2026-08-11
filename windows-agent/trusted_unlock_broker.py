@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import secrets
 import sys
 from typing import Any
 
@@ -36,7 +35,6 @@ from trusted_unlock_ticket import (
     TicketReplayError,
     UnknownTicketError,
 )
-
 
 BROKER_VERSION = "0.1.0"
 PROTOCOL_VERSION = 1
@@ -109,7 +107,7 @@ class TrustedUnlockBroker:
         self._ticket_issuer = ticket_issuer or TicketIssuer()
 
     @classmethod
-    def from_store(cls, store: DeviceStore) -> "TrustedUnlockBroker":
+    def from_store(cls, store: DeviceStore) -> TrustedUnlockBroker:
         return cls(verifier_from_store(store))
 
     def handle_bytes(self, raw_request: bytes) -> bytes:
@@ -149,7 +147,9 @@ class TrustedUnlockBroker:
                 "request_id": request_id,
                 "error": {
                     "code": _error_code(error),
-                    "message": str(error) if isinstance(error, (BrokerRequestError, TrustedUnlockError, TicketError)) else "request failed",
+                    "message": str(error)
+                    if isinstance(error, (BrokerRequestError, TrustedUnlockError, TicketError))
+                    else "request failed",
                 },
             }
 

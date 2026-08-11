@@ -8,7 +8,9 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from trusted_unlock_protocol import (  # noqa: E402
+    MAX_PENDING_PER_DEVICE,
     AuthorizationVerifier,
+    ChallengeLimitError,
     ChallengeMismatchError,
     ExpiredChallengeError,
     InvalidResponseError,
@@ -90,6 +92,13 @@ class TrustedUnlockProtocolTests(unittest.TestCase):
 
         with self.assertRaises(UnknownChallengeError):
             self.verifier.verify_response(response, now=1000)
+
+    def test_pending_challenges_are_bounded_per_device(self):
+        for _ in range(MAX_PENDING_PER_DEVICE):
+            self.verifier.create_challenge("phone-main", now=1000)
+
+        with self.assertRaises(ChallengeLimitError):
+            self.verifier.create_challenge("phone-main", now=1000)
 
 
 if __name__ == "__main__":

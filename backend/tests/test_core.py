@@ -6,11 +6,12 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "windows-agent"))
 sys.path.insert(0, str(ROOT))
 
-from backend.pipa_core.core import PipaCore  # noqa: E402
-from backend.pipa_core.confirmations import ConfirmationError  # noqa: E402
-from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter  # noqa: E402
 from trusted_unlock_devices import InMemoryDeviceStore, verifier_from_store  # noqa: E402
 from trusted_unlock_simulator import InMemoryTrustedDevice  # noqa: E402
+
+from backend.pipa_core.confirmations import ConfirmationError  # noqa: E402
+from backend.pipa_core.core import PipaCore  # noqa: E402
+from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter  # noqa: E402
 
 
 class CoreTests(unittest.TestCase):
@@ -86,6 +87,17 @@ class CoreTests(unittest.TestCase):
         recalled = self._send("tool_call", name="recall_memory", arguments={})
         result = next(item for item in recalled if item["type"] == "tool_result")
         self.assertEqual(result["result"]["facts"], ["Apple Music"])
+
+    def test_ping_and_status_refresh_session(self):
+        pong = self._send("ping", request_id="heartbeat-1")
+        self.assertEqual(pong[0]["type"], "pong")
+        self.assertEqual(pong[0]["request_id"], "heartbeat-1")
+
+        acknowledged = self._send("device_status", battery_percent=75, wifi_rssi=-60)
+        self.assertEqual(acknowledged[0]["type"], "status_ack")
+        session = self.core.sessions.get(self.session_id)
+        self.assertEqual(session.battery_percent, 75)
+        self.assertEqual(session.wifi_rssi, -60)
 
     def _send(self, message_type, **fields):
         from backend.pipa_core.protocol import parse_client_message

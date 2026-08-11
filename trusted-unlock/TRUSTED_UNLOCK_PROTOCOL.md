@@ -38,6 +38,7 @@ operación, el dispositivo, el nonce o la caducidad sin invalidar la firma.
 - `GetSerialization` del Credential Provider sigue sin entregar credenciales.
 - No se almacena ninguna contraseña, PIN, token estático o secreto compartido.
 - Los desafíos caducan como máximo en 60 segundos; el valor normal es 30.
+- El número de desafíos pendientes está acotado globalmente y por dispositivo.
 - Un dispositivo revocado no puede completar desafíos pendientes.
 - El estado pendiente y anti-replay vive en memoria y se pierde al reiniciar;
   esto hace que los desafíos antiguos fallen cerradamente.
@@ -77,18 +78,17 @@ independiente.
 
 ## Lo que falta antes de una integración real
 
-- Diseñar y revisar el emparejamiento inicial y la revocación persistente.
-- Guardar la configuración de dispositivos con ACL adecuada y sin claves
-  privadas; valorar DPAPI/TPM para material local sensible.
-- Sustituir cualquier transporte HTTP por un canal autenticado y limitado, o
-  por IPC con ACL de Windows cuando el proceso opere cerca del escritorio
-  seguro.
-- Definir un ticket de una sola operación entre el servicio autorizado y el
-  Credential Provider.
-- Determinar cómo se generará de forma correcta la serialización que Windows
-  espera, sin alterar los métodos normales de inicio de sesión.
-- Hacer pruebas de recuperación con el Provider instalado y documentar el
-  rollback antes de activar cualquier autenticación.
+- Revisar de forma independiente el emparejamiento, Registro y ACL del pipe.
+- Ejecutar el broker con lifecycle controlado, identidad de proceso verificable
+  y actualización segura; hoy sigue siendo experimental.
+- Integrar el ticket con el Credential Provider sin habilitar serialización y
+  someter el IPC a pruebas adversarias.
+- Diseñar la serialización que Windows espera sin almacenar contraseña/PIN ni
+  alterar los métodos normales de inicio de sesión.
+- Validar Secure Boot, cifrado de Flash, anti-rollback y recuperación física
+  del dispositivo.
+- Probar reinicios, pérdida del dispositivo, corrupción y rollback en una
+  máquina de ensayo antes de activar autenticación alguna.
 
 ## Referencia criptográfica
 
