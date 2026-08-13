@@ -110,6 +110,18 @@ class IntegrationTests(unittest.TestCase):
         )
         self.assertIn("sin escribir", commands["open_codex"]["description"])
         self.assertIn("reproductor multimedia activo", commands["media_play_pause"]["description"])
+        self.assertEqual(
+            {
+                command_id: commands[command_id]["default_arguments"]
+                for command_id in ("media_play_pause", "media_next", "media_previous", "media_stop")
+            },
+            {
+                "media_play_pause": {"action": "play_pause"},
+                "media_next": {"action": "next"},
+                "media_previous": {"action": "previous"},
+                "media_stop": {"action": "stop"},
+            },
+        )
         self.assertEqual(commands["discord_open_app"]["parameters"], [])
         self.assertEqual(
             commands["whatsapp_compose"]["parameters"],

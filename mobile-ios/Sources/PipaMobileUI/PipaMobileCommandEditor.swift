@@ -52,7 +52,7 @@ public extension PipaMobileCommand {
     func toolArguments(with values: [String: String]) -> [String: Any]? {
         guard supportsStructuredArguments, parameters.count == placeholders.count else { return nil }
         if parameters.isEmpty {
-            return values.isEmpty ? [:] : nil
+            return values.isEmpty ? defaultArguments : nil
         }
         var arguments: [String: Any] = [:]
         for (index, parameter) in parameters.enumerated() {

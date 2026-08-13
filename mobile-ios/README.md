@@ -71,7 +71,9 @@ permanecen solo en memoria de la pantalla y no se guardan en Keychain.
 
 La lista de comandos incluye un botón `Usar` para preparar una frase sin
 enviarla. Las acciones actuales sin parámetros muestran `Ejecutar` y usan el
-camino estructurado cifrado; las acciones peligrosas siguen deteniéndose en
+camino estructurado cifrado; si una acción directa publica `default_arguments`,
+la app valida y envía esos argumentos fijos sin convertirlos en campos editables.
+Las acciones peligrosas siguen deteniéndose en
 la confirmación visible. Si la frase tiene marcadores (`<consulta>`, `<teléfono>`,
 `<mensaje>`, `<cola>`, etc.), la UI abre un formulario local y muestra una
 vista previa acotada; después copia el resultado al editor para que la persona

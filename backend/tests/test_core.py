@@ -250,6 +250,45 @@ class CoreTests(unittest.TestCase):
             ],
         )
 
+    def test_catalog_request_preserves_bounded_fixed_arguments(self):
+        self.core.command_catalog = lambda: [
+            {
+                "id": "media_play_pause",
+                "tool_name": "media_action",
+                "phrase": "reproduce la canción seleccionada",
+                "description": "Controla el reproductor activo.",
+                "safety": "safe",
+                "requires_confirmation": False,
+                "parameters": [],
+                "default_arguments": {"action": "play_pause"},
+            }
+        ]
+
+        outputs = self._send("catalog_request")
+
+        self.assertEqual(
+            outputs[0]["commands"][0]["default_arguments"],
+            {"action": "play_pause"},
+        )
+
+    def test_catalog_rejects_fixed_arguments_with_controls_or_editable_parameters(self):
+        self.core.command_catalog = lambda: [
+            {
+                "id": "bad-fixed-arguments",
+                "tool_name": "media_action",
+                "phrase": "reproduce",
+                "description": "Controla.",
+                "safety": "safe",
+                "requires_confirmation": False,
+                "parameters": [{"name": "action", "label": "Acción", "kind": "action", "max_length": 16}],
+                "default_arguments": {"action": "play_pause\u202e"},
+            }
+        ]
+
+        outputs = self._send("catalog_request")
+
+        self.assertEqual(outputs, [{"protocol_version": 1, "type": "error", "code": "catalog_unavailable"}])
+
     def test_catalog_rejects_untrusted_parameter_metadata(self):
         self.core.command_catalog = lambda: [
             {

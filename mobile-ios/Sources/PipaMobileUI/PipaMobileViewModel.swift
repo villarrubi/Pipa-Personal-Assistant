@@ -97,10 +97,16 @@ public struct PipaMobileCommand: Identifiable {
     /// An empty explicit list is meaningful for direct no-argument calls.
     /// Missing metadata keeps the legacy text-editor path for old agents.
     public let supportsStructuredArguments: Bool
+    /// Fixed typed arguments for direct catalog commands with no placeholders.
+    /// They are validated locally before crossing the encrypted session.
+    public let defaultArguments: [String: String]
 
     init?(payload: [String: Any]) {
         guard payload.keys.allSatisfy({
-                  ["id", "tool_name", "phrase", "description", "safety", "requires_confirmation", "parameters"].contains($0)
+                  [
+                      "id", "tool_name", "phrase", "description", "safety", "requires_confirmation",
+                      "parameters", "default_arguments",
+                  ].contains($0)
               }),
               let id = payload["id"] as? String,
               let toolName = payload["tool_name"] as? String,
@@ -126,7 +132,7 @@ public struct PipaMobileCommand: Identifiable {
         }
 
         let parameters: [PipaMobileCommandParameter]
-        let supportsStructuredArguments: Bool
+        var supportsStructuredArguments: Bool
         if payload.keys.contains("parameters") {
             guard let rawList = payload["parameters"] as? [[String: Any]],
                   rawList.count <= 8 else {
@@ -144,6 +150,26 @@ public struct PipaMobileCommand: Identifiable {
             supportsStructuredArguments = false
         }
 
+        let defaultArguments: [String: String]
+        if let rawDefaults = payload["default_arguments"] {
+            guard let defaults = rawDefaults as? [String: Any],
+                  !defaults.isEmpty,
+                  defaults.count <= 8,
+                  defaults.allSatisfy({ key, value in
+                      Self.isValidDefaultArgumentName(key) &&
+                          (value as? String).map {
+                              PipaMobileTextPolicy.isSafeDisplayText($0, maxBytes: 128) && $0.utf8.count <= 128
+                          } == true
+                  }),
+                  parameters.isEmpty else {
+                return nil
+            }
+            defaultArguments = defaults.compactMapValues { $0 as? String }
+            supportsStructuredArguments = true
+        } else {
+            defaultArguments = [:]
+        }
+
         self.id = id
         self.toolName = toolName
         self.phrase = phrase
@@ -152,6 +178,21 @@ public struct PipaMobileCommand: Identifiable {
         self.requiresConfirmation = requiresConfirmation
         self.parameters = parameters
         self.supportsStructuredArguments = supportsStructuredArguments
+        self.defaultArguments = defaultArguments
+    }
+
+    private static func isValidDefaultArgumentName(_ value: String) -> Bool {
+        guard let first = value.utf8.first,
+              value.utf8.count <= 64,
+              (first >= 0x41 && first <= 0x5A) || (first >= 0x61 && first <= 0x7A) else {
+            return false
+        }
+        return value.utf8.dropFirst().allSatisfy { byte in
+            (byte >= 0x41 && byte <= 0x5A) ||
+                (byte >= 0x61 && byte <= 0x7A) ||
+                (byte >= 0x30 && byte <= 0x39) ||
+                byte == 0x2D || byte == 0x5F
+        }
     }
 }
 

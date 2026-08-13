@@ -289,6 +289,14 @@ def _check_command_routes() -> dict[str, Any]:
             if not isinstance(parameters, list) or parameters:
                 raise ValueError("catalog exposes invalid parameters without phrase placeholders")
             direct_structured_commands += 1
+        default_arguments = command.get("default_arguments")
+        if default_arguments is not None:
+            if placeholders or not isinstance(default_arguments, dict) or not default_arguments:
+                raise ValueError("catalog exposes invalid fixed arguments")
+            try:
+                catalog.get(tool_name).validate_arguments(default_arguments)
+            except (KeyError, ValueError, TypeError) as error:
+                raise ValueError("catalog fixed arguments do not match the tool contract") from error
         public_ids.add(command_id)
         public_tool_names.add(tool_name)
         try:

@@ -25,7 +25,16 @@ MAX_CATALOG_PARAMETERS = 8
 MAX_CATALOG_PARAMETER_OPTIONS = 16
 MAX_CATALOG_PARAMETER_TEXT_LENGTH = 128
 _CATALOG_FIELDS = frozenset(
-    {"id", "tool_name", "phrase", "description", "safety", "requires_confirmation", "parameters"}
+    {
+        "id",
+        "tool_name",
+        "phrase",
+        "description",
+        "safety",
+        "requires_confirmation",
+        "parameters",
+        "default_arguments",
+    }
 )
 _CATALOG_PARAMETER_FIELDS = frozenset({"name", "label", "kind", "max_length", "options"})
 _CATALOG_PARAMETER_KINDS = frozenset(
@@ -170,6 +179,27 @@ def _validate_catalog_parameters(value: Any) -> list[dict[str, Any]]:
         if options:
             normalized["options"] = [option.strip() for option in options]
         validated.append(normalized)
+    return validated
+
+
+def _validate_catalog_default_arguments(value: Any) -> dict[str, str]:
+    """Validate fixed typed arguments for direct structured commands."""
+
+    if not isinstance(value, dict) or not value or len(value) > MAX_CATALOG_PARAMETERS:
+        raise ValueError("invalid catalog default arguments")
+
+    validated: dict[str, str] = {}
+    for name, argument in value.items():
+        if (
+            not isinstance(name, str)
+            or _CATALOG_PARAMETER_NAME.fullmatch(name) is None
+            or not isinstance(argument, str)
+            or not argument.strip()
+            or len(argument) > MAX_CATALOG_PARAMETER_TEXT_LENGTH
+            or not _is_safe_catalog_text(argument)
+        ):
+            raise ValueError("invalid catalog default argument")
+        validated[name] = argument.strip()
     return validated
 
 
@@ -440,6 +470,13 @@ class PipaCore:
                 parameters = (
                     _validate_catalog_parameters(value["parameters"]) if "parameters" in value else None
                 )
+                default_arguments = (
+                    _validate_catalog_default_arguments(value["default_arguments"])
+                    if "default_arguments" in value
+                    else None
+                )
+                if default_arguments is not None and parameters:
+                    raise ValueError("fixed arguments cannot accompany editable parameters")
                 text_fields = (command_id, tool_name, phrase, description)
                 if any(
                     not isinstance(item, str) or not item.strip() or len(item) > MAX_CATALOG_FIELD_LENGTH
@@ -466,6 +503,8 @@ class PipaCore:
                 }
                 if parameters is not None:
                     command["parameters"] = parameters
+                if default_arguments is not None:
+                    command["default_arguments"] = default_arguments
                 commands.append(command)
         except Exception:
             return [server_message("error", code="catalog_unavailable")]

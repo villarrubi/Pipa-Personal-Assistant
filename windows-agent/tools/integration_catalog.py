@@ -380,6 +380,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
     {
         "id": "media_play_pause",
         "tool_name": "media_action",
+        "default_arguments": {"action": "play_pause"},
         "phrase": "reproduce la canción seleccionada",
         "description": "Reproduce o pausa el reproductor multimedia activo; no elige una pista.",
         "safety": "safe",
@@ -388,6 +389,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
     {
         "id": "media_next",
         "tool_name": "media_action",
+        "default_arguments": {"action": "next"},
         "phrase": "siguiente canción",
         "description": "Pasa a la siguiente pista del reproductor multimedia activo.",
         "safety": "safe",
@@ -396,6 +398,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
     {
         "id": "media_previous",
         "tool_name": "media_action",
+        "default_arguments": {"action": "previous"},
         "phrase": "canción anterior",
         "description": "Vuelve a la pista anterior del reproductor multimedia activo.",
         "safety": "safe",
@@ -404,6 +407,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
     {
         "id": "media_stop",
         "tool_name": "media_action",
+        "default_arguments": {"action": "stop"},
         "phrase": "detén la música",
         "description": "Detiene el reproductor multimedia activo.",
         "safety": "safe",

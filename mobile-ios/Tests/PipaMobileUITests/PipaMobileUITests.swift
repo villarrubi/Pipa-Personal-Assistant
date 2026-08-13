@@ -319,6 +319,41 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertNil(legacyCommand.toolArguments(with: [:]))
     }
 
+    func testDirectCatalogCommandUsesValidatedDefaultArguments() throws {
+        let command = try XCTUnwrap(
+            PipaMobileCommand(payload: [
+                "id": "media_play_pause",
+                "tool_name": "media_action",
+                "phrase": "reproduce la canción seleccionada",
+                "description": "Controla el reproductor activo.",
+                "safety": "safe",
+                "requires_confirmation": false,
+                "parameters": [],
+                "default_arguments": ["action": "play_pause"],
+            ])
+        )
+
+        XCTAssertTrue(command.supportsStructuredArguments)
+        XCTAssertEqual(command.defaultArguments, ["action": "play_pause"])
+        XCTAssertEqual(command.toolArguments(with: [:])?["action"] as? String, "play_pause")
+        XCTAssertNil(command.toolArguments(with: ["unexpected": "value"]))
+    }
+
+    func testDirectCatalogCommandRejectsMalformedDefaultArguments() {
+        let command = PipaMobileCommand(payload: [
+            "id": "media_play_pause",
+            "tool_name": "media_action",
+            "phrase": "reproduce la canción seleccionada",
+            "description": "Controla el reproductor activo.",
+            "safety": "safe",
+            "requires_confirmation": false,
+            "parameters": [],
+            "default_arguments": ["action": "play_pause\u{202E}"],
+        ])
+
+        XCTAssertNil(command)
+    }
+
     func testStructuredCatalogCommandRejectsMalformedParameterMetadata() {
         let command = PipaMobileCommand(payload: [
             "id": "bad",

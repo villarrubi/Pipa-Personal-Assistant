@@ -60,6 +60,17 @@ class IntegrationContractTests(unittest.TestCase):
         self.assertTrue(expected_tools.issubset(self.catalog.names()))
         self.assertTrue(expected_tools.issubset({command["tool_name"] for command in commands}))
 
+    def test_parameterless_public_commands_validate_their_fixed_arguments(self):
+        for command in get_command_catalog():
+            if command["parameters"] and "default_arguments" not in command:
+                continue
+            with self.subTest(command=command["id"], tool=command["tool_name"]):
+                arguments = command.get("default_arguments", {})
+                self.assertEqual(
+                    self.catalog.get(command["tool_name"]).validate_arguments(arguments),
+                    arguments,
+                )
+
     def test_remote_capabilities_never_claim_automatic_private_actions(self):
         capabilities = build_integration_capabilities(
             apple_music_configured=True,

@@ -148,6 +148,7 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
         required_text={"action": 16},
         choices={"action": ("play_pause", "next", "previous", "stop")},
     )
+
     timer_create_arguments = _argument_schema(
         required_integers={"seconds": (1, MAX_TIMER_SECONDS)},
         optional_text={"label": 120},

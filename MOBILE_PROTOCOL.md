@@ -152,6 +152,28 @@ guardan en el catálogo ni se devuelven en confirmaciones. Si un agente antiguo
 no publica `parameters`, la UI conserva el camino compatible de frase libre.
 El Core vuelve a validar ese contrato —incluidos campos extra, tipos, límites y
 allowlists— antes de crear una confirmación y al consumirla.
+
+Una acción directa que no muestra marcadores pero necesita argumentos fijos puede
+publicar además `default_arguments`, un objeto pequeño de textos acotados. Solo
+se acepta junto a `parameters: []`; la UI valida esos valores y los envía sin
+permitir que el usuario los edite. Por ejemplo, los botones de reproducción,
+siguiente y detener usan la herramienta común `media_action` con una acción
+fija. Este campo no sirve para transportar configuración privada ni datos de la
+persona.
+
+```json
+{
+  "id": "media_next",
+  "tool_name": "media_action",
+  "phrase": "siguiente canción",
+  "description": "Pasa a la siguiente pista.",
+  "safety": "safe",
+  "requires_confirmation": false,
+  "parameters": [],
+  "default_arguments": {"action": "next"}
+}
+```
+
 Los cuerpos de mensaje pueden contener saltos de línea únicamente en el campo
 tipado `message`; los controles y formatos invisibles siguen rechazándose.
 

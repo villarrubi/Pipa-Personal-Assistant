@@ -74,9 +74,10 @@ telemetría detallada ni memoria privada a la pantalla. La memoria de
 pendientes está limitada globalmente y por sesión.
 
 `catalog_request` solo devuelve descriptores acotados de comandos (`id`, frase,
-descripción y política de confirmación) y, en el agente Windows, una matriz
-plana de capacidades de integración. El Core filtra campos desconocidos,
-longitudes, duplicados y cantidades antes de enviarlos; la matriz solo admite
+descripción y política de confirmación), metadata tipada de parámetros y, para
+acciones directas, argumentos fijos allowlisted. En el agente Windows también
+incluye una matriz plana de capacidades de integración. El Core filtra campos
+desconocidos, longitudes, duplicados y cantidades antes de enviarlos; la matriz solo admite
 booleanos, textos cortos y listas de textos cortas. No incluye URLs,
 configuración local, contactos, tokens ni resultados de herramientas.
 
