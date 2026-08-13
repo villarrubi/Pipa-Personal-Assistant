@@ -6,6 +6,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "windows-agent"))
 sys.path.insert(0, str(ROOT))
 
+from tools.agent_catalog import build_agent_catalog  # noqa: E402
+from tools.timers import TimerManager  # noqa: E402
+
 from backend.pipa_core.intents import parse_text_intent  # noqa: E402
 
 
@@ -110,6 +113,28 @@ class IntegrationIntentTests(unittest.TestCase):
             "media_action",
             {"action": "play_pause"},
         )
+
+    def test_integration_intents_match_the_real_tool_argument_contracts(self):
+        catalog = build_agent_catalog(TimerManager())
+        examples = (
+            ("búscame en internet documentación de Pipa", "web_search"),
+            ("busca Daft Punk en Apple Music", "music_search"),
+            ("prepara WhatsApp para +34 600 123 456 y dile hola", "whatsapp_compose"),
+            ("abre el WhatsApp para +34 600 123 456", "whatsapp_phone_open"),
+            ("abre el canal 12345678901234567 en Discord", "discord_open"),
+            ("llama al canal 12345678901234567 en Discord", "discord_call_channel"),
+            ("quiero jugar una partida de ARAM", "league_search"),
+        )
+        for phrase, expected_tool in examples:
+            with self.subTest(phrase=phrase):
+                intent = parse_text_intent(phrase)
+                self.assertIsNotNone(intent)
+                assert intent is not None
+                self.assertEqual(intent.tool_name, expected_tool)
+                self.assertEqual(
+                    catalog.get(intent.tool_name).validate_arguments(intent.arguments),
+                    intent.arguments,
+                )
 
 
 if __name__ == "__main__":
