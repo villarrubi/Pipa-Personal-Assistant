@@ -57,6 +57,8 @@ que las solicitó y caducan si no se confirman.
 - Abrir una URL validada desde una frase, siempre con confirmación.
 - Abrir League y comenzar/cancelar matchmaking en colas permitidas; una
   búsqueda confirmada puede abrir el cliente si todavía no está listo.
+- El estado de League se reduce a datos seguros y la búsqueda falla cerrada si
+  el cliente devuelve un estado de matchmaking desconocido.
 - Abrir WhatsApp Web, abrir el chat de un alias o preparar un mensaje sin
   pulsar `Enviar`.
 - Si existe una entrada local allowlisted `whatsapp`, abrir esa app; en caso
@@ -83,6 +85,9 @@ que las solicitó y caducan si no se confirman.
 - Desde el iPhone, abrir un chat de WhatsApp con un mensaje preparado o un
   canal de Discord mediante enlaces HTTPS; el envío y la llamada siguen siendo
   manuales y esos datos no se guardan.
+- El parser también entiende frases naturales como `quiero buscar una partida
+  en el LoL` y `manda un mensaje a ... por WhatsApp`; siguen pasando por la
+  misma confirmación y nunca envían por sí solas.
 - Ejecutar `python .\windows-agent\pipa_cli.py doctor` para comprobar en una
   sola operación la salud local, capacidades, protocolo e integraciones.
 - Ejecutar `powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File

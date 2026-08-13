@@ -756,8 +756,20 @@ class IntegrationTests(unittest.TestCase):
             {"phone": "+34 600 123 456", "message": "Hola"},
         )
         self.assertEqual(
+            parse_text_intent("manda un mensaje a +34 600 123 456 por WhatsApp y dile Hola").arguments,
+            {"phone": "+34 600 123 456", "message": "Hola"},
+        )
+        self.assertEqual(
+            parse_text_intent("manda un mensaje a mamá por WhatsApp y dile Hola").arguments,
+            {"contact": "mamá", "message": "Hola"},
+        )
+        self.assertEqual(
             parse_text_intent("busca una partida clasificatoria solo en League").arguments,
             {"queue": "ranked_solo"},
+        )
+        self.assertEqual(
+            parse_text_intent("quiero buscar una partida en el LoL").arguments,
+            {"queue": "normal_draft"},
         )
         self.assertEqual(parse_text_intent("cancela búsqueda de LoL").tool_name, "league_cancel")
         self.assertEqual(
@@ -892,6 +904,22 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(result["started"])
         self.assertEqual(request.call_count, 3)
 
+    def test_league_search_fails_closed_for_an_unknown_matchmaking_state(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+        with patch.object(
+            api,
+            "_request",
+            side_effect=[
+                {"gameConfig": {"queueId": 400}},
+                {"searchState": "FutureStateFromNewClient"},
+            ],
+        ) as request:
+            with self.assertRaises(LeagueClientError):
+                api.start_search("normal")
+
+        self.assertEqual(request.call_count, 2)
+
     def test_league_search_fails_closed_when_existing_lobby_has_no_queue(self):
         connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
         api = LeagueClientApi(connection)
@@ -918,7 +946,7 @@ class IntegrationTests(unittest.TestCase):
         ):
             result = api.status()
 
-        self.assertEqual(result["lobby"], {"present": True, "queue_id": 420})
+        self.assertEqual(result["lobby"], {"present": True, "queue_id": 420, "queue": "ranked_solo"})
         self.assertEqual(result["search"], {"supported": True, "searching": True, "state": "searching"})
 
     def test_device_text_input_reaches_integrations_only_after_tap_confirmation(self):

@@ -215,6 +215,10 @@ dispositivo sí exige firma Ed25519 y confirmación para herramientas externas.
   matchmaking. Si el cliente no está listo al confirmar `league_search`, el
   agente abre la aplicación allowlisted y espera como máximo 30 segundos; las
   consultas de estado y la cancelación nunca abren procesos automáticamente.
+  Si League devuelve un estado de matchmaking que Pipa todavía no conoce,
+  la búsqueda falla cerrada y no crea lobby ni inicia cola. El estado público
+  solo expone `searching`, `not_searching` o `unknown`, y el lobby incluye la
+  cola allowlisted cuando se puede identificar.
 - El móvil también puede consultar por separado el estado de búsqueda de
   League, la batería/red del PC y los temporizadores locales; esas consultas
   no requieren confirmación. Cancelar un temporizador solo afecta a la memoria
@@ -262,7 +266,10 @@ entra en cola ARAM
 busca partida ARAM
 busca una partida dentro del LoL
 busca una partida clasificatoria solo en League
+quiero buscar una partida en el LoL
 prepara WhatsApp para +34 600 123 456 y dile Hola Mamá
+manda un mensaje a +34 600 123 456 por WhatsApp y dile Hola
+manda un mensaje a mama por WhatsApp y dile Hola
 escribe en WhatsApp para +34 600 123 456 y dile Hola
 escribe a mama por WhatsApp y dile Hola
 abre el chat de mama en WhatsApp

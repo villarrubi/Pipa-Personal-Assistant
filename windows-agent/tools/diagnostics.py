@@ -69,7 +69,17 @@ _COMMAND_ROUTE_CASES = (
         {"phone": "+34 600 123 456", "message": "Hola"},
     ),
     (
+        "manda un mensaje a +34 600 123 456 por WhatsApp y dile Hola",
+        "whatsapp_compose",
+        {"phone": "+34 600 123 456", "message": "Hola"},
+    ),
+    (
         "prepara WhatsApp para mama y dile Hola",
+        "whatsapp_contact",
+        {"contact": "mama", "message": "Hola"},
+    ),
+    (
+        "manda un mensaje a mama por WhatsApp y dile Hola",
         "whatsapp_contact",
         {"contact": "mama", "message": "Hola"},
     ),
@@ -115,6 +125,7 @@ _COMMAND_ROUTE_CASES = (
     ("inicia búsqueda ranked", "league_search", {"queue": "ranked_solo"}),
     ("entra en cola ARAM", "league_search", {"queue": "aram"}),
     ("busca una partida en el LoL", "league_search", {"queue": "normal_draft"}),
+    ("quiero buscar una partida en el LoL", "league_search", {"queue": "normal_draft"}),
     ("estado de League", "league_status", {}),
     ("estado de búsqueda de League", "league_search_status", {}),
     ("cancela la búsqueda", "league_cancel", {}),

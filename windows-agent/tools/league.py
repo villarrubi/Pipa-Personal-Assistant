@@ -51,6 +51,17 @@ _CLIENT_NAMES = frozenset({"leagueclientux.exe", "leagueclientux"})
 _MAX_TOKEN_LENGTH = 1024
 _CLIENT_START_TIMEOUT_SECONDS = 30.0
 _CLIENT_START_POLL_SECONDS = 0.5
+_SEARCHING_STATES = frozenset({"searching", "inprogress", "in_progress"})
+_NOT_SEARCHING_STATES = frozenset(
+    {
+        "none",
+        "idle",
+        "not_searching",
+        "notsearching",
+        "cancelled",
+        "canceled",
+    }
+)
 
 
 def _same_windows_user(username: object) -> bool:
@@ -208,16 +219,17 @@ class LeagueClientApi:
         """Expose only the fields needed by Pipα, never raw LCU lobby data."""
 
         if lobby is None:
-            return {"present": False, "queue_id": None}
+            return {"present": False, "queue_id": None, "queue": None}
         if not isinstance(lobby, dict):
-            return {"present": True, "queue_id": None}
+            return {"present": True, "queue_id": None, "queue": None}
         game_config = lobby.get("gameConfig")
         raw_queue = game_config.get("queueId") if isinstance(game_config, dict) else lobby.get("queueId")
         try:
             queue_id = int(raw_queue) if raw_queue is not None else None
         except (TypeError, ValueError):
             queue_id = None
-        return {"present": True, "queue_id": queue_id}
+        queue = next((name for name, identifier in QUEUE_IDS.items() if identifier == queue_id), None)
+        return {"present": True, "queue_id": queue_id, "queue": queue}
 
     def search_status(self) -> dict[str, object]:
         """Read matchmaking state when the running LCU exposes that endpoint."""
@@ -231,10 +243,14 @@ class LeagueClientApi:
         searching = False
         state = "unknown"
         if isinstance(details, dict):
-            state = str(details.get("searchState", details.get("state", "unknown"))).lower()
-            searching = (
-                state in {"searching", "inprogress", "in_progress"} or details.get("searching") is True
-            )
+            raw_state = details.get("searchState", details.get("state", "unknown"))
+            if isinstance(raw_state, str):
+                normalized_state = raw_state.strip().casefold()
+                if normalized_state in _SEARCHING_STATES:
+                    state = "searching"
+                elif normalized_state in _NOT_SEARCHING_STATES:
+                    state = "not_searching"
+            searching = state == "searching" or details.get("searching") is True
         return {"supported": True, "searching": searching, "state": state}
 
     def start_search(self, queue: str) -> dict[str, object]:
@@ -249,6 +265,11 @@ class LeagueClientApi:
             raise LeagueClientError(
                 "La API local de matchmaking no está disponible en esta versión de League."
             )
+        if search["state"] == "unknown":
+            # Never interpret an unfamiliar client state as idle: doing so
+            # could create a second lobby or queue while the client is already
+            # transitioning. A future LCU state must be mapped explicitly.
+            raise LeagueClientError("No se pudo confirmar el estado actual de matchmaking.")
         canonical_queue = next(name for name, identifier in QUEUE_IDS.items() if identifier == queue_id)
         if search["searching"]:
             return {

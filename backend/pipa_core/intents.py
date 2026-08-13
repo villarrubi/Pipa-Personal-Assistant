@@ -140,6 +140,19 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
             {"phone": whatsapp_compose.group(1).strip(), "message": whatsapp_compose.group(2).strip()},
         )
 
+    whatsapp_message = re.fullmatch(
+        r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:para|a) "
+        r"([+\d][\d\s().-]{6,24}) (?:por|en) whatsapp "
+        r"(?:y dile|con el mensaje) (.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if whatsapp_message:
+        return ParsedIntent(
+            "whatsapp_compose",
+            {"phone": whatsapp_message.group(1).strip(), "message": whatsapp_message.group(2).strip()},
+        )
+
     whatsapp_contact_alternative = re.fullmatch(
         r"(?:prepara|abre|escribe(?:le)?|manda|env[ií]a) (?:para|a) (.+?) "
         r"(?:por|en) whatsapp (?:y dile|con el mensaje) (.+)",
@@ -152,6 +165,21 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
             {
                 "contact": whatsapp_contact_alternative.group(1).strip(),
                 "message": whatsapp_contact_alternative.group(2).strip(),
+            },
+        )
+
+    whatsapp_contact_message = re.fullmatch(
+        r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:para|a) (.+?) "
+        r"(?:por|en) whatsapp (?:y dile|con el mensaje) (.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if whatsapp_contact_message:
+        return ParsedIntent(
+            "whatsapp_contact",
+            {
+                "contact": whatsapp_contact_message.group(1).strip(),
+                "message": whatsapp_contact_message.group(2).strip(),
             },
         )
 
@@ -345,7 +373,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent("music_search", {"term": song_search.group(1).strip()})
 
     league_search = re.fullmatch(
-        r"(?:busca(?:me)?|buscar|encuentra|inicia(?:r)?|empieza(?:r)?|comienza(?:r)?) "
+        r"(?:(?:quiero(?: que)? )?(?:busca(?:me)?|buscar|encuentra|inicia(?:r)?|empieza(?:r)?|comienza(?:r)?)) "
         r"(?:una )?(?:partida|busqueda(?: de partida)?)(?: (.+))?",
         normalized,
     )
