@@ -29,7 +29,19 @@ _CATALOG_FIELDS = frozenset(
 )
 _CATALOG_PARAMETER_FIELDS = frozenset({"name", "label", "kind", "max_length", "options"})
 _CATALOG_PARAMETER_KINDS = frozenset(
-    {"text", "message", "phone", "integer", "queue", "action", "app", "contact", "channel_id", "url"}
+    {
+        "text",
+        "message",
+        "phone",
+        "integer",
+        "queue",
+        "action",
+        "app",
+        "contact",
+        "channel_id",
+        "guild_id",
+        "url",
+    }
 )
 _CATALOG_PARAMETER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
 MAX_CAPABILITY_GROUPS = 16

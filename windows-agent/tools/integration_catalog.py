@@ -220,6 +220,18 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "parameters": [_parameter("channel_id", "ID del canal", "channel_id", 20)],
     },
     {
+        "id": "discord_server_channel",
+        "tool_name": "discord_open",
+        "phrase": "abre Discord servidor <servidor> canal <canal>",
+        "description": "Abre un canal de servidor; nunca inicia una llamada.",
+        "safety": "unsafe",
+        "requires_confirmation": True,
+        "parameters": [
+            _parameter("guild_id", "ID del servidor", "guild_id", 20),
+            _parameter("channel_id", "ID del canal", "channel_id", 20),
+        ],
+    },
+    {
         "id": "discord_contact",
         "tool_name": "discord_contact",
         "phrase": "abre el canal de <contacto> en Discord",

@@ -69,6 +69,7 @@ class IntegrationTests(unittest.TestCase):
                 "whatsapp_contact_open",
                 "discord_open_app",
                 "discord_open",
+                "discord_server_channel",
                 "discord_call",
                 "league_open",
                 "league_search",
@@ -97,6 +98,13 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn("envío", commands["whatsapp_contact"]["description"])
         self.assertIn("llamada", commands["discord_contact"]["description"])
         self.assertIn("manualmente", commands["discord_call"]["description"])
+        self.assertEqual(
+            commands["discord_server_channel"]["parameters"],
+            [
+                {"name": "guild_id", "label": "ID del servidor", "kind": "guild_id", "max_length": 20},
+                {"name": "channel_id", "label": "ID del canal", "kind": "channel_id", "max_length": 20},
+            ],
+        )
         self.assertIn("sin escribir", commands["open_codex"]["description"])
         self.assertIn("reproductor multimedia activo", commands["media_play_pause"]["description"])
         self.assertEqual(

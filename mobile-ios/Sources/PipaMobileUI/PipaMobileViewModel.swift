@@ -40,7 +40,7 @@ public struct PipaMobileCommandParameter: Identifiable {
               PipaMobileTextPolicy.isSafeDisplayText(label, maxBytes: 128),
               [
                   "text", "message", "phone", "integer", "queue", "action", "app", "contact",
-                  "channel_id", "url",
+                  "channel_id", "guild_id", "url",
               ].contains(kind),
               (1...4096).contains(maxLength),
               label.utf8.count <= 128 else {

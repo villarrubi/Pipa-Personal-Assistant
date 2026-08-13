@@ -92,6 +92,11 @@ _COMMAND_ROUTE_CASES = (
     ("abre el chat de mama en WhatsApp", "whatsapp_contact_open", {"contact": "mama"}),
     ("abre Discord", "discord_open_app", {}),
     ("abre Discord canal 12345678901234567", "discord_open", {"channel_id": "12345678901234567"}),
+    (
+        "abre Discord servidor 98765432109876543 canal 12345678901234567",
+        "discord_open",
+        {"guild_id": "98765432109876543", "channel_id": "12345678901234567"},
+    ),
     ("abre el canal de amigo en Discord", "discord_contact", {"contact": "amigo"}),
     ("abre el chat de amigo en Discord", "discord_contact", {"contact": "amigo"}),
     ("llama a amigo por Discord", "discord_call", {"contact": "amigo"}),

@@ -169,6 +169,10 @@ usuario. Tras seleccionar una canción, el catálogo móvil ofrece reproducir/pa
 y pasar de pista mediante el reproductor multimedia activo; no selecciona una
 pista ni garantiza que Apple Music sea el reproductor que tenga el foco.
 
+En Discord, el catálogo móvil también permite rellenar un servidor y un canal
+por separado con `abre Discord servidor <servidor> canal <canal>`; el agente
+valida ambos IDs antes de abrir el destino y no inicia la llamada.
+
 En Apple Music la búsqueda no selecciona ni inicia una pista automáticamente.
 Después de elegirla, `reproduce la canción seleccionada`, `reanuda la pista` y
 `pausa la canción` controlan el reproductor multimedia activo mediante una

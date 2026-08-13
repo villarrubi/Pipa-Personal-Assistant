@@ -149,6 +149,30 @@ final class PipaMobileUITests: XCTestCase {
         )
     }
 
+    func testStructuredDiscordServerChannelUsesTypedGuildAndChannelIDs() throws {
+        let command = try XCTUnwrap(
+            PipaMobileCommand(payload: [
+                "id": "discord_server_channel",
+                "tool_name": "discord_open",
+                "phrase": "abre Discord servidor <servidor> canal <canal>",
+                "description": "Abre un canal de servidor.",
+                "safety": "unsafe",
+                "requires_confirmation": true,
+                "parameters": [
+                    ["name": "guild_id", "label": "ID del servidor", "kind": "guild_id", "max_length": 20],
+                    ["name": "channel_id", "label": "ID del canal", "kind": "channel_id", "max_length": 20],
+                ],
+            ])
+        )
+
+        let arguments = command.toolArguments(with: [
+            "servidor": "98765432109876543",
+            "canal": "12345678901234567",
+        ])
+        XCTAssertEqual(arguments?["guild_id"] as? String, "98765432109876543")
+        XCTAssertEqual(arguments?["channel_id"] as? String, "12345678901234567")
+    }
+
     func testStructuredCatalogCommandRejectsMalformedParameterMetadata() {
         let command = PipaMobileCommand(payload: [
             "id": "bad",
