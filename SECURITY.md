@@ -131,6 +131,10 @@ de recuperación y acceso.
 - Los `confirm_request` del dispositivo también usan etiquetas fijas por
   herramienta; nunca interpolan teléfonos, mensajes, URLs, contactos, IDs o
   argumentos de League en el resumen visible.
+- El `ToolRouter` valida el contrato de argumentos de cada herramienta antes de
+  crear una confirmación: rechaza campos extra, tipos, longitudes, opciones y
+  formatos inválidos sin dejar un pendiente; vuelve a validarlo al consumir la
+  confirmación.
 - El catálogo móvil solo puede añadir la matriz allowlisted de capacidades
   públicas (`available`, límites manuales y colas). El Core rechaza grupos,
   campos desconocidos, valores anidados o tipos inesperados; un catálogo

@@ -250,6 +250,31 @@ class IntegrationTests(unittest.TestCase):
         self.assertNotIn("url", completed["result"])
         open_browser.assert_called_once()
 
+    def test_invalid_structured_arguments_are_rejected_before_confirmation(self):
+        catalog = build_agent_catalog(TimerManager())
+        router = ToolRouter(catalog)
+
+        with self.assertRaises(ValueError):
+            router.invoke(
+                "whatsapp_compose",
+                {"phone": "not-a-phone", "message": "Hola"},
+                owner_id="waveshare-test",
+            )
+        with self.assertRaises(ValueError):
+            router.invoke(
+                "league_search",
+                {"queue": "private_queue"},
+                owner_id="waveshare-test",
+            )
+        with self.assertRaises(ValueError):
+            router.invoke(
+                "music_open",
+                {"unexpected": "must-not-be-ignored"},
+                owner_id="waveshare-test",
+            )
+
+        self.assertEqual(router.confirmations._pending, {})
+
     @patch("tools.agent_catalog.webbrowser.open", return_value=True)
     def test_whatsapp_result_does_not_return_message_url_to_device(self, open_browser):
         catalog = build_agent_catalog(TimerManager())

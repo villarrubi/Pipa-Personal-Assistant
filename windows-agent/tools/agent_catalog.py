@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import webbrowser
+from collections.abc import Callable
 from typing import Any
 
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition
@@ -11,6 +12,8 @@ from tools.audio import mute, set_volume, unmute
 from tools.browser import open_validated_url, without_destination
 from tools.capabilities import get_integration_capabilities
 from tools.commands import (
+    build_apple_music_search_url,
+    build_web_search_url,
     open_apple_music,
     open_apple_music_search,
     open_codex,
@@ -18,13 +21,18 @@ from tools.commands import (
     open_web_search,
 )
 from tools.contacts import resolve_discord_contact, resolve_whatsapp_contact
-from tools.discord import open_discord_app, open_discord_call, open_discord_channel
-from tools.league import with_client, with_client_or_launch
+from tools.discord import build_discord_channel_url, open_discord_app, open_discord_call, open_discord_channel
+from tools.league import resolve_queue_id, with_client, with_client_or_launch
 from tools.media import send_media_action
 from tools.system import get_network_status, get_power_status, get_system_status, lock_pc
-from tools.timers import TimerManager, validate_timer_id
+from tools.timers import MAX_TIMER_SECONDS, TimerManager, validate_timer_id
 from tools.urls import validate_external_url
-from tools.whatsapp import open_whatsapp_chat, open_whatsapp_compose, open_whatsapp_web
+from tools.whatsapp import (
+    build_whatsapp_compose_url,
+    open_whatsapp_chat,
+    open_whatsapp_compose,
+    open_whatsapp_web,
+)
 
 
 def _text(arguments: dict[str, Any], name: str) -> str:
@@ -32,6 +40,64 @@ def _text(arguments: dict[str, Any], name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} debe ser texto no vacío")
     return value.strip()
+
+
+def _validate_argument_text(value: Any, name: str, maximum: int, *, allow_line_feed: bool = False) -> None:
+    if not isinstance(value, str) or not value.strip() or len(value.encode("utf-8")) > maximum:
+        raise ValueError(f"{name} debe ser texto no vacío y acotado")
+    for character in value:
+        code_point = ord(character)
+        if (
+            (code_point < 0x20 and not (allow_line_feed and code_point == 0x0A))
+            or 0x7F <= code_point <= 0x9F
+            or 0x200B <= code_point <= 0x200F
+            or 0x202A <= code_point <= 0x202E
+            or 0x2060 <= code_point <= 0x2069
+            or code_point == 0xFEFF
+        ):
+            raise ValueError(f"{name} contiene caracteres no permitidos")
+
+
+def _argument_schema(
+    *,
+    required_text: dict[str, int] | None = None,
+    optional_text: dict[str, int] | None = None,
+    required_integers: dict[str, tuple[int, int]] | None = None,
+    choices: dict[str, tuple[str, ...]] | None = None,
+    check: Callable[[dict[str, Any]], None] | None = None,
+) -> Callable[[dict[str, Any]], None]:
+    required_text = required_text or {}
+    optional_text = optional_text or {}
+    required_integers = required_integers or {}
+    choices = choices or {}
+    allowed = set(required_text) | set(optional_text) | set(required_integers) | set(choices)
+
+    def validate(arguments: dict[str, Any]) -> None:
+        unknown = set(arguments) - allowed
+        missing = (set(required_text) | set(required_integers)) - set(arguments)
+        if unknown or missing:
+            raise ValueError("los argumentos de la herramienta no coinciden con su contrato")
+        for name, maximum in required_text.items():
+            _validate_argument_text(arguments[name], name, maximum, allow_line_feed=name == "message")
+        for name, maximum in optional_text.items():
+            if name in arguments:
+                _validate_argument_text(arguments[name], name, maximum, allow_line_feed=name == "message")
+        for name, bounds in required_integers.items():
+            value = arguments[name]
+            if type(value) is not int or not bounds[0] <= value <= bounds[1]:
+                raise ValueError(f"{name} debe ser un entero dentro del rango permitido")
+        for name, allowed_values in choices.items():
+            if arguments.get(name) not in allowed_values:
+                raise ValueError(f"{name} no es una opción permitida")
+        if check is not None:
+            check(arguments)
+
+    return validate
+
+
+def _no_arguments(arguments: dict[str, Any]) -> None:
+    if arguments:
+        raise ValueError("esta herramienta no acepta argumentos")
 
 
 def _unsafe_summary(label: str):
@@ -55,6 +121,50 @@ def _discord_summary(arguments: dict[str, Any]) -> str:
 
 
 def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
+    no_arguments = _no_arguments
+    web_search_arguments = _argument_schema(
+        required_text={"query": 200},
+        check=lambda arguments: build_web_search_url(arguments["query"]),
+    )
+    music_search_arguments = _argument_schema(
+        required_text={"term": 200},
+        check=lambda arguments: build_apple_music_search_url(arguments["term"]),
+    )
+    discord_open_arguments = _argument_schema(
+        required_text={"channel_id": 20},
+        optional_text={"guild_id": 20},
+        check=lambda arguments: build_discord_channel_url(arguments["channel_id"], arguments.get("guild_id")),
+    )
+    whatsapp_compose_arguments = _argument_schema(
+        required_text={"phone": 32, "message": 3800},
+        check=lambda arguments: build_whatsapp_compose_url(arguments["phone"], arguments["message"]),
+    )
+    contact_message_arguments = _argument_schema(
+        required_text={"contact": 80, "message": 3800},
+    )
+    contact_arguments = _argument_schema(required_text={"contact": 80})
+    league_search_arguments = _argument_schema(
+        required_text={"queue": 32},
+        check=lambda arguments: resolve_queue_id(arguments["queue"]),
+    )
+    media_action_arguments = _argument_schema(
+        required_text={"action": 16},
+        choices={"action": ("play_pause", "next", "previous", "stop")},
+    )
+    timer_create_arguments = _argument_schema(
+        required_integers={"seconds": (1, MAX_TIMER_SECONDS)},
+        optional_text={"label": 120},
+    )
+    timer_cancel_arguments = _argument_schema(
+        required_text={"timer_id": 32},
+        check=lambda arguments: validate_timer_id(arguments["timer_id"]),
+    )
+    open_url_arguments = _argument_schema(
+        required_text={"url": 2048},
+        check=lambda arguments: validate_external_url(arguments["url"]),
+    )
+    open_app_arguments = _argument_schema(required_text={"app": 80})
+
     def web_search(arguments):
         return open_web_search(_text(arguments, "query"))
 
@@ -139,67 +249,92 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
 
     return ToolCatalog(
         [
-            ToolDefinition("system_status", lambda _args: get_system_status()),
-            ToolDefinition("integration_status", lambda _args: get_integration_capabilities()),
-            ToolDefinition("system_power", lambda _args: get_power_status()),
-            ToolDefinition("system_network", lambda _args: get_network_status()),
-            ToolDefinition("audio_volume", audio_volume),
-            ToolDefinition("audio_mute", lambda _args: mute()),
-            ToolDefinition("audio_unmute", lambda _args: unmute()),
-            ToolDefinition("media_action", lambda args: send_media_action(_text(args, "action"))),
+            ToolDefinition(
+                "system_status", lambda _args: get_system_status(), argument_validator=no_arguments
+            ),
+            ToolDefinition(
+                "integration_status",
+                lambda _args: get_integration_capabilities(),
+                argument_validator=no_arguments,
+            ),
+            ToolDefinition("system_power", lambda _args: get_power_status(), argument_validator=no_arguments),
+            ToolDefinition(
+                "system_network", lambda _args: get_network_status(), argument_validator=no_arguments
+            ),
+            ToolDefinition(
+                "audio_volume",
+                audio_volume,
+                argument_validator=_argument_schema(required_integers={"percent": (0, 100)}),
+            ),
+            ToolDefinition("audio_mute", lambda _args: mute(), argument_validator=no_arguments),
+            ToolDefinition("audio_unmute", lambda _args: unmute(), argument_validator=no_arguments),
+            ToolDefinition(
+                "media_action",
+                lambda args: send_media_action(_text(args, "action")),
+                argument_validator=media_action_arguments,
+            ),
             ToolDefinition(
                 "open_app",
                 lambda args: open_app(_text(args, "app")),
                 safety="unsafe",
                 confirm_summary=lambda args: _value_summary("Abrir aplicación", args, "app"),
+                argument_validator=open_app_arguments,
             ),
             ToolDefinition(
                 "open_codex",
                 lambda _args: open_codex(),
                 safety="unsafe",
                 confirm_summary=_unsafe_summary("Abrir Codex"),
+                argument_validator=no_arguments,
             ),
             ToolDefinition(
                 "web_search",
                 web_search,
                 safety="unsafe",
                 confirm_summary=lambda args: _value_summary("Buscar en Internet", args, "query"),
+                argument_validator=web_search_arguments,
             ),
             ToolDefinition(
                 "music_search",
                 music_search,
                 safety="unsafe",
                 confirm_summary=lambda args: _value_summary("Buscar en Apple Music", args, "term"),
+                argument_validator=music_search_arguments,
             ),
             ToolDefinition(
                 "music_open",
                 music_open,
                 safety="unsafe",
                 confirm_summary=_unsafe_summary("Abrir Apple Music"),
+                argument_validator=no_arguments,
             ),
             ToolDefinition(
                 "league_open",
                 lambda _args: open_league(),
                 safety="unsafe",
                 confirm_summary=_unsafe_summary("Abrir League of Legends"),
+                argument_validator=no_arguments,
             ),
             ToolDefinition(
                 "discord_open_app",
                 discord_open_app,
                 safety="unsafe",
                 confirm_summary=_unsafe_summary("Abrir Discord"),
+                argument_validator=no_arguments,
             ),
             ToolDefinition(
                 "discord_open",
                 discord_open,
                 safety="unsafe",
                 confirm_summary=_discord_summary,
+                argument_validator=discord_open_arguments,
             ),
             ToolDefinition(
                 "discord_contact",
                 discord_contact,
                 safety="unsafe",
                 confirm_summary=lambda args: f"Abrir Discord para contacto {_text(args, 'contact')}",
+                argument_validator=contact_arguments,
             ),
             ToolDefinition(
                 "discord_call",
@@ -209,6 +344,7 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                     f"Abrir llamada de Discord para contacto {_text(args, 'contact')}; "
                     "la llamada se inicia manualmente"
                 ),
+                argument_validator=contact_arguments,
             ),
             ToolDefinition(
                 "whatsapp_compose",
@@ -218,6 +354,7 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                     f"Preparar WhatsApp para {_text(args, 'phone')}: "
                     f"{' '.join(_text(args, 'message').split())[:72]}"
                 ),
+                argument_validator=whatsapp_compose_arguments,
             ),
             ToolDefinition(
                 "whatsapp_contact",
@@ -227,47 +364,56 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                     f"Preparar WhatsApp para contacto {_text(args, 'contact')}: "
                     f"{' '.join(_text(args, 'message').split())[:72]}"
                 ),
+                argument_validator=contact_message_arguments,
             ),
             ToolDefinition(
                 "whatsapp_contact_open",
                 whatsapp_contact_open,
                 safety="unsafe",
                 confirm_summary=lambda args: f"Abrir WhatsApp para contacto {_text(args, 'contact')}",
+                argument_validator=contact_arguments,
             ),
             ToolDefinition(
                 "whatsapp_open",
                 whatsapp_open,
                 safety="unsafe",
                 confirm_summary=_unsafe_summary("Abrir WhatsApp Web"),
+                argument_validator=no_arguments,
             ),
             ToolDefinition(
                 "league_search",
                 league_search,
                 safety="unsafe",
                 confirm_summary=lambda args: _value_summary("Buscar partida", args, "queue"),
+                argument_validator=league_search_arguments,
             ),
-            ToolDefinition("league_status", league_status),
-            ToolDefinition("league_search_status", league_search_status),
+            ToolDefinition("league_status", league_status, argument_validator=no_arguments),
+            ToolDefinition("league_search_status", league_search_status, argument_validator=no_arguments),
             ToolDefinition(
                 "league_cancel",
                 league_cancel,
                 safety="unsafe",
                 confirm_summary=_unsafe_summary("Cancelar la búsqueda de League of Legends"),
+                argument_validator=no_arguments,
             ),
             ToolDefinition(
                 "system_lock",
                 lambda _args: lock_pc(),
                 safety="unsafe",
                 confirm_summary=_unsafe_summary("Bloquear el ordenador"),
+                argument_validator=no_arguments,
             ),
-            ToolDefinition("timer_create", timer_create),
-            ToolDefinition("timer_list", lambda _args: {"timers": timer_manager.list()}),
-            ToolDefinition("timer_cancel", timer_cancel),
+            ToolDefinition("timer_create", timer_create, argument_validator=timer_create_arguments),
+            ToolDefinition(
+                "timer_list", lambda _args: {"timers": timer_manager.list()}, argument_validator=no_arguments
+            ),
+            ToolDefinition("timer_cancel", timer_cancel, argument_validator=timer_cancel_arguments),
             ToolDefinition(
                 "open_url",
                 lambda args: _open_url(_text(args, "url")),
                 safety="unsafe",
                 confirm_summary=lambda args: _value_summary("Abrir URL", args, "url", limit=120),
+                argument_validator=open_url_arguments,
             ),
         ]
     )

@@ -147,6 +147,8 @@ La UI Swift valida esos metadatos y, cuando están presentes, ofrece un
 formulario local y envía un `tool_call` estructurado cifrado. Los valores no se
 guardan en el catálogo ni se devuelven en confirmaciones. Si un agente antiguo
 no publica `parameters`, la UI conserva el camino compatible de frase libre.
+El Core vuelve a validar ese contrato —incluidos campos extra, tipos, límites y
+allowlists— antes de crear una confirmación y al consumirla.
 Los cuerpos de mensaje pueden contener saltos de línea únicamente en el campo
 tipado `message`; los controles y formatos invisibles siguen rechazándose.
 

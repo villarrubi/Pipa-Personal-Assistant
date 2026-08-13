@@ -46,6 +46,12 @@ El parser rechaza versiones desconocidas, campos inesperados, textos, listas y
 argumentos de herramientas sobredimensionados, telemetría inválida y tipos ambiguos. Cambios incompatibles
 requieren aumentar `protocol_version`.
 
+Antes de crear una confirmación o llamar a un adaptador, `ToolRouter` aplica el
+contrato de argumentos registrado para la herramienta: campos obligatorios,
+tipos, límites, opciones allowlisted y validaciones puras de URL, teléfono o
+cola. Así un `tool_call` estructurado del móvil o del Waveshare falla cerrado
+sin dejar una confirmación pendiente; la comprobación se repite al consumirla.
+
 Una sesión v2 se crea sin capacidades físicas. Hasta aceptar un único
 `device_hello`, el Core solo atiende `ping`, `device_status` y `abort`; el
 catálogo, la UI, las órdenes y las confirmaciones devuelven

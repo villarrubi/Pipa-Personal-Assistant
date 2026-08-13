@@ -10,6 +10,7 @@ from .confirmations import ConfirmationError, ConfirmationManager
 
 ToolHandler = Callable[[dict[str, Any]], Mapping[str, Any]]
 ToolSummary = Callable[[dict[str, Any]], str]
+ToolArgumentValidator = Callable[[dict[str, Any]], None]
 
 
 @dataclass(frozen=True)
@@ -18,12 +19,26 @@ class ToolDefinition:
     handler: ToolHandler
     safety: str = "safe"
     confirm_summary: ToolSummary | None = None
+    argument_validator: ToolArgumentValidator | None = None
 
     def __post_init__(self) -> None:
         if self.safety not in {"safe", "unsafe"}:
             raise ValueError("tool safety must be safe or unsafe")
         if self.safety == "unsafe" and self.confirm_summary is None:
             raise ValueError("unsafe tools need a confirmation summary")
+
+    def validate_arguments(self, arguments: Mapping[str, Any] | None) -> dict[str, Any]:
+        """Validate arguments before a confirmation or handler can observe them."""
+
+        if arguments is None:
+            values: dict[str, Any] = {}
+        elif isinstance(arguments, Mapping):
+            values = dict(arguments)
+        else:
+            raise ValueError("tool arguments must be an object")
+        if self.argument_validator is not None:
+            self.argument_validator(values)
+        return values
 
 
 class ToolCatalog:
@@ -62,7 +77,7 @@ class ToolRouter:
         call_id: str | None = None,
     ) -> dict[str, Any]:
         definition = self.catalog.get(name)
-        values = dict(arguments or {})
+        values = definition.validate_arguments(arguments)
 
         if definition.safety == "unsafe" and confirmation_id is None:
             assert definition.confirm_summary is not None
@@ -101,7 +116,8 @@ class ToolRouter:
                 result["call_id"] = pending.call_id
             return result
         definition = self.catalog.get(pending.tool_name)
-        result = {"tool_name": pending.tool_name, **self._execute(definition, pending.arguments)}
+        values = definition.validate_arguments(pending.arguments)
+        result = {"tool_name": pending.tool_name, **self._execute(definition, values)}
         if pending.call_id is not None:
             result["call_id"] = pending.call_id
         return result
