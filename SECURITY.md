@@ -110,6 +110,10 @@ de recuperación y acceso.
 - El cargador Waveshare exige `-AllowDevelopmentFirmware` porque las imágenes
   actuales aún no tienen Secure Boot ni cifrado de Flash; no se puede aceptar
   una imagen de desarrollo por omisión como si fuera una release.
+- Antes de cargar esa imagen, el flasheador consulta en modo solo lectura
+  `SPI_BOOT_CRYPT_CNT`, `SECURE_BOOT_EN` y `SECURE_VERSION`; si el chip ya tiene
+  cifrado, Secure Boot o anti-rollback activo, aborta para no intentar cargar
+  plaintext sobre una configuración protegida.
 - Temporizadores activos y registros completados acotados para evitar
   acumulación indefinida.
 - Memoria temporal limitada por hecho, dispositivo y número total de

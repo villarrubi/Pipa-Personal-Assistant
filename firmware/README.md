@@ -203,6 +203,11 @@ Para verificar únicamente la compatibilidad con una placa V1 confirmada:
 Ese entorno solo comprueba la compilación del mapa legado; no debe usarse para
 flashear el SKU 30684 sin identificar antes la revisión física.
 
+El cargador de llegada consulta antes los eFuses de seguridad en modo solo
+lectura y rechaza una imagen de desarrollo si detecta Secure Boot, cifrado de
+Flash o una versión anti-rollback distinta de cero. La imagen actual no activa
+ninguna de esas protecciones y no debe considerarse firmware de producción.
+
 Para compilar la sonda I²S experimental sin habilitarla en el firmware normal:
 
 ```powershell

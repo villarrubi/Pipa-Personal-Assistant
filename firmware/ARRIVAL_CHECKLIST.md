@@ -90,6 +90,14 @@ de PowerShell antes de flashear. No uses este cargador con las variantes
 `secure-session-vector`, `secure-session-v2` o `audio-i2s-lab`; son entornos de
 prueba y no se consideran firmware de uso diario.
 
+Antes de escribir, el cargador ejecuta una lectura eFuse filtrada y solo de
+lectura. Comprueba `SPI_BOOT_CRYPT_CNT`, `SECURE_BOOT_EN` y `SECURE_VERSION`;
+si cualquiera indica cifrado de Flash, Secure Boot o anti-rollback, aborta.
+Esto protege una placa ya asegurada contra una imagen plaintext de desarrollo.
+La imagen actual sigue sin ser una release segura; no se deben quemar eFuses
+ni activar esas protecciones hasta tener preparado el flujo de producción,
+firmado y recuperación.
+
 La compilación V1 de compatibilidad solo sirve para comprobar el mapa:
 
 ```powershell

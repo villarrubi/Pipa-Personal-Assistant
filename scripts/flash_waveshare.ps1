@@ -22,6 +22,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $firmwarePath = Join-Path $repoRoot 'firmware'
 $checkPath = Join-Path $repoRoot 'windows-agent/pipa_hardware_check.py'
+$securityCheckPath = Join-Path $repoRoot 'windows-agent/firmware_security_check.py'
 $pioPath = Join-Path $firmwarePath '.venv/Scripts/pio.exe'
 
 if (-not $AllowDevelopmentFirmware) {
@@ -36,6 +37,9 @@ if ($Environment -eq 'waveshare-185c-v1' -and $ExpectedBoardRevision -ne 1) {
 }
 if (-not (Test-Path -LiteralPath $checkPath -PathType Leaf)) {
     throw 'Falta la comprobacion de hardware de Waveshare.'
+}
+if (-not (Test-Path -LiteralPath $securityCheckPath -PathType Leaf)) {
+    throw 'Falta la comprobacion de seguridad eFuse.'
 }
 if (-not (Test-Path -LiteralPath $pioPath -PathType Leaf)) {
     throw 'Falta PlatformIO en firmware/.venv; instala la dependencia fijada antes de flashear.'
@@ -82,6 +86,29 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "La compilacion del entorno $Environment ha fallado; no se ha flasheado nada."
     }
+
+    $toolPythonPath = Join-Path $repoRoot '.platformio-preflight/penv/Scripts/python.exe'
+    $espefusePath = Join-Path $repoRoot '.platformio-preflight/packages/tool-esptoolpy/espefuse.py'
+    if (-not (Test-Path -LiteralPath $toolPythonPath -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $espefusePath -PathType Leaf)) {
+        throw 'Falta el entorno espefuse de PlatformIO; ejecuta primero una compilacion con la cache local.'
+    }
+    $securityOutput = @(& $pythonPath -B $securityCheckPath --port $Port `
+        --python $toolPythonPath --espefuse $espefusePath --json 2>&1)
+    $securityExitCode = $LASTEXITCODE
+    if ($securityExitCode -ne 0) {
+        throw 'No se ha podido confirmar que el estado eFuse sea compatible con una imagen de desarrollo; no se ha flasheado nada.'
+    }
+    try {
+        $securityReport = ($securityOutput -join "`n") | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        throw 'La comprobacion eFuse devolvio un informe no valido; no se ha flasheado nada.'
+    }
+    if ($null -eq $securityReport -or $securityReport.success -ne $true -or
+        $securityReport.read_only -ne $true) {
+        throw 'El estado eFuse no autoriza una imagen de desarrollo; no se ha flasheado nada.'
+    }
+    Write-Host 'Estado eFuse compatible; no hay Secure Boot, cifrado de Flash ni anti-rollback activo.' -ForegroundColor Yellow
 
     $uploadArguments = @(
         'run', '-d', $firmwarePath, '-e', $Environment,

@@ -340,6 +340,9 @@ revisión V1/V2. El script bloquea las variantes experimentales y exige
 `-AllowDevelopmentFirmware`, además de pedir confirmación antes de escribir en
 el dispositivo. La imagen actual no tiene todavía Secure Boot ni cifrado de
 Flash, por lo que no se puede tratar como firmware de producción.
+Antes de la escritura, el cargador lee de forma filtrada el estado eFuse y
+aborta si la placa ya está protegida; así no se intenta cargar plaintext sobre
+un dispositivo con Secure Boot, cifrado de Flash o anti-rollback.
 
 Solo quedará trabajo dependiente del dispositivo:
 
