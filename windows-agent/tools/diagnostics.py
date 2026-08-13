@@ -29,6 +29,7 @@ from tools.secure_diagnostics import (
     run_secure_self_test,
     run_secure_serial_self_test,
 )
+from tools.security_policy import CONFIRMATION_TOOL_PATHS, LOCAL_CONFIRMATION_PATHS
 from tools.timers import TimerManager
 from tools.whatsapp import build_whatsapp_chat_url, build_whatsapp_compose_url, build_whatsapp_web_url
 
@@ -204,7 +205,15 @@ def _check_integration_policy() -> dict[str, Any]:
         values = integrations.get(integration)
         if not isinstance(values, dict) or values.get(field) is not True:
             raise ValueError(f"{integration}.{field} must require a human")
-    return {"manual_boundaries": True}
+
+    catalog = build_agent_catalog(TimerManager())
+    unsafe_tools = {name for name in catalog.names() if catalog.get(name).safety == "unsafe"}
+    mapped_tools = set(CONFIRMATION_TOOL_PATHS)
+    if mapped_tools != unsafe_tools:
+        raise ValueError("unsafe tools and confirmation routes are inconsistent")
+    if set(CONFIRMATION_TOOL_PATHS.values()) != LOCAL_CONFIRMATION_PATHS:
+        raise ValueError("confirmation route set is inconsistent")
+    return {"manual_boundaries": True, "confirmation_mapped_tools": len(mapped_tools)}
 
 
 def _check_command_routes() -> dict[str, Any]:

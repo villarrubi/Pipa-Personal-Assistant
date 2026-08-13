@@ -20,6 +20,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from tools.diagnostics import get_self_test  # noqa: E402
 from tools.mobile_config import inspect_mobile_transport  # noqa: E402
 from tools.secure_diagnostics import (  # noqa: E402
     run_mobile_protocol_self_test,
@@ -89,6 +90,10 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser("status", help="Comprueba si el agente responde.")
     commands.add_parser("doctor", help="Comprueba salud, capacidades y protocolo sin efectos secundarios.")
     commands.add_parser("self-test", help="Valida integraciones y configuración sin abrir aplicaciones.")
+    commands.add_parser(
+        "local-self-test",
+        help="Valida el código actual sin depender del agente residente.",
+    )
     commands.add_parser("secure-test", help="Valida el cifrado v2 en memoria, sin hardware ni red.")
     commands.add_parser("mobile-test", help="Valida el flujo móvil v2 en memoria, sin hardware ni red.")
     commands.add_parser("mobile-tcp-test", help="Valida el transporte móvil TCP v2 solo en loopback.")
@@ -330,6 +335,25 @@ def _secure_test() -> dict[str, object]:
     }
 
 
+def _local_self_test() -> dict[str, object]:
+    """Run diagnostics from this checkout, without contacting the agent.
+
+    ``self-test`` intentionally asks the resident process so it reflects the
+    process currently serving requests. This variant is useful immediately
+    after an update, before restarting the agent, and makes the distinction
+    explicit instead of silently reporting stale in-memory code.
+    """
+
+    return get_self_test(
+        serial_gateway_configured=False,
+        serial_gateway_running=False,
+        serial_gateway_connected=False,
+        mobile_gateway_configured=False,
+        mobile_gateway_running=False,
+        mobile_gateway_connected=False,
+    )
+
+
 def _doctor(base_url: str) -> dict[str, object]:
     """Run read-only local health checks and return only bounded JSON data."""
 
@@ -410,6 +434,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.command == "secure-test":
             print(json.dumps(_secure_test(), ensure_ascii=False, indent=2))
             return 0
+        if arguments.command == "local-self-test":
+            result = _local_self_test()
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0 if result["success"] else 1
         if arguments.command == "mobile-test":
             print(
                 json.dumps(

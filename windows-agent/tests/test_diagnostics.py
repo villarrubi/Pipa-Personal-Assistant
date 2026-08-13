@@ -38,6 +38,7 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertTrue(result["checks"]["secure_serial_loopback"]["confirmation_gated"])
         self.assertTrue(result["checks"]["secure_serial_loopback"]["result_redacted"])
         self.assertFalse(result["checks"]["secure_session"]["persistent_keys_touched"])
+        self.assertEqual(result["checks"]["integration_policy"]["confirmation_mapped_tools"], 18)
         find_client.assert_called_once_with()
 
     @patch("tools.diagnostics.find_client_connection", side_effect=LeagueClientError("not ready"))

@@ -6,27 +6,30 @@ local CLI from drifting apart when a new outward-facing action is added.
 
 from __future__ import annotations
 
-LOCAL_CONFIRMATION_PATHS = frozenset(
-    {
-        "/open-app",
-        "/open-url",
-        "/web/search",
-        "/music/open",
-        "/music/search",
-        "/league/open",
-        "/league/search",
-        "/whatsapp/open",
-        "/whatsapp/compose",
-        "/whatsapp/contact/compose",
-        "/whatsapp/contact/open",
-        "/discord/open",
-        "/discord/channel/open",
-        "/discord/contact/open",
-        "/discord/contact/call",
-        "/codex/open",
-        "/system/lock",
-    }
-)
+# Keep the tool-to-route relationship explicit. Diagnostics can then detect a
+# new outward-facing tool that was added without the local confirmation wall.
+CONFIRMATION_TOOL_PATHS = {
+    "open_app": "/open-app",
+    "open_url": "/open-url",
+    "web_search": "/web/search",
+    "music_open": "/music/open",
+    "music_search": "/music/search",
+    "league_open": "/league/open",
+    "league_search": "/league/search",
+    "league_cancel": "/league/search",
+    "whatsapp_open": "/whatsapp/open",
+    "whatsapp_compose": "/whatsapp/compose",
+    "whatsapp_contact": "/whatsapp/contact/compose",
+    "whatsapp_contact_open": "/whatsapp/contact/open",
+    "discord_open_app": "/discord/open",
+    "discord_open": "/discord/channel/open",
+    "discord_contact": "/discord/contact/open",
+    "discord_call": "/discord/contact/call",
+    "open_codex": "/codex/open",
+    "system_lock": "/system/lock",
+}
+
+LOCAL_CONFIRMATION_PATHS = frozenset(CONFIRMATION_TOOL_PATHS.values())
 
 # The local CLI is another execution surface. Keep its confirmation gate in
 # this module so adding a command cannot silently create a less protected CLI

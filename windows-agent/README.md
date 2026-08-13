@@ -48,6 +48,7 @@ conectar con el agente local:
 python .\windows-agent\pipa_cli.py status
 python .\windows-agent\pipa_cli.py doctor
 python .\windows-agent\pipa_cli.py self-test
+python .\windows-agent\pipa_cli.py local-self-test
 python .\windows-agent\pipa_cli.py secure-test
 python .\windows-agent\pipa_cli.py mobile-test
 python .\windows-agent\pipa_cli.py mobile-config
@@ -79,6 +80,10 @@ el hardware.
 Además, `self-test` ejecuta un loopback serie v2 interno con una acción web
 simulada: comprueba handshake, catálogo, confirmación y redacción sin abrir
 puertos, tocar DPAPI ni ejecutar ninguna integración real.
+`local-self-test` ejecuta las mismas comprobaciones desde el código actual del
+repositorio, sin hablar con el agente residente. Esto permite verificar una
+actualización antes de reiniciar el proceso y evita confundir un resultado
+antiguo con el código instalado.
 La prueba `windows-agent/tests/test_secure_tcp_gateway.py` repite ese recorrido
 sobre un socket loopback real, que es el camino de referencia para el cliente
 móvil.

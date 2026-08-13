@@ -25,6 +25,26 @@ class CliTests(unittest.TestCase):
         parser = pipa_cli._parser()
         self.assertIn("Cliente local de pruebas de Pipa.", parser.description)
 
+    def test_local_self_test_is_available_without_the_resident_agent(self):
+        arguments = pipa_cli._parser().parse_args(["local-self-test"])
+        self.assertEqual(arguments.command, "local-self-test")
+
+    @patch("pipa_cli.get_self_test")
+    def test_local_self_test_uses_current_source_and_no_gateway(self, self_test):
+        self_test.return_value = {"success": True, "checks": {}}
+
+        result = pipa_cli.main(["local-self-test"])
+
+        self.assertEqual(result, 0)
+        self_test.assert_called_once_with(
+            serial_gateway_configured=False,
+            serial_gateway_running=False,
+            serial_gateway_connected=False,
+            mobile_gateway_configured=False,
+            mobile_gateway_running=False,
+            mobile_gateway_connected=False,
+        )
+
     def test_output_encoding_configuration_is_safe_for_fixed_test_streams(self):
         pipa_cli._configure_output_encoding()
 

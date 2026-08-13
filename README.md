@@ -80,6 +80,11 @@ que las solicitó y caducan si no se confirman.
   gateway sin abrir aplicaciones ni contactar con League Client; incluye un
   simulador v1 y un loopback serie v2 inertes con handshake, catálogo,
   confirmación, rechazo sin touch y redacción.
+- Ejecutar `python .\windows-agent\pipa_cli.py local-self-test` para ejecutar
+  esas comprobaciones directamente desde el código actual del repositorio,
+  sin consultar al proceso residente. Es la opción adecuada justo después de
+  actualizar el código, porque `self-test` puede reflejar un agente que aún no
+  se haya recargado.
 - Ejecutar `python .\windows-agent\pipa_cli.py secure-test` para comprobar en
   memoria el handshake autenticado, el cifrado y el rechazo de manipulación
   del protocolo v2, sin hardware, red ni claves persistentes.
