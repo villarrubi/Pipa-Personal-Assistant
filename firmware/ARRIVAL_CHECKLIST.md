@@ -79,8 +79,14 @@ Para una placa V2 confirmada:
 
 ```powershell
 .\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c
-.\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c -t upload
+.\scripts\flash_waveshare.ps1 -Port COM7 -Environment waveshare-185c -WhatIf
+.\scripts\flash_waveshare.ps1 -Port COM7 -Environment waveshare-185c
 ```
+
+El segundo comando vuelve a sondar la placa, recompila y solicita confirmacion
+de PowerShell antes de flashear. No uses este cargador con las variantes
+`secure-session-vector`, `secure-session-v2` o `audio-i2s-lab`; son entornos de
+prueba y no se consideran firmware de uso diario.
 
 La compilación V1 de compatibilidad solo sirve para comprobar el mapa:
 
