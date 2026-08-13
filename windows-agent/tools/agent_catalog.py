@@ -136,10 +136,18 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
         required_text={"phone": 32, "message": 3800},
         check=lambda arguments: build_whatsapp_compose_url(arguments["phone"], arguments["message"]),
     )
-    contact_message_arguments = _argument_schema(
+    whatsapp_contact_message_arguments = _argument_schema(
         required_text={"contact": 80, "message": 3800},
+        check=lambda arguments: resolve_whatsapp_contact(arguments["contact"]),
     )
-    contact_arguments = _argument_schema(required_text={"contact": 80})
+    whatsapp_contact_arguments = _argument_schema(
+        required_text={"contact": 80},
+        check=lambda arguments: resolve_whatsapp_contact(arguments["contact"]),
+    )
+    discord_contact_arguments = _argument_schema(
+        required_text={"contact": 80},
+        check=lambda arguments: resolve_discord_contact(arguments["contact"]),
+    )
     league_search_arguments = _argument_schema(
         required_text={"queue": 32},
         check=lambda arguments: resolve_queue_id(arguments["queue"]),
@@ -349,7 +357,7 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                 discord_contact,
                 safety="unsafe",
                 confirm_summary=lambda args: f"Abrir Discord para contacto {_text(args, 'contact')}",
-                argument_validator=contact_arguments,
+                argument_validator=discord_contact_arguments,
             ),
             ToolDefinition(
                 "discord_call",
@@ -359,7 +367,7 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                     f"Abrir llamada de Discord para contacto {_text(args, 'contact')}; "
                     "la llamada se inicia manualmente"
                 ),
-                argument_validator=contact_arguments,
+                argument_validator=discord_contact_arguments,
             ),
             ToolDefinition(
                 "whatsapp_compose",
@@ -379,14 +387,14 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                     f"Preparar WhatsApp para contacto {_text(args, 'contact')}: "
                     f"{' '.join(_text(args, 'message').split())[:72]}"
                 ),
-                argument_validator=contact_message_arguments,
+                argument_validator=whatsapp_contact_message_arguments,
             ),
             ToolDefinition(
                 "whatsapp_contact_open",
                 whatsapp_contact_open,
                 safety="unsafe",
                 confirm_summary=lambda args: f"Abrir WhatsApp para contacto {_text(args, 'contact')}",
-                argument_validator=contact_arguments,
+                argument_validator=whatsapp_contact_arguments,
             ),
             ToolDefinition(
                 "whatsapp_open",

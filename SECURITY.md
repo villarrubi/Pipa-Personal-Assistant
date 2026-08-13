@@ -93,8 +93,9 @@ de recuperación y acceso.
   por lo que las aplicaciones deben arrancar mediante su ejecutable directo.
 - Los alias de contactos viven únicamente en `windows-agent/config/contacts.local.json`;
   se validan con destinos acotados, no se publican en capacidades ni catálogo y
-  solo preparan WhatsApp o abren Discord. Envío y llamada siguen requiriendo
-  una acción humana visible.
+  solo preparan WhatsApp o abren Discord. Un alias inexistente se rechaza antes
+  de crear una confirmación y se vuelve a validar al consumirla. Envío y llamada
+  siguen requiriendo una acción humana visible.
 - Las configuraciones locales de aplicaciones y contactos se leen con un límite
   de 128 KiB y un número máximo de entradas; JSON sobredimensionado, ambiguo o
   con lanzadores de shell se rechaza antes de ejecutar una aplicación.

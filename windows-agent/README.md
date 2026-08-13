@@ -423,8 +423,10 @@ dile Hola` y `abre el canal de amigo en Discord` resuelven el alias local,
 abren el destino y mantienen la última acción humana: pulsar `Enviar` o
 iniciar la llamada. La frase `llama a amigo por Discord` expresa explícitamente
 esa intención, pero solo abre el canal y deja el botón para la persona. No existe
-una operación automática de envío o llamada. El fichero se limita a 128 KiB,
-64 contactos y aliases acotados.
+una operación automática de envío o llamada. Un alias desconocido se rechaza
+antes de pedir confirmación y se vuelve a comprobar al aceptar, por si el
+fichero local cambió mientras la confirmación estaba visible. El fichero se
+limita a 128 KiB, 64 contactos y aliases acotados.
 
 ## Waveshare por USB
 

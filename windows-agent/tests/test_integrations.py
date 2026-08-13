@@ -1,7 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -309,6 +309,21 @@ class IntegrationTests(unittest.TestCase):
                 owner_id="waveshare-test",
             )
 
+        with patch("tools.agent_catalog.resolve_whatsapp_contact", side_effect=ValueError("unknown")):
+            with self.assertRaises(ValueError):
+                router.invoke(
+                    "whatsapp_contact_open",
+                    {"contact": "desconocido"},
+                    owner_id="waveshare-test",
+                )
+        with patch("tools.agent_catalog.resolve_discord_contact", side_effect=ValueError("unknown")):
+            with self.assertRaises(ValueError):
+                router.invoke(
+                    "discord_call",
+                    {"contact": "desconocido"},
+                    owner_id="waveshare-test",
+                )
+
         self.assertEqual(router.confirmations._pending, {})
 
     @patch("tools.agent_catalog.webbrowser.open", return_value=True)
@@ -346,12 +361,15 @@ class IntegrationTests(unittest.TestCase):
         self.assertFalse(result["result"]["sent"])
         self.assertEqual(result["result"]["contact"], "mama")
         self.assertNotIn("url", result["result"])
-        resolve_contact.assert_called_once_with("mama")
+        resolve_contact.assert_has_calls([call("mama"), call("mama"), call("mama")])
+        self.assertEqual(resolve_contact.call_count, 3)
         open_browser.assert_called_once_with("https://wa.me/34600123456")
 
     @patch("tools.agent_catalog.resolve_whatsapp_contact", return_value=("mama", "34600123456"))
     @patch("tools.agent_catalog.webbrowser.open", return_value=True)
-    def test_contact_alias_is_resolved_only_after_confirmation(self, open_browser, resolve_contact):
+    def test_contact_alias_is_validated_before_and_resolved_after_confirmation(
+        self, open_browser, resolve_contact
+    ):
         catalog = build_agent_catalog(TimerManager())
         router = ToolRouter(catalog)
         pending = router.invoke(
@@ -361,7 +379,7 @@ class IntegrationTests(unittest.TestCase):
         )
 
         self.assertEqual(pending["status"], "needs_confirmation")
-        resolve_contact.assert_not_called()
+        resolve_contact.assert_called_once_with("mama")
 
         result = router.resolve_confirmation(
             pending["confirmation"]["confirmation_id"],
@@ -372,7 +390,8 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(result["result"]["contact"], "mama")
         self.assertFalse(result["result"]["sent"])
         self.assertNotIn("url", result["result"])
-        resolve_contact.assert_called_once_with("mama")
+        resolve_contact.assert_has_calls([call("mama"), call("mama"), call("mama")])
+        self.assertEqual(resolve_contact.call_count, 3)
         open_browser.assert_called_once()
 
     @patch("tools.agent_catalog.resolve_discord_contact", return_value=("amigo", "12345678901234567", None))
@@ -390,13 +409,15 @@ class IntegrationTests(unittest.TestCase):
         pending = router.invoke("discord_call", {"contact": "amigo"}, owner_id="waveshare-test")
 
         self.assertEqual(pending["status"], "needs_confirmation")
+        resolve_contact.assert_called_once_with("amigo")
         result = router.resolve_confirmation(
             pending["confirmation"]["confirmation_id"], True, owner_id="waveshare-test"
         )
 
         self.assertFalse(result["result"]["call_started"])
         self.assertTrue(result["result"]["requires_manual_call"])
-        resolve_contact.assert_called_once_with("amigo")
+        resolve_contact.assert_has_calls([call("amigo"), call("amigo"), call("amigo")])
+        self.assertEqual(resolve_contact.call_count, 3)
         open_call.assert_called_once_with("12345678901234567", None)
 
     @patch("tools.agent_catalog.with_client")
@@ -476,14 +497,24 @@ class IntegrationTests(unittest.TestCase):
             "open_url": {"url": "https://example.com"},
         }
 
-        for tool_name, arguments in cases.items():
-            with self.subTest(tool_name=tool_name):
-                router = ToolRouter(catalog)
-                pending = router.invoke(tool_name, arguments, owner_id="matrix-test")
+        with (
+            patch(
+                "tools.agent_catalog.resolve_whatsapp_contact",
+                return_value=("mama", "34600123456"),
+            ),
+            patch(
+                "tools.agent_catalog.resolve_discord_contact",
+                return_value=("mama", "12345678901234567", None),
+            ),
+        ):
+            for tool_name, arguments in cases.items():
+                with self.subTest(tool_name=tool_name):
+                    router = ToolRouter(catalog)
+                    pending = router.invoke(tool_name, arguments, owner_id="matrix-test")
 
-                self.assertEqual(pending["status"], "needs_confirmation")
-                self.assertEqual(pending["confirmation"]["tool_name"], tool_name)
-                router.cancel_pending("matrix-test")
+                    self.assertEqual(pending["status"], "needs_confirmation")
+                    self.assertEqual(pending["confirmation"]["tool_name"], tool_name)
+                    router.cancel_pending("matrix-test")
 
     @patch("tools.commands.webbrowser.open", return_value=True)
     @patch("tools.commands.open_app", return_value={"success": False, "message": "missing"})

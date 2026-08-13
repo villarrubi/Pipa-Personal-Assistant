@@ -3,7 +3,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "windows-agent"))
@@ -161,7 +161,8 @@ class SecureTcpGatewayTests(unittest.TestCase):
                     self.assertNotIn("600123456", str(pending))
                     self.assertNotIn("mensaje de prueba", str(pending))
                     self.assertEqual(open_browser.call_count, browser_calls)
-                    self.assertEqual(resolve_discord_contact.call_count, alias_calls)
+                    expected_alias_calls = alias_calls + (1 if name == "discord_call" else 0)
+                    self.assertEqual(resolve_discord_contact.call_count, expected_alias_calls)
                     self.assertEqual(with_client_or_launch.call_count, league_calls)
                     completed = await client.confirm(pending[0]["confirmation_id"], True)
                     self.assertEqual(completed[0]["type"], "tool_result")
@@ -169,7 +170,8 @@ class SecureTcpGatewayTests(unittest.TestCase):
                     self.assertNotIn("url", completed[0])
                     self.assertNotIn("phone", completed[0])
                 self.assertEqual(open_browser.call_count, 4)
-                resolve_discord_contact.assert_called_once_with("amigo")
+                resolve_discord_contact.assert_has_calls([call("amigo"), call("amigo"), call("amigo")])
+                self.assertEqual(resolve_discord_contact.call_count, 3)
                 self.assertEqual(with_client_or_launch.call_count, 1)
             finally:
                 await client.close()

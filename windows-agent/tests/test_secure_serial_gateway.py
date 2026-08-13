@@ -2,7 +2,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "windows-agent"))
@@ -261,7 +261,8 @@ class SecureSerialGatewayTests(unittest.TestCase):
         self.assertNotIn("mensaje de prueba", str(confirm_requests))
         self.assertTrue(all("url" not in item and "phone" not in item for item in results))
         self.assertEqual(open_browser.call_count, 4)
-        resolve_discord_contact.assert_called_once_with("amigo")
+        resolve_discord_contact.assert_has_calls([call("amigo"), call("amigo"), call("amigo")])
+        self.assertEqual(resolve_discord_contact.call_count, 3)
         with_client_or_launch.assert_called_once()
 
     def test_secure_gateway_rejects_v1_message_instead_of_downgrading(self):
