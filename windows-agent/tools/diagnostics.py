@@ -195,6 +195,7 @@ def _check_integration_policy() -> dict[str, Any]:
         ("codex", "writes_to_chat"),
     )
     required_true = (
+        ("apple_music", "media_control"),
         ("apple_music", "requires_manual_selection"),
         ("whatsapp", "requires_manual_send"),
         ("discord", "requires_manual_call"),

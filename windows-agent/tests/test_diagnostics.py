@@ -67,7 +67,7 @@ class DiagnosticsTests(unittest.TestCase):
     def test_integration_policy_rejects_automatic_external_actions(self, get_capabilities):
         get_capabilities.return_value = {
             "integrations": {
-                "apple_music": {"playback": True},
+                "apple_music": {"playback": True, "media_control": True},
                 "whatsapp": {"send_message": False},
                 "discord": {"start_call": False},
                 "codex": {"writes_to_chat": False},

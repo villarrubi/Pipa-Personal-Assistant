@@ -34,6 +34,7 @@ def build_integration_capabilities(
             "app_configured": apple_music_configured,
             "search": True,
             "playback": False,
+            "media_control": True,
             "requires_manual_selection": True,
             "requires_confirmation": True,
         },

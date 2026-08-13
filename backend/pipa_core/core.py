@@ -52,6 +52,7 @@ _CAPABILITY_BOOLEAN_FIELDS = frozenset(
         "app_configured",
         "search",
         "playback",
+        "media_control",
         "requires_manual_selection",
         "open_web",
         "open_contact",

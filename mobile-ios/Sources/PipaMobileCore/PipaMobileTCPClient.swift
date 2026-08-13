@@ -294,7 +294,7 @@ public actor PipaMobileTCPClient {
     ]
 
     private static let booleanCapabilityFields: Set<String> = [
-        "available", "app_configured", "search", "playback", "requires_manual_selection",
+        "available", "app_configured", "search", "playback", "media_control", "requires_manual_selection",
         "open_web", "open_contact", "prepare_message", "send_message", "requires_manual_send",
         "open_app", "open_channel", "start_call", "requires_manual_call", "client_ready",
         "open_client", "matchmaking", "cancel_matchmaking", "writes_to_chat", "requires_confirmation",

@@ -96,6 +96,7 @@ class IntegrationTests(unittest.TestCase):
         result = get_capabilities(serial_gateway_configured=False, serial_gateway_running=False)
 
         self.assertFalse(result["integrations"]["apple_music"]["playback"])
+        self.assertTrue(result["integrations"]["apple_music"]["media_control"])
         self.assertFalse(result["integrations"]["whatsapp"]["send_message"])
         self.assertTrue(result["integrations"]["whatsapp"]["open_contact"])
         self.assertFalse(result["integrations"]["whatsapp"]["contact_aliases_configured"])
@@ -112,6 +113,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn("apple_music", result)
         self.assertFalse(result["league"]["client_ready"])
         self.assertFalse(result["apple_music"]["playback"])
+        self.assertTrue(result["apple_music"]["media_control"])
         self.assertFalse(result["whatsapp"]["send_message"])
         self.assertFalse(result["discord"]["start_call"])
         self.assertNotIn("token", encoded)

@@ -197,7 +197,9 @@ dispositivo sí exige firma Ed25519 y confirmación para herramientas externas.
 ## Capacidades y límites
 
 - Apple Music puede abrir la app configurada o su catálogo web; las búsquedas
-  no garantizan reproducción automática de una pista concreta.
+  no seleccionan ni reproducen automáticamente una pista concreta. Tras la
+  selección, las frases de reproducción/pausa controlan el reproductor activo
+  mediante una tecla multimedia.
 - League usa únicamente rutas locales allowlisted del cliente. Puede crear o
   reutilizar un lobby, consultar el estado de búsqueda e iniciar/cancelar
   matchmaking, pero Riot puede cambiar esa API interna.

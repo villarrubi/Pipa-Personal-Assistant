@@ -89,7 +89,11 @@ public struct PipaMobileIntegration: Identifiable {
         if !available {
             detail = "No configurado o no disponible en el PC."
         } else if id == "apple_music", payload["requires_manual_selection"] as? Bool == true {
-            detail = "Busca; selecciona y reproduce la pista manualmente."
+            if payload["media_control"] as? Bool == true {
+                detail = "Busca y selecciona la pista; controla reproducción/pausa manualmente."
+            } else {
+                detail = "Busca; selecciona y reproduce la pista manualmente."
+            }
         } else if id == "whatsapp", payload["requires_manual_send"] as? Bool == true {
             if payload["contact_aliases_configured"] as? Bool == false {
                 detail = "Puedes usar un teléfono; no hay alias locales. Pulsa Enviar manualmente."

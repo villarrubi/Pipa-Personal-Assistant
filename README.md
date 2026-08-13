@@ -50,7 +50,8 @@ que las solicitó y caducan si no se confirman.
 - Abrir aplicaciones configuradas localmente y bloquear el PC.
 - Abrir Codex o una aplicación configurada mediante una frase confirmable, sin
   escribir nada en chats.
-- Buscar en Internet, abrir Apple Music y abrir búsquedas musicales.
+- Buscar en Internet, abrir Apple Music y abrir búsquedas musicales; después
+  de elegir una pista, controlar reproducción/pausa con el reproductor activo.
 - Controlar volumen y teclas multimedia.
 - Crear y consultar temporizadores en memoria.
 - Abrir una URL validada desde una frase, siempre con confirmación.
@@ -155,6 +156,12 @@ Hola`—, consultar el estado de League y cancelar una búsqueda con confirmaci�
 Desde una sesión autenticada, las acciones externas requieren confirmación y las
 interfaces que puedan enviar, llamar o reproducir siguen requiriendo la acción
 final del usuario.
+
+En Apple Music la búsqueda no selecciona ni inicia una pista automáticamente.
+Después de elegirla, `reproduce la canción seleccionada`, `reanuda la pista` y
+`pausa la canción` controlan el reproductor multimedia activo mediante una
+tecla de Windows; si otra aplicación es el reproductor activo, esa aplicación
+recibirá la orden.
 
 ## Instalación del agente
 
