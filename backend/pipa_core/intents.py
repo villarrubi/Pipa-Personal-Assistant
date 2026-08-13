@@ -38,6 +38,17 @@ def _fold_phrase(value: str) -> str:
     return "".join(char for char in decomposed if not unicodedata.combining(char))
 
 
+def _clean_music_term(value: str) -> str:
+    """Remove only the natural-language connector before a music query."""
+
+    term = value.strip()
+    folded = term.casefold()
+    for prefix in ("música de ", "musica de ", "de "):
+        if folded.startswith(prefix):
+            return term[len(prefix) :].strip()
+    return term
+
+
 def parse_text_intent(text: str) -> ParsedIntent | None:
     original = " ".join(text.strip().split())
     normalized = _fold_phrase(original)
@@ -68,6 +79,16 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         "dale play",
     }:
         return ParsedIntent("media_action", {"action": "play_pause"})
+    if normalized in {
+        "para la musica",
+        "para la cancion",
+        "para la pista",
+        "deten la musica",
+        "deten la cancion",
+        "deten la pista",
+        "deten la reproduccion",
+    }:
+        return ParsedIntent("media_action", {"action": "stop"})
     if normalized in {"siguiente cancion", "siguiente"}:
         return ParsedIntent("media_action", {"action": "next"})
     if normalized in {"cancion anterior", "anterior"}:
@@ -212,7 +233,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent("whatsapp_contact_open", {"contact": whatsapp_contact_open.group(1).strip()})
 
     discord_call_contact = re.fullmatch(
-        r"llama(?:r)? a (?:el )?(.+?) (?:por|en) discord",
+        r"(?:llama(?:r)?|haz una llamada) a (?:el )?(.+?) (?:por|en) discord",
         original,
         flags=re.IGNORECASE,
     )
@@ -351,7 +372,16 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         flags=re.IGNORECASE,
     )
     if music_search:
-        return ParsedIntent("music_search", {"term": music_search.group(1).strip()})
+        return ParsedIntent("music_search", {"term": _clean_music_term(music_search.group(1))})
+
+    music_search_natural = re.fullmatch(
+        r"(?:b(?:u|ú)sca(?:me)?|buscar) (?:la )?m[uú]sica (?:de )?"
+        r"(.+?)(?: en (?:apple music|m[uú]sica|musica))?",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if music_search_natural:
+        return ParsedIntent("music_search", {"term": _clean_music_term(music_search_natural.group(1))})
 
     music_request = re.fullmatch(
         r"(?:pon(?:me)?|reproduce|reproducir) "
@@ -361,7 +391,16 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         flags=re.IGNORECASE,
     )
     if music_request:
-        return ParsedIntent("music_search", {"term": music_request.group(1).strip()})
+        return ParsedIntent("music_search", {"term": _clean_music_term(music_request.group(1))})
+
+    music_request_natural = re.fullmatch(
+        r"(?:pon(?:me)?|reproduce|reproducir) (?:la )?m[uú]sica (?:de )?"
+        r"(.+?)(?: en (?:apple music|m[uú]sica|musica))?",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if music_request_natural:
+        return ParsedIntent("music_search", {"term": _clean_music_term(music_request_natural.group(1))})
 
     song_search = re.fullmatch(
         r"(?:b(?:u|ú)sca(?:me)?|buscar) (?:(?:la|una) )?(?:canción|cancion|tema) (?:de )?"

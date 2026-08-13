@@ -645,6 +645,14 @@ class IntegrationTests(unittest.TestCase):
             {"term": "Daft Punk"},
         )
         self.assertEqual(
+            parse_text_intent("busca música de Daft Punk").arguments,
+            {"term": "Daft Punk"},
+        )
+        self.assertEqual(
+            parse_text_intent("pon música de Daft Punk en Apple Music").arguments,
+            {"term": "Daft Punk"},
+        )
+        self.assertEqual(
             parse_text_intent("Busca en internet Noticias de PIPA").arguments,
             {"query": "Noticias de PIPA"},
         )
@@ -706,6 +714,10 @@ class IntegrationTests(unittest.TestCase):
         )
         self.assertEqual(parse_text_intent("llama a mamá por Discord").tool_name, "discord_call")
         self.assertEqual(
+            parse_text_intent("haz una llamada a mamá por Discord").arguments,
+            {"contact": "mamá"},
+        )
+        self.assertEqual(
             parse_text_intent("abre el canal de mamá en Discord").arguments,
             {"contact": "mamá"},
         )
@@ -746,6 +758,10 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(
             parse_text_intent("reproduce la canción Daft Punk en Apple Music").arguments,
             {"term": "Daft Punk"},
+        )
+        self.assertEqual(
+            parse_text_intent("detén la música").arguments,
+            {"action": "stop"},
         )
         self.assertEqual(
             parse_text_intent("búscame una partida en el LoL").arguments,

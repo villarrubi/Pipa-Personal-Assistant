@@ -402,6 +402,14 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "requires_confirmation": False,
     },
     {
+        "id": "media_stop",
+        "tool_name": "media_action",
+        "phrase": "detén la música",
+        "description": "Detiene el reproductor multimedia activo.",
+        "safety": "safe",
+        "requires_confirmation": False,
+    },
+    {
         "id": "timer_create",
         "tool_name": "timer_create",
         "phrase": "crea un temporizador <segundos>",

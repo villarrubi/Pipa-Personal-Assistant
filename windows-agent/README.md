@@ -252,10 +252,13 @@ abre la aplicación calculadora
 control multimedia next
 reproduce la canción seleccionada
 reanuda la pista
+detén la música
 crea un temporizador 60
 abre una URL validada https://example.com
 busca en Apple Music Daft Punk
 busca una canción de Daft Punk en Apple Music
+busca música de Daft Punk
+pon música de Daft Punk en Apple Music
 reproduce Bohemian Rhapsody en Apple Music
 busca la canción Héroes en Apple Music
 busca Noticias de Pipa en internet
@@ -278,6 +281,7 @@ abre Discord canal 12345678901234567
 abre Discord servidor 98765432109876543 canal 12345678901234567
 abre el chat de amigo en Discord
 llama a amigo por Discord
+haz una llamada a amigo por Discord
 llama a Discord canal 12345678901234567
 llama a Discord servidor 98765432109876543 canal 12345678901234567
 llama a Discord
