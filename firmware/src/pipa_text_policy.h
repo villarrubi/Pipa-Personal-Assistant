@@ -82,4 +82,12 @@ inline bool isSafeTextSource(const char* source) {
       strcmp(source, "unknown") == 0;
 }
 
+// Keep device-produced gestures aligned with the strict Core parser. This
+// prevents a future UI path from emitting a gesture unknown to the protocol.
+inline bool isSafeGesture(const char* gesture) {
+  if (gesture == nullptr) return false;
+  return strcmp(gesture, "tap") == 0 || strcmp(gesture, "double_tap") == 0 ||
+      strcmp(gesture, "swipe_left") == 0 || strcmp(gesture, "swipe_right") == 0;
+}
+
 }  // namespace pipa

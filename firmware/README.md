@@ -108,9 +108,10 @@ preflight y la CI.
 La capacidad `text_input` significa que el protocolo puede enviar texto ya
 reconocido; no significa que el firmware actual escuche voz. Antes de
 serializarlo, ambos transportes validan el UTF-8, rechazan controles invisibles
-y limitan la fuente del texto; la pantalla
-representa el estado recibido y muestra `CONFIRM`/`TAP` cuando hay una acción
-pendiente de confirmación.
+y limitan la fuente del texto. Los gestos emitidos por el firmware también se
+limitan a los cuatro valores del protocolo (`tap`, `double_tap`, `swipe_left`,
+`swipe_right`); la pantalla representa el estado recibido y muestra
+`CONFIRM`/`TAP` cuando hay una acción pendiente de confirmación.
 
 No se ha activado ESP-SR como solución de voz española: la documentación
 oficial de MultiNet limita los modelos disponibles a chino e inglés. La ruta

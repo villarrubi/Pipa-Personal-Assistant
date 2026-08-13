@@ -40,14 +40,21 @@ foreach ($marker in @('isSafeDisplayText', 'malformed UTF-8', '0x202A', '0xFEFF'
         throw "La politica de texto del firmware no contiene el control requerido: $marker."
     }
 }
+foreach ($marker in @('isSafeTextSource', 'isSafeGesture')) {
+    if ($textPolicyContent.IndexOf($marker, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "La politica de entradas del firmware no contiene la allowlist requerida: $marker."
+    }
+}
 $protocolMarkers = @{
     'firmware/src/pipa_protocol.cpp' = @(
         'isSafeDisplayText(text, kMaxTextInput)',
-        'isSafeTextSource(safe_source)'
+        'isSafeTextSource(safe_source)',
+        '!authenticated_ || !isSafeGesture(gesture)'
     )
     'firmware/src/pipa_secure_protocol.cpp' = @(
         'isSafeDisplayText(text, 4000)',
-        'isSafeTextSource(safe_source)'
+        'isSafeTextSource(safe_source)',
+        '!authenticated_ || !isSafeGesture(gesture)'
     )
 }
 foreach ($protocolSource in $protocolMarkers.Keys) {

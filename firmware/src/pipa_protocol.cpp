@@ -62,7 +62,7 @@ void PipaProtocol::poll() {
 }
 
 void PipaProtocol::sendGesture(const char* gesture) {
-  if (!authenticated_) return;
+  if (!authenticated_ || !isSafeGesture(gesture)) return;
   JsonDocument document;
   document["protocol_version"] = 1;
   document["type"] = "gesture";
