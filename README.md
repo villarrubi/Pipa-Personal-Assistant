@@ -188,7 +188,8 @@ Desde una sesión autenticada, las acciones externas requieren confirmación y l
 interfaces que puedan enviar o llamar siguen requiriendo la acción final del
 usuario. Tras seleccionar una canción, el catálogo móvil ofrece reproducir/pausar
 y pasar de pista mediante el reproductor multimedia activo; no selecciona una
-pista ni garantiza que Apple Music sea el reproductor que tenga el foco.
+pista ni garantiza que Apple Music sea el reproductor que tenga el foco. La
+sección local del iPhone también permite anterior y detener mediante MusicKit.
 
 En Discord, el catálogo móvil también permite rellenar un servidor y un canal
 por separado con `abre Discord servidor <servidor> canal <canal>`; el agente

@@ -212,12 +212,19 @@ public struct PipaMobileRootView: View {
                 }
             }
             HStack {
+                Button("Anterior") {
+                    localAppleMusic.previousTrack()
+                }
                 Button(localAppleMusic.isPlaying ? "Pausar" : "Reproducir") {
                     localAppleMusic.togglePlayback()
                 }
                 Button("Siguiente") {
                     localAppleMusic.nextTrack()
                 }
+            }
+            .disabled(localAppleMusic.requestInProgress)
+            Button("Detener") {
+                localAppleMusic.stopPlayback()
             }
             .disabled(localAppleMusic.requestInProgress)
             if !localAppleMusic.currentTrack.isEmpty {

@@ -161,8 +161,11 @@ public final class PipaMobileAppleMusicController: ObservableObject {
             isPlaying = false
             statusMessage = "Apple Music pausado."
         } else {
+            guard !requestInProgress else { return }
+            requestInProgress = true
             Task { [weak self] in
                 guard let self else { return }
+                defer { self.requestInProgress = false }
                 do {
                     try await self.player.play()
                     self.isPlaying = true
@@ -183,8 +186,11 @@ public final class PipaMobileAppleMusicController: ObservableObject {
             authorize()
             return
         }
+        guard !requestInProgress else { return }
+        requestInProgress = true
         Task { [weak self] in
             guard let self else { return }
+            defer { self.requestInProgress = false }
             do {
                 try await self.player.skipToNextEntry()
                 self.isPlaying = true
@@ -193,6 +199,47 @@ public final class PipaMobileAppleMusicController: ObservableObject {
                 self.statusMessage = "No hay una siguiente pista disponible."
             }
         }
+        #else
+        statusMessage = "La reproducción local de Apple Music requiere iPhone."
+        #endif
+    }
+
+    /// Start the previous entry in the local queue, if MusicKit exposes one.
+    public func previousTrack() {
+        #if os(iOS)
+        guard isAuthorized else {
+            authorize()
+            return
+        }
+        guard !requestInProgress else { return }
+        requestInProgress = true
+        Task { [weak self] in
+            guard let self else { return }
+            defer { self.requestInProgress = false }
+            do {
+                try await self.player.skipToPreviousEntry()
+                self.isPlaying = true
+                self.statusMessage = "Pista anterior de Apple Music."
+            } catch {
+                self.statusMessage = "No hay una pista anterior disponible."
+            }
+        }
+        #else
+        statusMessage = "La reproducción local de Apple Music requiere iPhone."
+        #endif
+    }
+
+    /// Stop the local system player without changing the selected queue.
+    public func stopPlayback() {
+        #if os(iOS)
+        guard isAuthorized else {
+            authorize()
+            return
+        }
+        guard !requestInProgress else { return }
+        player.stop()
+        isPlaying = false
+        statusMessage = "Apple Music detenido."
         #else
         statusMessage = "La reproducción local de Apple Music requiere iPhone."
         #endif

@@ -157,9 +157,9 @@ Una acción directa que no muestra marcadores pero necesita argumentos fijos pue
 publicar además `default_arguments`, un objeto pequeño de textos acotados. Solo
 se acepta junto a `parameters: []`; la UI valida esos valores y los envía sin
 permitir que el usuario los edite. Por ejemplo, los botones de reproducción,
-siguiente y detener usan la herramienta común `media_action` con una acción
-fija. Este campo no sirve para transportar configuración privada ni datos de la
-persona.
+anterior, siguiente y detener usan la herramienta común `media_action` con una
+acción fija. Este campo no sirve para transportar configuración privada ni datos
+de la persona.
 
 ```json
 {

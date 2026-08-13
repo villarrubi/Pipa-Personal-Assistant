@@ -49,8 +49,9 @@ configuración del PC.
 La pantalla incluye además una sección independiente de Apple Music local para
 el propio iPhone. Al pulsar `Autorizar Apple Music`, MusicKit solicita el
 permiso del sistema; después `Buscar canciones` muestra hasta cinco
-coincidencias y solo reproduce la que pulses en la lista. Los botones de pausa
-y siguiente actúan solo sobre ese reproductor. Esta ruta no
+coincidencias y solo reproduce la que pulses en la lista. Los botones de
+anterior, pausa/reproducción, siguiente y detener actúan solo sobre ese
+reproductor. Esta ruta no
 envía la búsqueda al PC, no guarda tokens y no cambia las confirmaciones del
 agente Windows. Requiere una cuenta/suscripción compatible y queda pendiente
 de validación física en Xcode/iPhone.
