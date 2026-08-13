@@ -13,10 +13,11 @@ from pipa_hardware_check import HardwareDiagnostics, _port  # noqa: E402
 class HardwareDiagnosticsTests(unittest.TestCase):
     def test_v2_boot_markers_produce_a_safe_success_report(self):
         diagnostics = HardwareDiagnostics()
+        public_key = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
         for line in (
             b"# Pipa firmware 0.2.0 starting\n",
             b"# board revision: 2\n",
-            b"# PIPA_PUBLIC_KEY=secret-public-key-must-not-be-returned\n",
+            f"# PIPA_PUBLIC_KEY={public_key}\n".encode(),
             b"# IO expander ready\n",
             b"# display ready\n",
             b"# battery ADC ready\n",
@@ -31,7 +32,8 @@ class HardwareDiagnosticsTests(unittest.TestCase):
 
         self.assertTrue(result["success"])
         self.assertTrue(result["public_key_seen"])
-        self.assertNotIn("secret-public-key", str(result))
+        self.assertTrue(result["public_key_valid"])
+        self.assertNotIn(public_key, str(result))
         self.assertEqual(
             result["audio"],
             {"probe_ready": True, "output_codec_present": True, "input_codec_present": False},
@@ -42,7 +44,7 @@ class HardwareDiagnosticsTests(unittest.TestCase):
         diagnostics = HardwareDiagnostics()
         for line in (
             "# board revision: 2",
-            "# PIPA_PUBLIC_KEY=hidden",
+            "# PIPA_PUBLIC_KEY=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
             "# IO expander ready",
             "# display ready",
             "# battery ADC ready",
@@ -60,7 +62,31 @@ class HardwareDiagnosticsTests(unittest.TestCase):
             result["audio"],
             {"probe_ready": False, "output_codec_present": False, "input_codec_present": False},
         )
-        self.assertNotIn("hidden", str(result))
+        self.assertNotIn("AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8", str(result))
+
+    def test_public_key_fingerprint_is_opt_in_and_contains_no_key(self):
+        diagnostics = HardwareDiagnostics()
+        public_key = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8"
+        diagnostics.observe(f"# PIPA_PUBLIC_KEY={public_key}")
+
+        result = diagnostics.result(2, include_fingerprint=True)
+
+        self.assertTrue(result["public_key_valid"])
+        self.assertEqual(
+            result["public_key_fingerprint"],
+            "63:0D:CD:29:66:C4:33:66:91:12:54:48:BB:B2:5B:4F:F4:12:A4:9C:73:2D:B2:C8:AB:C1:B8:58:1B:D7:10:DD",
+        )
+        self.assertNotIn(public_key, str(result))
+
+    def test_invalid_public_key_marker_fails_closed(self):
+        diagnostics = HardwareDiagnostics()
+        diagnostics.observe("# PIPA_PUBLIC_KEY=not-a-public-key")
+
+        result = diagnostics.result(2)
+
+        self.assertTrue(result["public_key_seen"])
+        self.assertFalse(result["public_key_valid"])
+        self.assertIn("public_key_marker_invalid", result["failures"])
 
     def test_invalid_json_and_non_diagnostic_lines_are_not_echoed(self):
         diagnostics = HardwareDiagnostics()

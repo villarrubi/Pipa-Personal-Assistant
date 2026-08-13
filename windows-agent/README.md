@@ -453,9 +453,19 @@ La utilidad solo resume marcadores conocidos del arranque (revisión de placa,
 expansor, pantalla, touch, ADC y, cuando el firmware los emite, la sonda
 ES8311/ES7210). Los codecs de audio son informativos y no hacen fallar la
 prueba, porque la captura y reproducción siguen desactivadas. La clave pública
-se representa como `detectada: sí`, nunca se imprime. `pipa_preflight.ps1
+se valida como una clave Ed25519 base64url de 32 bytes, pero nunca se imprime.
+Si necesitas comparar la identidad sin copiar la clave, añade `--fingerprint`:
+
+```powershell
+python .\windows-agent\pipa_hardware_check.py --port COM7 --fingerprint
+```
+
+Solo muestra la huella SHA-256. `pipa_preflight.ps1
 -RequireHardware` la ejecuta automáticamente si `PIPA_SERIAL_PORT` está
 configurado.
+El preflight prefiere `windows-agent/.venv/Scripts/python.exe` para que la
+sonda tenga `pyserial` y las dependencias del agente; si no existe, usa el
+Python disponible en `PATH`.
 
 Para preparar el primer puerto de forma repetible, desde la raíz del repositorio:
 

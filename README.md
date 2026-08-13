@@ -285,6 +285,8 @@ python -m venv .\firmware\.venv
 El preflight no modifica configuraciones. Con `-CheckFirmware` añade las dos
 compilaciones del firmware; con `-RequireHardware` convierte la ausencia de
 `PIPA_SERIAL_PORT` en un fallo, útil después de conectar el Waveshare.
+Para las comprobaciones Python usa primero `windows-agent/.venv` si existe y
+solo recurre al `python` del `PATH` cuando no hay ese entorno local.
 
 ## Cuando llegue el Waveshare
 

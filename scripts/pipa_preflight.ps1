@@ -83,8 +83,23 @@ function Invoke-RepoScriptCheck {
     )
 }
 
+function Find-Python {
+    $venvPython = Join-Path $repoRoot 'windows-agent/.venv/Scripts/python.exe'
+    if (Test-Path -LiteralPath $venvPython -PathType Leaf) {
+        return $venvPython
+    }
+    $command = Get-Command python -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($null -ne $command) {
+        return $command.Source
+    }
+    return 'python'
+}
+
 Write-Host 'Pipa preflight' -ForegroundColor Cyan
 Write-Host ("Repository: {0}" -f $repoRoot)
+$python = Find-Python
+Write-Host ("Python: {0}" -f $python) -ForegroundColor DarkCyan
 
 Invoke-RepoScriptCheck -Name 'PowerShell syntax' -RelativePath 'scripts/check_powershell_syntax.ps1'
 Invoke-RepoScriptCheck -Name 'Agent startup lifecycle' -RelativePath 'scripts/check_agent_startup.ps1'
@@ -164,48 +179,51 @@ $loopbackOnly = $listenerAddresses.Count -gt 0 -and $unsafeListeners.Count -eq 0
 Write-CheckResult -Name 'Agent listens on loopback only' -Success $loopbackOnly
 
 if (-not $SkipPythonTests) {
-    Invoke-ExternalCheck -Name 'Backend tests' -FilePath 'python' -Arguments @(
+    Invoke-ExternalCheck -Name 'Backend tests' -FilePath $python -Arguments @(
         '-B', '-m', 'unittest', 'discover', '-s', (Join-Path $repoRoot 'backend/tests'), '-p', 'test_*.py'
     )
-    Invoke-ExternalCheck -Name 'Windows Agent tests' -FilePath 'python' -Arguments @(
+    Invoke-ExternalCheck -Name 'Windows Agent tests' -FilePath $python -Arguments @(
         '-B', '-m', 'unittest', 'discover', '-s', (Join-Path $repoRoot 'windows-agent/tests'), '-p', 'test_*.py'
     )
-    Invoke-ExternalCheck -Name 'Python compilation' -FilePath 'python' -Arguments @(
+    Invoke-ExternalCheck -Name 'Python compilation' -FilePath $python -Arguments @(
         '-m', 'compileall', '-q', (Join-Path $repoRoot 'backend'), (Join-Path $repoRoot 'windows-agent')
     )
 }
 
-$ruffAvailable = $null -ne (Get-Command python -CommandType Application -ErrorAction SilentlyContinue)
+$pythonApplication = Get-Command $python -CommandType Application -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+$ruffAvailable = $false
+if ($null -ne $pythonApplication) {
+    $ruffProbe = @(& $pythonApplication.Source -m ruff --version 2>&1)
+    $ruffAvailable = $LASTEXITCODE -eq 0
+}
 if ($ruffAvailable) {
-    $ruffProbe = @(& python -m ruff --version 2>&1)
-    if ($LASTEXITCODE -eq 0) {
-        Invoke-ExternalCheck -Name 'Ruff lint' -FilePath 'python' -Arguments @('-m', 'ruff', 'check', (Join-Path $repoRoot 'backend'), (Join-Path $repoRoot 'windows-agent'))
-        Invoke-ExternalCheck -Name 'Ruff format' -FilePath 'python' -Arguments @('-m', 'ruff', 'format', '--check', (Join-Path $repoRoot 'backend'), (Join-Path $repoRoot 'windows-agent'))
-    } else {
-        $warnings.Add('Ruff is not installed; CI still checks it.')
-        Write-Host '[WARN] Ruff is not installed; CI still checks it.' -ForegroundColor Yellow
-    }
+    Invoke-ExternalCheck -Name 'Ruff lint' -FilePath $python -Arguments @('-m', 'ruff', 'check', (Join-Path $repoRoot 'backend'), (Join-Path $repoRoot 'windows-agent'))
+    Invoke-ExternalCheck -Name 'Ruff format' -FilePath $python -Arguments @('-m', 'ruff', 'format', '--check', (Join-Path $repoRoot 'backend'), (Join-Path $repoRoot 'windows-agent'))
+} elseif ($null -ne $pythonApplication) {
+    $warnings.Add('Ruff is not installed; CI still checks it.')
+    Write-Host '[WARN] Ruff is not installed; CI still checks it.' -ForegroundColor Yellow
 }
 
-Invoke-ExternalCheck -Name 'Agent doctor' -FilePath 'python' -Arguments @(
+Invoke-ExternalCheck -Name 'Agent doctor' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'doctor'
 )
-Invoke-ExternalCheck -Name 'Current-source integration self-test' -FilePath 'python' -Arguments @(
+Invoke-ExternalCheck -Name 'Current-source integration self-test' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'local-self-test'
 )
-Invoke-ExternalCheck -Name 'Current-source capabilities' -FilePath 'python' -Arguments @(
+Invoke-ExternalCheck -Name 'Current-source capabilities' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'local-capabilities'
 )
-Invoke-ExternalCheck -Name 'Integration self-test' -FilePath 'python' -Arguments @(
+Invoke-ExternalCheck -Name 'Integration self-test' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'self-test'
 )
-Invoke-ExternalCheck -Name 'Mobile protocol self-test' -FilePath 'python' -Arguments @(
+Invoke-ExternalCheck -Name 'Mobile protocol self-test' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'mobile-test'
 )
-Invoke-ExternalCheck -Name 'Mobile TCP loopback self-test' -FilePath 'python' -Arguments @(
+Invoke-ExternalCheck -Name 'Mobile TCP loopback self-test' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'mobile-tcp-test'
 )
-Invoke-ExternalCheck -Name 'Mobile transport configuration' -FilePath 'python' -Arguments @(
+Invoke-ExternalCheck -Name 'Mobile transport configuration' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'mobile-config'
 )
 
@@ -256,7 +274,7 @@ if ([string]::IsNullOrWhiteSpace($serialPort)) {
 } else {
     Write-Host ("[INFO] PIPA_SERIAL_PORT configured as {0}" -f $serialPort) -ForegroundColor Cyan
     if ($RequireHardware) {
-        Invoke-ExternalCheck -Name 'Waveshare serial smoke check' -FilePath 'python' -Arguments @(
+        Invoke-ExternalCheck -Name 'Waveshare serial smoke check' -FilePath $python -Arguments @(
             (Join-Path $repoRoot 'windows-agent/pipa_hardware_check.py'),
             '--port', $serialPort,
             '--duration', '8'

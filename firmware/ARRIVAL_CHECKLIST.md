@@ -32,9 +32,15 @@ la prueba fisica:
 python .\windows-agent\pipa_hardware_check.py --port COM7
 ```
 
+Para obtener solo una huella comparable, sin imprimir la clave pública:
+
+```powershell
+python .\windows-agent\pipa_hardware_check.py --port COM7 --fingerprint
+```
+
 Si conectas tarde el USB y te pierdes los primeros mensajes, pulsa reset en la
 placa y vuelve a lanzar la prueba. Un resultado correcto exige identidad
-publica detectada, revision V2, expansor IO, pantalla, touch y ADC de bateria.
+publica valida, revision V2, expansor IO, pantalla, touch y ADC de bateria.
 La presencia de los codecs de audio se informa tanto en el monitor como en el
 resumen de `pipa_hardware_check.py`, pero no bloquea esta prueba porque la
 captura y reproduccion siguen deliberadamente desactivadas.

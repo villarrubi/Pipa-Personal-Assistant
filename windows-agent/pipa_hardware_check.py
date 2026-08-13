@@ -1,14 +1,18 @@
 """Safe, read-only smoke check for a connected Waveshare board.
 
 The checker opens one explicitly selected serial port, sends no bytes and never
-prints the serial stream.  It only reports bounded, known boot markers, with the
-public key represented as a boolean.  This makes it useful during first setup
-without turning a serial monitor dump into a credential or privacy leak.
+prints the serial stream. It only reports bounded, known boot markers, with the
+public key represented as a validity flag and an optional fingerprint. This
+makes it useful during first setup without turning a serial monitor dump into a
+credential or privacy leak.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
+import hashlib
 import json
 import os
 import platform
@@ -31,6 +35,26 @@ _AUDIO_OUTPUT_PRESENT = "audio output ES8311: present"
 _AUDIO_OUTPUT_ABSENT = "audio output ES8311: absent"
 _AUDIO_INPUT_PRESENT = "audio input ES7210: present"
 _AUDIO_INPUT_ABSENT = "audio input ES7210: absent"
+_PUBLIC_KEY_PATTERN = re.compile(r"^[A-Za-z0-9_-]{43}$")
+
+
+def _public_key_details(value: str) -> tuple[bool, str | None]:
+    """Validate the device marker and derive a display-only fingerprint."""
+
+    if _PUBLIC_KEY_PATTERN.fullmatch(value) is None:
+        return False, None
+    standard = value.replace("-", "+").replace("_", "/")
+    try:
+        decoded = base64.b64decode(standard + "=", validate=True)
+    except (ValueError, binascii.Error):
+        return False, None
+    if len(decoded) != 32:
+        return False, None
+    canonical = base64.urlsafe_b64encode(decoded).decode("ascii").rstrip("=")
+    if canonical != value:
+        return False, None
+    digest = hashlib.sha256(decoded).hexdigest().upper()
+    return True, ":".join(digest[index : index + 2] for index in range(0, len(digest), 2))
 
 
 @dataclass
@@ -39,6 +63,8 @@ class HardwareDiagnostics:
 
     lines_seen: int = 0
     public_key_seen: bool = False
+    public_key_valid: bool = False
+    _public_key_fingerprint: str | None = field(default=None, repr=False)
     board_revision: int | None = None
     ready_markers: set[str] = field(default_factory=set)
     unavailable_markers: set[str] = field(default_factory=set)
@@ -63,7 +89,9 @@ class HardwareDiagnostics:
         self.lines_seen += 1
         message = line[1:].strip()
         if message.startswith("PIPA_PUBLIC_KEY="):
-            self.public_key_seen = bool(message.removeprefix("PIPA_PUBLIC_KEY=").strip())
+            public_key = message.removeprefix("PIPA_PUBLIC_KEY=").strip()
+            self.public_key_seen = bool(public_key)
+            self.public_key_valid, self._public_key_fingerprint = _public_key_details(public_key)
             return
 
         board_match = _BOARD_REVISION_PATTERN.fullmatch(message)
@@ -101,7 +129,12 @@ class HardwareDiagnostics:
         if message.startswith("FATAL:"):
             self.fatal_seen = True
 
-    def result(self, expected_board_revision: int) -> dict[str, object]:
+    def result(
+        self,
+        expected_board_revision: int,
+        *,
+        include_fingerprint: bool = False,
+    ) -> dict[str, object]:
         """Return a stable report that contains no serial payloads."""
 
         failures: list[str] = []
@@ -109,6 +142,8 @@ class HardwareDiagnostics:
             failures.append("no_boot_diagnostics")
         if not self.public_key_seen:
             failures.append("public_key_marker_missing")
+        elif not self.public_key_valid:
+            failures.append("public_key_marker_invalid")
         if self.board_revision != expected_board_revision:
             failures.append("unexpected_board_revision")
         for marker_name in EXPECTED_MARKERS:
@@ -117,10 +152,11 @@ class HardwareDiagnostics:
         if self.fatal_seen:
             failures.append("fatal_boot_error")
 
-        return {
+        report: dict[str, object] = {
             "success": not failures,
             "lines_seen": self.lines_seen,
             "public_key_seen": self.public_key_seen,
+            "public_key_valid": self.public_key_valid,
             "board_revision": self.board_revision,
             "expected_board_revision": expected_board_revision,
             "ready": {name: name in self.ready_markers for name in EXPECTED_MARKERS},
@@ -133,6 +169,9 @@ class HardwareDiagnostics:
             "fatal_seen": self.fatal_seen,
             "failures": failures,
         }
+        if include_fingerprint and self._public_key_fingerprint is not None:
+            report["public_key_fingerprint"] = self._public_key_fingerprint
+        return report
 
 
 def _port(value: str) -> str:
@@ -168,6 +207,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Revisión esperada; el SKU actual usa V2 por defecto.",
     )
     parser.add_argument("--json", action="store_true", help="Devuelve solo JSON acotado.")
+    parser.add_argument(
+        "--fingerprint",
+        action="store_true",
+        help="Incluye solo la huella SHA-256 de la clave pública detectada.",
+    )
     return parser
 
 
@@ -216,6 +260,8 @@ def _human_report(port: str, report: dict[str, object]) -> str:
         if report["public_key_seen"]
         else "Identidad pública detectada: no",
     ]
+    if report.get("public_key_fingerprint") is not None:
+        lines.append(f"Fingerprint de identidad pública: {report['public_key_fingerprint']}")
     lines.extend(f"{labels[name]}: {'OK' if ready[name] else 'pendiente/fallo'}" for name in labels)
     if audio["probe_ready"] is not None:
         lines.append("Sonda audio: " + ("OK" if audio["probe_ready"] else "no detectada"))
@@ -251,7 +297,10 @@ def main(argv: list[str] | None = None) -> int:
         print("Error: --duration debe estar entre 0.5 y 120 segundos.", file=sys.stderr)
         return 2
     try:
-        report = _collect(port, arguments.duration).result(arguments.expected_board_revision)
+        report = _collect(port, arguments.duration).result(
+            arguments.expected_board_revision,
+            include_fingerprint=arguments.fingerprint,
+        )
     except RuntimeError as error:
         if arguments.json:
             print(json.dumps({"success": False, "error": str(error)}, ensure_ascii=False))
