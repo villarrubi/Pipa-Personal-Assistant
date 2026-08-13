@@ -25,6 +25,7 @@ htmlcov/
 .pio/
 .pioenvs/
 .platformio/
+.platformio-local/
 .platformio-preflight/
 firmware/libdeps/
 

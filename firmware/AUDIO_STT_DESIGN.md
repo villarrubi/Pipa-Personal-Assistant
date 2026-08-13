@@ -103,7 +103,8 @@ desconexión y comportamiento cuando el usuario revoca el permiso.
    foto con información personal en Git.
 2. Ejecutar pantalla, touch, I²C y batería por separado.
 3. Confirmar las direcciones y respuestas de ES8311/ES7210 sin activar PA_CTRL.
-4. Inicializar clocks e I²S en una rama de prueba que no anuncie audio al Core.
+4. Compilar y, con la placa presente, inicializar clocks e I²S en la rama
+   opt-in `audio-i2s-lab`, que no anuncia audio al Core.
 5. Medir captura y reproducción con buffers acotados, watchdog y cancelación.
 6. Añadir el estado visible de escucha y comprobar que el touch cancela.
 7. Implementar bloques v2 cifrados y validar los vectores Python/firmware antes

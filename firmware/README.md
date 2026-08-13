@@ -27,6 +27,10 @@ CDC. La referencia física está en la
 - Diagnóstico I²C no destructivo de ES8311 (salida) y ES7210 (entrada), con el
   amplificador apagado por defecto; la captura/reproducción real aún queda
   pendiente.
+- Entorno opt-in `audio-i2s-lab` que compila la configuración I²S V2 de
+  Waveshare sin conectarla al `main`, sin codec, sin muestras y con el
+  amplificador forzado a apagado; sirve para detectar cambios del SDK antes de
+  tener la placa.
 - Telemetría opcional de batería para la revisión V2 mediante el ADC documentado;
   publica solo un porcentaje acotado y no controla carga ni alimentación.
 - La pantalla de confirmación muestra el resumen de la acción en ASCII
@@ -148,6 +152,16 @@ Para verificar únicamente la compatibilidad con una placa V1 confirmada:
 
 Ese entorno solo comprueba la compilación del mapa legado; no debe usarse para
 flashear el SKU 30684 sin identificar antes la revisión física.
+
+Para compilar la sonda I²S experimental sin habilitarla en el firmware normal:
+
+```powershell
+.\firmware\.venv\Scripts\pio.exe run -d firmware -e audio-i2s-lab
+```
+
+Este entorno no prueba el micrófono ni el altavoz y no debe flashearse como
+firmware de uso diario. La inicialización real de codec, captura y reproducción
+sigue bloqueada hasta la validación física.
 
 Para compilar también el camino seguro sin cambiar la configuración local:
 

@@ -43,6 +43,9 @@ jobs:
       - name: Check firmware configuration safety
         shell: pwsh
         run: ./scripts/check_firmware_config.ps1
+      - name: Check audio I2S lab safety
+        shell: pwsh
+        run: ./scripts/check_audio_i2s_lab.ps1
       - name: Check Trusted Unlock safety
         shell: pwsh
         run: ./scripts/check_trusted_unlock_safety.ps1
@@ -99,6 +102,7 @@ jobs:
           run_pio_with_retry waveshare-185c-v1
           run_pio_with_retry secure-session-v2
           run_pio_with_retry secure-session-vector
+          run_pio_with_retry audio-i2s-lab
 
   swift-package:
     name: Swift mobile core tests

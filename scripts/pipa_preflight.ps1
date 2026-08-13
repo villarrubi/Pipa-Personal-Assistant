@@ -209,12 +209,17 @@ if ($CheckFirmware) {
     if (-not (Test-Path -LiteralPath $pio -PathType Leaf)) {
         Write-CheckResult -Name 'Firmware toolchain' -Success $false -Detail ' (firmware/.venv missing)'
     } else {
+        Invoke-ExternalCheck -Name 'Audio I2S lab safety' -FilePath 'powershell.exe' -Arguments @(
+            '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+            (Join-Path $repoRoot 'scripts/check_audio_i2s_lab.ps1')
+        )
         # Keep PlatformIO state inside the repository's ignored workspace so a
         # protected or stale user profile cannot make a valid build fail.
         $env:PLATFORMIO_CORE_DIR = Join-Path $repoRoot '.platformio-preflight'
         Invoke-ExternalCheck -Name 'Firmware V2 build' -FilePath $pio -Arguments @('run', '-d', (Join-Path $repoRoot 'firmware'), '-e', 'waveshare-185c')
         Invoke-ExternalCheck -Name 'Firmware V1 compatibility build' -FilePath $pio -Arguments @('run', '-d', (Join-Path $repoRoot 'firmware'), '-e', 'waveshare-185c-v1')
         Invoke-ExternalCheck -Name 'Firmware secure-session vector build' -FilePath $pio -Arguments @('run', '-d', (Join-Path $repoRoot 'firmware'), '-e', 'secure-session-vector')
+        Invoke-ExternalCheck -Name 'Firmware audio I2S lab build' -FilePath $pio -Arguments @('run', '-d', (Join-Path $repoRoot 'firmware'), '-e', 'audio-i2s-lab')
         $previousBuildFlags = [Environment]::GetEnvironmentVariable('PLATFORMIO_BUILD_FLAGS', 'Process')
         try {
             # Reuse the already-installed dependencies while compiling the
