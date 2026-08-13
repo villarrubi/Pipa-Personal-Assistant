@@ -156,12 +156,12 @@ public final class PipaMobileAppleMusicController: ObservableObject {
             authorize()
             return
         }
+        guard !requestInProgress else { return }
         if player.state.playbackStatus == .playing {
             player.pause()
             isPlaying = false
             statusMessage = "Apple Music pausado."
         } else {
-            guard !requestInProgress else { return }
             requestInProgress = true
             Task { [weak self] in
                 guard let self else { return }

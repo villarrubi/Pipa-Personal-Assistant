@@ -14,6 +14,7 @@ import getpass
 import http.client
 import json
 import ssl
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -51,6 +52,7 @@ _CLIENT_NAMES = frozenset({"leagueclientux.exe", "leagueclientux"})
 _MAX_TOKEN_LENGTH = 1024
 _CLIENT_START_TIMEOUT_SECONDS = 30.0
 _CLIENT_START_POLL_SECONDS = 0.5
+_MATCHMAKING_OPERATION_LOCK = threading.Lock()
 _SEARCHING_STATES = frozenset({"searching", "inprogress", "in_progress"})
 _NOT_SEARCHING_STATES = frozenset(
     {
@@ -296,15 +298,22 @@ class LeagueClientApi:
             if current_queue_id != queue_id:
                 raise LeagueClientError("Ya existe un lobby de League con otra cola.")
         self._request("POST", "/lol-lobby/v2/lobby/matchmaking/search", {})
+        verification = self.search_status()
+        if verification["supported"] is not True or verification["searching"] is not True:
+            raise LeagueClientError("League Client no confirmó el inicio de matchmaking.")
         return {"started": True, "queue": canonical_queue, "queue_id": queue_id}
 
     def cancel_search(self) -> dict[str, object]:
-        self._request(
-            "DELETE",
-            "/lol-lobby/v2/lobby/matchmaking/search",
-            accepted_statuses=frozenset({404}),
-        )
-        return {"cancelled": True}
+        with _MATCHMAKING_OPERATION_LOCK:
+            self._request(
+                "DELETE",
+                "/lol-lobby/v2/lobby/matchmaking/search",
+                accepted_statuses=frozenset({404}),
+            )
+            verification = self.search_status()
+            if verification["supported"] is not True or verification["searching"] is True:
+                raise LeagueClientError("League Client no confirmó la cancelación de matchmaking.")
+            return {"cancelled": True}
 
 
 def with_client(callback):
@@ -319,6 +328,26 @@ def with_client_or_launch(
     timeout_seconds: float = _CLIENT_START_TIMEOUT_SECONDS,
     poll_seconds: float = _CLIENT_START_POLL_SECONDS,
 ) -> Any:
+    """Serialize explicit matchmaking actions inside this agent process."""
+
+    if not 0.5 <= timeout_seconds <= 120 or not 0.1 <= poll_seconds <= 5:
+        raise ValueError("Los límites de espera de League no son válidos.")
+    with _MATCHMAKING_OPERATION_LOCK:
+        return _with_client_or_launch(
+            callback,
+            launcher,
+            timeout_seconds=timeout_seconds,
+            poll_seconds=poll_seconds,
+        )
+
+
+def _with_client_or_launch(
+    callback: Callable[[LeagueClientApi], Any],
+    launcher: Callable[[], dict[str, object]],
+    *,
+    timeout_seconds: float,
+    poll_seconds: float,
+) -> Any:
     """Use League if ready, otherwise launch it and wait within a hard bound.
 
     Discovery happens before invoking ``callback`` so an LCU/API failure never
@@ -327,9 +356,6 @@ def with_client_or_launch(
     confirmation. The bounded wait only applies to the explicit matchmaking
     action; read-only status and cancellation keep their fail-closed behavior.
     """
-
-    if not 0.5 <= timeout_seconds <= 120 or not 0.1 <= poll_seconds <= 5:
-        raise ValueError("Los límites de espera de League no son válidos.")
 
     client_started = False
     try:

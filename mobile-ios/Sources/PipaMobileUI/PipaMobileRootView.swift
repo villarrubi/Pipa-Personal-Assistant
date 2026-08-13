@@ -16,8 +16,44 @@ public struct PipaMobileRootView: View {
     @State private var localDiscordChannelID = ""
     @State private var localDiscordGuildID = ""
     @State private var localIntegrationStatus = ""
+    @State private var pendingLocalIntegrationAction: LocalIntegrationAction?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
+
+    private enum LocalIntegrationAction: String, Identifiable {
+        case whatsappChat
+        case whatsappMessage
+        case discordChannel
+        case discordCall
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .whatsappChat:
+                return "Abrir chat de WhatsApp"
+            case .whatsappMessage:
+                return "Preparar mensaje de WhatsApp"
+            case .discordChannel:
+                return "Abrir canal de Discord"
+            case .discordCall:
+                return "Preparar llamada de Discord"
+            }
+        }
+
+        var message: String {
+            switch self {
+            case .whatsappChat:
+                return "Se abrirá el chat, sin preparar ni enviar ningún mensaje."
+            case .whatsappMessage:
+                return "Se abrirá WhatsApp con el texto preparado; el envío seguirá siendo manual."
+            case .discordChannel:
+                return "Se abrirá el canal, sin iniciar ninguna llamada."
+            case .discordCall:
+                return "Se abrirá el destino; tendrás que pulsar Llamar manualmente."
+            }
+        }
+    }
 
     public init(model: PipaMobileViewModel? = nil) {
         _model = StateObject(wrappedValue: model ?? PipaMobileViewModel())
@@ -57,6 +93,27 @@ public struct PipaMobileRootView: View {
             } onExecute: { command, values in
                 model.sendStructuredCommand(command, values: values)
             }
+        }
+        .confirmationDialog(
+            pendingLocalIntegrationAction?.title ?? "Confirmar acción externa",
+            isPresented: Binding(
+                get: { pendingLocalIntegrationAction != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        pendingLocalIntegrationAction = nil
+                    }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Continuar") {
+                performPendingLocalIntegrationAction()
+            }
+            Button("Cancelar", role: .cancel) {
+                pendingLocalIntegrationAction = nil
+            }
+        } message: {
+            Text(pendingLocalIntegrationAction?.message ?? "")
         }
     }
 
@@ -251,23 +308,21 @@ public struct PipaMobileRootView: View {
                 .privacySensitive()
             HStack {
                 Button("Abrir chat") {
-                    guard let url = PipaMobileLocalIntegrationLinks.whatsappChatURL(phone: localWhatsAppPhone) else {
+                    guard PipaMobileLocalIntegrationLinks.whatsappChatURL(phone: localWhatsAppPhone) != nil else {
                         localIntegrationStatus = "Introduce un teléfono internacional válido."
                         return
                     }
-                    openURL(url)
-                    localIntegrationStatus = "Chat de WhatsApp abierto; no se ha preparado ni enviado ningún mensaje."
+                    pendingLocalIntegrationAction = .whatsappChat
                 }
                 Button("Preparar mensaje") {
-                    guard let url = PipaMobileLocalIntegrationLinks.whatsappComposeURL(
+                    guard PipaMobileLocalIntegrationLinks.whatsappComposeURL(
                         phone: localWhatsAppPhone,
                         message: localWhatsAppMessage
-                    ) else {
+                    ) != nil else {
                         localIntegrationStatus = "Revisa el teléfono y el mensaje."
                         return
                     }
-                    openURL(url)
-                    localIntegrationStatus = "Mensaje preparado en WhatsApp; pulsa Enviar manualmente."
+                    pendingLocalIntegrationAction = .whatsappMessage
                 }
             }
 
@@ -277,10 +332,10 @@ public struct PipaMobileRootView: View {
                 .privacySensitive()
             HStack {
                 Button("Abrir canal") {
-                    openLocalDiscordChannel(manualCall: false)
+                    requestLocalDiscordChannel(manualCall: false)
                 }
                 Button("Preparar llamada") {
-                    openLocalDiscordChannel(manualCall: true)
+                    requestLocalDiscordChannel(manualCall: true)
                 }
             }
             if !localIntegrationStatus.isEmpty {
@@ -291,19 +346,53 @@ public struct PipaMobileRootView: View {
         }
     }
 
-    private func openLocalDiscordChannel(manualCall: Bool) {
+    private func requestLocalDiscordChannel(manualCall: Bool) {
         let guild = localDiscordGuildID.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = PipaMobileLocalIntegrationLinks.discordChannelURL(
+        guard PipaMobileLocalIntegrationLinks.discordChannelURL(
             channelID: localDiscordChannelID,
             guildID: guild.isEmpty ? nil : guild
-        ) else {
+        ) != nil else {
             localIntegrationStatus = "Introduce IDs de Discord válidos."
             return
         }
-        openURL(url)
-        localIntegrationStatus = manualCall
-            ? "Canal de Discord abierto; pulsa Llamar manualmente."
-            : "Canal de Discord abierto; no se ha iniciado ninguna llamada."
+        pendingLocalIntegrationAction = manualCall ? .discordCall : .discordChannel
+    }
+
+    private func performPendingLocalIntegrationAction() {
+        guard let action = pendingLocalIntegrationAction else { return }
+        pendingLocalIntegrationAction = nil
+        switch action {
+        case .whatsappChat:
+            guard let url = PipaMobileLocalIntegrationLinks.whatsappChatURL(phone: localWhatsAppPhone) else {
+                localIntegrationStatus = "Introduce un teléfono internacional válido."
+                return
+            }
+            openURL(url)
+            localIntegrationStatus = "Chat de WhatsApp abierto; no se ha preparado ni enviado ningún mensaje."
+        case .whatsappMessage:
+            guard let url = PipaMobileLocalIntegrationLinks.whatsappComposeURL(
+                phone: localWhatsAppPhone,
+                message: localWhatsAppMessage
+            ) else {
+                localIntegrationStatus = "Revisa el teléfono y el mensaje."
+                return
+            }
+            openURL(url)
+            localIntegrationStatus = "Mensaje preparado en WhatsApp; pulsa Enviar manualmente."
+        case .discordChannel, .discordCall:
+            let guild = localDiscordGuildID.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let url = PipaMobileLocalIntegrationLinks.discordChannelURL(
+                channelID: localDiscordChannelID,
+                guildID: guild.isEmpty ? nil : guild
+            ) else {
+                localIntegrationStatus = "Introduce IDs de Discord válidos."
+                return
+            }
+            openURL(url)
+            localIntegrationStatus = action == .discordCall
+                ? "Canal de Discord abierto; pulsa Llamar manualmente."
+                : "Canal de Discord abierto; no se ha iniciado ninguna llamada."
+        }
     }
 
     private var commandSection: some View {

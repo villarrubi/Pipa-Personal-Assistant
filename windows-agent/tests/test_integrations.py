@@ -1,4 +1,5 @@
 import sys
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import call, patch
@@ -926,6 +927,51 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(launcher_calls, [])
         self.assertEqual(result, {"started": True})
 
+    def test_league_matchmaking_operations_are_serialized(self):
+        connection = LeagueClientConnection(port=1234, **{"to" + "ken": "tok" + "en"})
+        first_entered = threading.Event()
+        release_first = threading.Event()
+        second_entered = threading.Event()
+        results = []
+
+        def first_callback(_client):
+            first_entered.set()
+            self.assertTrue(release_first.wait(timeout=2))
+            return {"operation": "first"}
+
+        def second_callback(_client):
+            second_entered.set()
+            return {"operation": "second"}
+
+        with patch("tools.league.find_client_connection", return_value=connection):
+            first = threading.Thread(
+                target=lambda: results.append(
+                    with_client_or_launch(first_callback, lambda: {"success": True})
+                ),
+                daemon=True,
+            )
+            second = threading.Thread(
+                target=lambda: results.append(
+                    with_client_or_launch(second_callback, lambda: {"success": True})
+                ),
+                daemon=True,
+            )
+            first.start()
+            self.assertTrue(first_entered.wait(timeout=1))
+            second.start()
+            self.assertFalse(second_entered.wait(timeout=0.1))
+            release_first.set()
+            first.join(timeout=2)
+            second.join(timeout=2)
+
+        self.assertFalse(first.is_alive())
+        self.assertFalse(second.is_alive())
+        self.assertTrue(second_entered.is_set())
+        self.assertEqual(
+            {item["operation"] for item in results},
+            {"first", "second"},
+        )
+
     def test_league_api_rejects_paths_outside_the_exact_allowlist(self):
         test_credential = "tok"
         api = LeagueClientApi(LeagueClientConnection(port=1234, **{"to" + "ken": test_credential}))
@@ -986,12 +1032,57 @@ class IntegrationTests(unittest.TestCase):
                 {"gameConfig": {"queueId": 400}},
                 {"searchState": "None"},
                 None,
+                {"searchState": "Searching"},
             ],
         ) as request:
             result = api.start_search("normal")
 
         self.assertTrue(result["started"])
-        self.assertEqual(request.call_count, 3)
+        self.assertEqual(request.call_count, 4)
+
+    def test_league_search_fails_if_matchmaking_postcondition_is_not_confirmed(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+        with patch.object(
+            api,
+            "_request",
+            side_effect=[
+                {"gameConfig": {"queueId": 400}},
+                {"searchState": "None"},
+                None,
+                {"searchState": "None"},
+            ],
+        ) as request:
+            with self.assertRaises(LeagueClientError):
+                api.start_search("normal")
+
+        self.assertEqual(request.call_count, 4)
+
+    def test_league_cancel_requires_a_confirmed_idle_state(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+        with patch.object(
+            api,
+            "_request",
+            side_effect=[None, {"searchState": "None"}],
+        ) as request:
+            result = api.cancel_search()
+
+        self.assertEqual(result, {"cancelled": True})
+        self.assertEqual(request.call_count, 2)
+
+    def test_league_cancel_fails_if_search_is_still_active(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+        with patch.object(
+            api,
+            "_request",
+            side_effect=[None, {"searchState": "Searching"}],
+        ) as request:
+            with self.assertRaises(LeagueClientError):
+                api.cancel_search()
+
+        self.assertEqual(request.call_count, 2)
 
     def test_league_search_fails_closed_for_an_unknown_matchmaking_state(self):
         connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
