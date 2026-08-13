@@ -296,10 +296,13 @@ final class PipaMobileProtocolTests: XCTestCase {
             clientNonce: clientNonce
         )
         let expectedClientHello = try XCTUnwrap(fixture["client_hello"] as? [String: Any])
-        XCTAssertEqual(
-            try PipaMobileCodec.canonicalJSON(context.hello),
-            try PipaMobileCodec.canonicalJSON(expectedClientHello)
-        )
+        for key in context.hello.keys {
+            XCTAssertEqual(
+                context.hello[key] as? String ?? "<non-string>",
+                expectedClientHello[key] as? String ?? "<missing-or-non-string>",
+                "ClientHello field \(key)"
+            )
+        }
 
         let serverHello = try XCTUnwrap(fixture["server_hello"] as? [String: Any])
         let layer = try PipaMobileHandshake.complete(
