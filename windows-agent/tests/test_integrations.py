@@ -135,6 +135,23 @@ class IntegrationTests(unittest.TestCase):
         self.assertFalse(result["integrations"]["league"]["client_ready"])
         find_client.assert_not_called()
 
+    @patch(
+        "tools.capabilities.load_apps",
+        return_value={
+            "whatsapp": {"aliases": ["whatsapp"], "command": ["WhatsApp.exe"]},
+            "discord": {"aliases": ["discord"], "command": ["Discord.exe"]},
+        },
+    )
+    def test_capabilities_report_optional_desktop_apps_without_private_data(self, _load_apps):
+        result = get_integration_capabilities()
+
+        self.assertTrue(result["whatsapp"]["app_configured"])
+        self.assertTrue(result["discord"]["app_configured"])
+        self.assertFalse(result["whatsapp"]["contact_aliases_configured"])
+        self.assertFalse(result["discord"]["contact_aliases_configured"])
+        self.assertNotIn("WhatsApp.exe", str(result))
+        self.assertNotIn("Discord.exe", str(result))
+
     def test_browser_failure_is_reported(self):
         result = open_validated_url(
             "https://example.com",
@@ -446,6 +463,18 @@ class IntegrationTests(unittest.TestCase):
         self.assertNotIn("url", result)
         open_browser.assert_called_once_with("https://web.whatsapp.com/")
 
+    def test_whatsapp_prefers_a_local_allowlisted_app_without_sending(self):
+        with (
+            patch("tools.whatsapp.open_app", return_value={"success": True}),
+            patch("tools.whatsapp.webbrowser.open") as open_browser,
+        ):
+            result = open_whatsapp_web()
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["target"], "desktop_app")
+        self.assertFalse(result["sent"])
+        open_browser.assert_not_called()
+
     @patch("tools.whatsapp.webbrowser.open", return_value=True)
     def test_whatsapp_compose_adapter_redacts_private_message_url(self, open_browser):
         result = open_whatsapp_compose("+34 600 123 456", "mensaje privado")
@@ -466,6 +495,18 @@ class IntegrationTests(unittest.TestCase):
         self.assertNotIn("requires_manual_call", result)
         self.assertNotIn("url", result)
         open_browser.assert_called_once_with("https://discord.com/app")
+
+    def test_discord_prefers_a_local_allowlisted_app_without_calling(self):
+        with (
+            patch("tools.discord.open_app", return_value={"success": True}),
+            patch("tools.discord.webbrowser.open") as open_browser,
+        ):
+            result = open_discord_app()
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["target"], "desktop_app")
+        self.assertFalse(result["call_started"])
+        open_browser.assert_not_called()
 
     def test_voice_intents_cover_the_new_entry_points(self):
         self.assertEqual(parse_text_intent("pausa la música").tool_name, "media_action")

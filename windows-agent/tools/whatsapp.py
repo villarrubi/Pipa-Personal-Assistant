@@ -10,6 +10,7 @@ import re
 import webbrowser
 from urllib.parse import urlencode
 
+from tools.apps import AppsConfigError, open_app
 from tools.browser import open_validated_url, without_destination
 from tools.urls import validate_external_url
 
@@ -76,7 +77,19 @@ def build_whatsapp_web_url() -> str:
 
 
 def open_whatsapp_web() -> dict[str, object]:
-    """Open WhatsApp Web without reading contacts or sending a message."""
+    """Open an allowlisted desktop app or WhatsApp Web without sending."""
+
+    try:
+        app_result = open_app("whatsapp")
+    except AppsConfigError:
+        app_result = {"success": False}
+    if app_result.get("success") is True:
+        return {
+            "success": True,
+            "target": "desktop_app",
+            "message": "WhatsApp abierto; no se ha enviado ningún mensaje.",
+            "sent": False,
+        }
 
     url = build_whatsapp_web_url()
     return without_destination(
@@ -86,4 +99,4 @@ def open_whatsapp_web() -> dict[str, object]:
             success_message="WhatsApp Web abierto; no se ha enviado ningún mensaje.",
             failure_message="No he podido abrir WhatsApp Web.",
         )
-    ) | {"sent": False}
+    ) | {"target": "web", "sent": False}

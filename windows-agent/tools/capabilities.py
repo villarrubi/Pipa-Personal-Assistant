@@ -19,12 +19,20 @@ def _configured_apps() -> dict[str, bool]:
     try:
         apps = load_apps()
     except AppsConfigError:
-        return {"apple_music": False, "league_of_legends": False, "codex": False}
+        return {
+            "apple_music": False,
+            "league_of_legends": False,
+            "codex": False,
+            "whatsapp": False,
+            "discord": False,
+        }
     app_ids = {app_id.strip().lower() for app_id in apps}
     return {
         "apple_music": "apple_music" in app_ids,
         "league_of_legends": "league_of_legends" in app_ids,
         "codex": "codex" in app_ids,
+        "whatsapp": "whatsapp" in app_ids,
+        "discord": "discord" in app_ids,
     }
 
 
@@ -63,6 +71,8 @@ def get_integration_capabilities() -> dict[str, dict[str, Any]]:
         league_available=configured["league_of_legends"],
         league_ready=league_ready,
         codex_configured=configured["codex"],
+        whatsapp_app_configured=configured["whatsapp"],
+        discord_app_configured=configured["discord"],
         whatsapp_contacts_configured=whatsapp_contacts_configured,
         discord_contacts_configured=discord_contacts_configured,
     )

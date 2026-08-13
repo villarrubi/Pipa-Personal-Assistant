@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 import webbrowser
 
+from tools.apps import AppsConfigError, open_app
 from tools.browser import open_validated_url, without_destination
 from tools.urls import validate_external_url
 
@@ -36,7 +37,19 @@ def build_discord_app_url() -> str:
 
 
 def open_discord_app() -> dict[str, object]:
-    """Open Discord's authenticated web app without starting a call."""
+    """Open an allowlisted desktop app or Discord web without calling."""
+
+    try:
+        app_result = open_app("discord")
+    except AppsConfigError:
+        app_result = {"success": False}
+    if app_result.get("success") is True:
+        return {
+            "success": True,
+            "target": "desktop_app",
+            "message": "Discord abierto; las llamadas se inician manualmente.",
+            "call_started": False,
+        }
 
     url = build_discord_app_url()
     return without_destination(
@@ -46,7 +59,7 @@ def open_discord_app() -> dict[str, object]:
             success_message="Discord abierto; las llamadas se inician manualmente.",
             failure_message="No he podido abrir Discord.",
         )
-    ) | {"call_started": False}
+    ) | {"target": "web", "call_started": False}
 
 
 def open_discord_channel(channel_id: str, guild_id: str | None = None) -> dict[str, object]:

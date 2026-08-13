@@ -210,10 +210,14 @@ dispositivo sí exige firma Ed25519 y confirmación para herramientas externas.
   no requieren confirmación. Cancelar un temporizador solo afecta a la memoria
   del agente y no se persiste.
 - Codex solo se abre si existe una entrada local `codex`.
-- WhatsApp puede abrir WhatsApp Web o preparar `wa.me`; el usuario pulsa
-  `Enviar`.
-- Discord puede abrir la aplicación web o un ID validado; el usuario inicia la
+- WhatsApp puede abrir una entrada local allowlisted llamada `whatsapp` si la
+  configuras, o usar WhatsApp Web como fallback; también puede preparar
+  `wa.me`, pero el usuario pulsa `Enviar`.
+- Discord puede abrir una entrada local allowlisted llamada `discord` si la
+  configuras, o usar la aplicación web/ID validado; el usuario inicia la
   llamada manualmente.
+- `GET /integrations/status` solo anuncia esos ejecutables como un booleano
+  `app_configured`; nunca devuelve sus rutas ni argumentos.
 - Las respuestas locales de esas acciones no incluyen el destino completo ni
   otros datos sensibles derivados de él.
 - No se escriben mensajes ni comandos dentro del chat de Codex.
@@ -366,6 +370,12 @@ aplicación. Para aplicaciones MSIX se puede usar `explorer.exe` con un único
 argumento `shell:AppsFolder\\...`. El fichero se limita a 128 KiB, 64
 aplicaciones y argumentos acotados; un JSON demasiado grande o ambiguo se
 rechaza antes de abrir nada.
+
+Las integraciones pueden usar opcionalmente entradas locales con los IDs
+`whatsapp` y `discord`. Añádelas solo si tienes esos ejecutables instalados y
+mantén el comando como una lista directa; si no existen, Pipα usa el fallback
+web. El agente no necesita ni almacena credenciales de ninguna de las dos
+aplicaciones.
 
 ## Alias locales de contactos
 

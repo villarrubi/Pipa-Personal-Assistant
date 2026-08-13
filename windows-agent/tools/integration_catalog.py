@@ -18,6 +18,8 @@ def build_integration_capabilities(
     league_available: bool,
     league_ready: bool,
     codex_configured: bool,
+    whatsapp_app_configured: bool = False,
+    discord_app_configured: bool = False,
     whatsapp_contacts_configured: bool = False,
     discord_contacts_configured: bool = False,
 ) -> dict[str, dict[str, Any]]:
@@ -40,6 +42,7 @@ def build_integration_capabilities(
         },
         "whatsapp": {
             "available": True,
+            "app_configured": whatsapp_app_configured,
             "open_web": True,
             "open_contact": True,
             "contact_aliases_configured": whatsapp_contacts_configured,
@@ -50,6 +53,7 @@ def build_integration_capabilities(
         },
         "discord": {
             "available": True,
+            "app_configured": discord_app_configured,
             "open_app": True,
             "open_channel": True,
             "contact_aliases_configured": discord_contacts_configured,

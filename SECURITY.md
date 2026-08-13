@@ -196,6 +196,10 @@ de recuperación y acceso.
   modificar el Registro; una discrepancia no escribe nada.
 - No enviar WhatsApp, iniciar llamadas o ejecutar acciones externas sin la
   confirmación prevista.
+- Las entradas locales opcionales `whatsapp` y `discord` solo se ejecutan a
+  través de la misma allowlist directa que el resto de aplicaciones; si faltan
+  o son inválidas, se usa el navegador. Las capacidades solo exponen si están
+  configuradas, nunca sus rutas o argumentos.
 - Una orden confirmada de búsqueda de League puede abrir el cliente allowlisted
   si no está iniciado, pero solo espera un tiempo acotado y no amplía la
   allowlist ni ejecuta comandos del sistema; estado y cancelación siguen siendo

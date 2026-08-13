@@ -59,11 +59,15 @@ que las solicitó y caducan si no se confirman.
   búsqueda confirmada puede abrir el cliente si todavía no está listo.
 - Abrir WhatsApp Web, abrir el chat de un alias o preparar un mensaje sin
   pulsar `Enviar`.
+- Si existe una entrada local allowlisted `whatsapp`, abrir esa app; en caso
+  contrario, usar el fallback web sin cambiar el límite de Enviar manual.
 - Consultar si las integraciones y los alias locales están configurados con
   `python .\windows-agent\pipa_cli.py integration-status`.
 - Usar alias locales ignorados por Git para preparar WhatsApp sin dictar el
   teléfono.
 - Abrir Discord o un canal sin iniciar automáticamente una llamada.
+- Si existe una entrada local allowlisted `discord`, abrir esa app; en caso
+  contrario, usar el fallback web sin iniciar llamadas.
 - Usar alias locales de Discord para abrir un canal sin iniciar la llamada.
 - Pedir una llamada de Discord para un alias: abre el destino y deja el botón
   `Llamar` para la persona.
