@@ -97,6 +97,16 @@ _COMMAND_ROUTE_CASES = (
         {"contact": "mama", "message": "Hola"},
     ),
     (
+        "manda un mensaje de WhatsApp a mama diciendo Hola",
+        "whatsapp_contact",
+        {"contact": "mama", "message": "Hola"},
+    ),
+    (
+        "manda un mensaje de WhatsApp a +34 600 123 456 diciendo Hola",
+        "whatsapp_compose",
+        {"phone": "+34 600 123 456", "message": "Hola"},
+    ),
+    (
         "abre WhatsApp con mama y escribe Hola",
         "whatsapp_contact",
         {"contact": "mama", "message": "Hola"},
@@ -131,6 +141,7 @@ _COMMAND_ROUTE_CASES = (
     ("haz una llamada a amigo por Discord", "discord_call", {"contact": "amigo"}),
     ("inicia una llamada con amigo en Discord", "discord_call", {"contact": "amigo"}),
     ("empieza una llamada por Discord con amigo", "discord_call", {"contact": "amigo"}),
+    ("haz una llamada de Discord con amigo", "discord_call", {"contact": "amigo"}),
     (
         "llama a Discord canal 12345678901234567",
         "discord_call_channel",
@@ -146,6 +157,7 @@ _COMMAND_ROUTE_CASES = (
     ("inicia búsqueda ranked", "league_search", {"queue": "ranked_solo"}),
     ("entra en cola ARAM", "league_search", {"queue": "aram"}),
     ("busca una partida en el LoL", "league_search", {"queue": "normal_draft"}),
+    ("busca una partida de LoL", "league_search", {"queue": "normal_draft"}),
     ("quiero buscar una partida en el LoL", "league_search", {"queue": "normal_draft"}),
     ("estado de League", "league_status", {}),
     ("estado de búsqueda de League", "league_search_status", {}),

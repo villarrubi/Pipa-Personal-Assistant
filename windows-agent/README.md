@@ -289,6 +289,7 @@ inicia búsqueda ranked
 entra en cola ARAM
 busca partida ARAM
 busca una partida dentro del LoL
+busca una partida de LoL
 busca una partida clasificatoria solo en League
 quiero buscar una partida en el LoL
 quiero jugar una partida de ARAM
@@ -297,6 +298,7 @@ manda un mensaje a +34 600 123 456 por WhatsApp y dile Hola
 manda un mensaje a mama por WhatsApp y dile Hola
 manda un mensaje a mama por WhatsApp diciendo Hola
 manda un mensaje por WhatsApp a mama diciendo Hola
+manda un mensaje de WhatsApp a mama diciendo Hola
 escribe en WhatsApp para +34 600 123 456 y dile Hola
 escribe a mama por WhatsApp y dile Hola
 abre el chat de mama en WhatsApp
@@ -309,6 +311,7 @@ llama a amigo por Discord
 haz una llamada a amigo por Discord
 inicia una llamada con amigo en Discord
 empieza una llamada por Discord con amigo
+haz una llamada de Discord con amigo
 llama a Discord canal 12345678901234567
 llama al canal 12345678901234567 en Discord
 llama a Discord servidor 98765432109876543 canal 12345678901234567

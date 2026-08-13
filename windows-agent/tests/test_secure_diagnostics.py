@@ -25,6 +25,16 @@ class SecureDiagnosticsTests(unittest.TestCase):
         self.assertFalse(result["external_actions_executed"])
         self.assertFalse(result["persistent_keys_touched"])
 
+    def test_command_route_self_test_covers_natural_integration_phrases(self):
+        # The resident self-test must exercise the same parser/catalog path
+        # used by voice and mobile text, while remaining completely inert.
+        from tools.diagnostics import _check_command_routes
+
+        result = _check_command_routes()
+
+        self.assertGreaterEqual(result["recognized_commands"], 50)
+        self.assertFalse(result["external_actions_executed"])
+
     @patch("tools.integration_diagnostics.build_web_search_url", side_effect=ValueError("invalid"))
     def test_integration_self_test_fails_closed_when_a_builder_breaks(self, _builder):
         with self.assertRaises(ValueError):
