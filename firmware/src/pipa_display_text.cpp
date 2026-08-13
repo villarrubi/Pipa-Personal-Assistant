@@ -7,12 +7,45 @@ namespace pipa::display_text {
 namespace {
 
 char mappedUtf8(const unsigned char* bytes, size_t remaining, size_t& consumed) {
-  if (remaining < 2 || bytes[0] != 0xC3) {
+  if (remaining == 0) {
     consumed = 1;
     return '?';
   }
 
-  consumed = 2;
+  const unsigned char lead = bytes[0];
+  size_t expected = 1;
+  if (lead >= 0xC2 && lead <= 0xDF) {
+    expected = 2;
+  } else if (lead >= 0xE0 && lead <= 0xEF) {
+    expected = 3;
+  } else if (lead >= 0xF0 && lead <= 0xF4) {
+    expected = 4;
+  }
+  if (expected == 1 || remaining < expected) {
+    consumed = 1;
+    return '?';
+  }
+
+  for (size_t index = 1; index < expected; ++index) {
+    if ((bytes[index] & 0xC0) != 0x80) {
+      consumed = 1;
+      return '?';
+    }
+  }
+
+  // Reject overlong encodings, UTF-16 surrogate code points and values past
+  // Unicode's upper bound while still consuming a valid unknown code point
+  // as one display glyph.
+  if ((lead == 0xE0 && bytes[1] < 0xA0) ||
+      (lead == 0xED && bytes[1] >= 0xA0) ||
+      (lead == 0xF0 && bytes[1] < 0x90) ||
+      (lead == 0xF4 && bytes[1] >= 0x90)) {
+    consumed = 1;
+    return '?';
+  }
+
+  consumed = expected;
+  if (expected != 2 || lead != 0xC3) return '?';
   switch (bytes[1]) {
     case 0x81:
       return 'A';

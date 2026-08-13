@@ -9,6 +9,7 @@ int main() {
 
   assert(normalizeSummary("  Preparar acción: mamá\r\n") == "PREPARAR ACCION: MAMA");
   assert(normalizeSummary("Pip\xCE\xB1") == "PIP?");
+  assert(normalizeSummary("Pip\xE2\x98\x83") == "PIP?");
   const char truncated_utf8[] = "Pip\xC3";
   assert(normalizeSummary(truncated_utf8) == "PIP?");
   assert(normalizeSummary("\n\r  ").empty());
