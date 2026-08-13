@@ -52,6 +52,10 @@ CDC. La referencia física está en la
 - El `hello` anuncia solo las capacidades físicas que realmente inicializaron
   (`display`, `touch` y `audio_probe`), para que el agente no confunda una
   compilación correcta con hardware disponible.
+- Cada `device_status` incluye `audio_state` con una etiqueta cerrada
+  (`disabled`, `probe_only`, `codec_ready`, `listening`, `draining` o `error`).
+  `probe_only` solo significa que la sonda encontró al menos un codec; no
+  significa que exista captura, consentimiento ni transporte de voz.
 - Las acciones externas solo se autorizan cuando el Core recibe `display` y
   `touch`; una unidad parcialmente inicializada puede seguir enviando estado,
   pero no puede confirmar acciones.

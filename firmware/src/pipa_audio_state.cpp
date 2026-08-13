@@ -2,6 +2,24 @@
 
 namespace pipa {
 
+const char* pipaAudioStateName(PipaAudioState state) {
+  switch (state) {
+    case PipaAudioState::kDisabled:
+      return "disabled";
+    case PipaAudioState::kProbeOnly:
+      return "probe_only";
+    case PipaAudioState::kCodecReady:
+      return "codec_ready";
+    case PipaAudioState::kListening:
+      return "listening";
+    case PipaAudioState::kDraining:
+      return "draining";
+    case PipaAudioState::kError:
+      return "error";
+  }
+  return "error";
+}
+
 bool PipaAudioStateMachine::beginProbe() {
   if (state_ == PipaAudioState::kProbeOnly) return true;
   if (state_ != PipaAudioState::kDisabled && state_ != PipaAudioState::kError) {

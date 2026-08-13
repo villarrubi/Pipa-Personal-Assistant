@@ -30,6 +30,7 @@ class DeviceSession:
     capabilities: tuple[str, ...] = ()
     capabilities_initialized: bool = True
     last_seen_at: int | None = None
+    audio_state: str | None = None
     battery_percent: int | None = None
     wifi_rssi: int | None = None
 

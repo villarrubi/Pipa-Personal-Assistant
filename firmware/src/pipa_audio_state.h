@@ -16,6 +16,11 @@ enum class PipaAudioState : uint8_t {
   kError = 5,
 };
 
+// Stable wire labels for diagnostics. These labels describe the gate state,
+// not permission to capture: only LISTENING means that a future driver may
+// have an active capture route.
+const char* pipaAudioStateName(PipaAudioState state);
+
 class PipaAudioStateMachine {
  public:
   PipaAudioState state() const { return state_; }

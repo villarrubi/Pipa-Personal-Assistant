@@ -70,11 +70,22 @@ class ProtocolTests(unittest.TestCase):
 
     def test_validates_device_status_ranges(self):
         message = parse_client_message(
-            {"protocol_version": 1, "type": "device_status", "battery_percent": 80, "wifi_rssi": -55}
+            {
+                "protocol_version": 1,
+                "type": "device_status",
+                "audio_state": "probe_only",
+                "battery_percent": 80,
+                "wifi_rssi": -55,
+            }
         )
+        self.assertEqual(message.fields["audio_state"], "probe_only")
         self.assertEqual(message.fields["wifi_rssi"], -55)
         with self.assertRaises(ProtocolError):
             parse_client_message({"protocol_version": 1, "type": "device_status", "battery_percent": 101})
+
+    def test_rejects_unknown_audio_diagnostic_state(self):
+        with self.assertRaises(ProtocolError):
+            parse_client_message({"protocol_version": 1, "type": "device_status", "audio_state": "capturing"})
 
     def test_text_input_has_a_bounded_source(self):
         message = parse_client_message(

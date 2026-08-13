@@ -58,6 +58,10 @@ void PipaSecureProtocol::setHardwareCapabilities(
   audio_probe_ready_ = audio_probe_ready;
 }
 
+void PipaSecureProtocol::setAudioState(PipaAudioState state) {
+  audio_state_ = state;
+}
+
 void PipaSecureProtocol::setBatteryPercent(int battery_percent) {
   battery_percent_ = battery_percent >= 0 && battery_percent <= 100 ? battery_percent : -1;
 }
@@ -315,6 +319,7 @@ void PipaSecureProtocol::sendDeviceStatus() {
   JsonDocument document;
   document["protocol_version"] = 1;
   document["type"] = "device_status";
+  document["audio_state"] = pipaAudioStateName(audio_state_);
   if (battery_percent_ >= 0) document["battery_percent"] = battery_percent_;
   if (WiFi.status() == WL_CONNECTED) document["wifi_rssi"] = WiFi.RSSI();
   sendEncrypted(document);

@@ -167,6 +167,7 @@ void setup() {
       pipa::board::kTouchInterrupt);
   log(touch_ready ? "touch controller ready" : "touch controller unavailable");
   protocol.setHardwareCapabilities(display_ready, touch_ready, audio_probe_ready);
+  protocol.setAudioState(audio_status.state);
   protocol.begin();
   firmware_ready = true;
 }

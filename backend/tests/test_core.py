@@ -575,9 +575,12 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(pong[0]["type"], "pong")
         self.assertEqual(pong[0]["request_id"], "heartbeat-1")
 
-        acknowledged = self._send("device_status", battery_percent=75, wifi_rssi=-60)
+        acknowledged = self._send(
+            "device_status", audio_state="probe_only", battery_percent=75, wifi_rssi=-60
+        )
         self.assertEqual(acknowledged[0]["type"], "status_ack")
         session = self.core.sessions.get(self.session_id)
+        self.assertEqual(session.audio_state, "probe_only")
         self.assertEqual(session.battery_percent, 75)
         self.assertEqual(session.wifi_rssi, -60)
 

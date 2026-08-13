@@ -46,6 +46,12 @@ El parser rechaza versiones desconocidas, campos inesperados, textos, listas y
 argumentos de herramientas sobredimensionados, telemetría inválida y tipos ambiguos. Cambios incompatibles
 requieren aumentar `protocol_version`.
 
+`device_status.audio_state` es opcional para clientes antiguos y, cuando está
+presente, solo admite los estados cerrados `disabled`, `probe_only`,
+`codec_ready`, `listening`, `draining` y `error`. El Core lo conserva en la
+sesión como diagnóstico; no habilita voz ni sustituye el consentimiento, la
+pantalla o el transporte cifrado.
+
 Antes de crear una confirmación o llamar a un adaptador, `ToolRouter` aplica el
 contrato de argumentos registrado para la herramienta: campos obligatorios,
 tipos, límites, opciones allowlisted y validaciones puras de URL, teléfono o

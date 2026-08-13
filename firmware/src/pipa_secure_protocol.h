@@ -28,6 +28,7 @@ class PipaSecureProtocol {
   const UiSnapshot& ui() const { return ui_; }
 
   void setHardwareCapabilities(bool display_ready, bool touch_ready, bool audio_probe_ready);
+  void setAudioState(PipaAudioState state);
   void setBatteryPercent(int battery_percent);
 
   void sendGesture(const char* gesture);
@@ -84,6 +85,7 @@ class PipaSecureProtocol {
   bool display_ready_ = false;
   bool touch_ready_ = false;
   bool audio_probe_ready_ = false;
+  PipaAudioState audio_state_ = PipaAudioState::kDisabled;
   int battery_percent_ = -1;
   uint32_t last_handshake_ = 0;
   uint32_t last_heartbeat_ = 0;

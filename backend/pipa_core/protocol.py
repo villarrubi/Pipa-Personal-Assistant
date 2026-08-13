@@ -13,6 +13,7 @@ MAX_TOOL_NAME_LENGTH = 80
 MAX_ARGUMENTS_BYTES = 4096
 MAX_CAPABILITIES = 16
 TEXT_SOURCES = frozenset({"voice", "touch", "mobile", "debug", "unknown"})
+AUDIO_STATES = frozenset({"disabled", "probe_only", "codec_ready", "listening", "draining", "error"})
 _COMMON_FIELDS = frozenset({"protocol_version", "type"})
 _MESSAGE_FIELDS = {
     "challenge_request": frozenset({"device_id"}),
@@ -26,7 +27,7 @@ _MESSAGE_FIELDS = {
     "audio_end": frozenset(),
     "abort": frozenset(),
     "ping": frozenset({"request_id"}),
-    "device_status": frozenset({"battery_percent", "wifi_rssi"}),
+    "device_status": frozenset({"audio_state", "battery_percent", "wifi_rssi"}),
     "gesture": frozenset({"gesture"}),
     "tool_call": frozenset({"name", "arguments", "call_id"}),
     "confirm": frozenset({"confirmation_id", "accepted"}),
@@ -140,6 +141,9 @@ def parse_client_message(payload: Mapping[str, Any]) -> ClientMessage:
         if request_id is not None:
             fields["request_id"] = request_id
     elif message_type == "device_status":
+        audio_state = payload.get("audio_state")
+        if audio_state is not None and (not isinstance(audio_state, str) or audio_state not in AUDIO_STATES):
+            raise ProtocolError("audio_state must be one of the known diagnostic states")
         battery_percent = payload.get("battery_percent")
         if battery_percent is not None and (
             not isinstance(battery_percent, int)
@@ -152,6 +156,7 @@ def parse_client_message(payload: Mapping[str, Any]) -> ClientMessage:
             not isinstance(wifi_rssi, int) or isinstance(wifi_rssi, bool) or not -127 <= wifi_rssi <= 0
         ):
             raise ProtocolError("wifi_rssi must be an integer between -127 and 0")
+        fields["audio_state"] = audio_state
         fields["battery_percent"] = battery_percent
         fields["wifi_rssi"] = wifi_rssi
     elif message_type == "gesture":

@@ -325,6 +325,7 @@ class PipaCore:
         if message.type == "ping":
             return [server_message("pong", request_id=message.fields.get("request_id"))]
         if message.type == "device_status":
+            session.audio_state = message.fields["audio_state"]
             session.battery_percent = message.fields["battery_percent"]
             session.wifi_rssi = message.fields["wifi_rssi"]
             return [server_message("status_ack")]
