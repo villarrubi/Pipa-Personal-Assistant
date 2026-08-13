@@ -92,6 +92,17 @@ if ($null -eq $python) {
         '-B', $cli, 'mobile-config'
     )
 
+    $hardwareChecker = Join-Path $repoRoot 'windows-agent/pipa_hardware_check.py'
+    $hardwareFixture = Join-Path $repoRoot 'windows-agent/tests/fixtures/waveshare-v2-boot.txt'
+    if ((Test-Path -LiteralPath $hardwareChecker -PathType Leaf) -and
+        (Test-Path -LiteralPath $hardwareFixture -PathType Leaf)) {
+        Invoke-PipaJsonCheck -Name 'Waveshare diagnostic parser fixture' -Python $python -Arguments @(
+            '-B', $hardwareChecker, '--fixture', $hardwareFixture, '--json'
+        )
+    } else {
+        Write-CheckResult -Name 'Waveshare diagnostic parser fixture' -Success $false -Detail ' (fixture or checker missing)'
+    }
+
     if (-not $SkipResidentAgent) {
         Invoke-PipaJsonCheck -Name 'Resident agent doctor' -Python $python -Arguments @(
             '-B', $cli, 'doctor'
