@@ -75,6 +75,11 @@ que las solicitó y caducan si no se confirman.
   no depende todavía del hardware Waveshare.
 - Ejecutar `python .\windows-agent\pipa_cli.py doctor` para comprobar en una
   sola operación la salud local, capacidades, protocolo e integraciones.
+- Ejecutar `powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File
+  .\scripts\check_pre_hardware.ps1` para pasar la compuerta previa al
+  hardware. Solo ejecuta pruebas inertes de protocolo, seguridad, móvil y
+  configuración: no abre aplicaciones, no envía mensajes y no toca League.
+  En CI o en un PC sin agente residente puede añadirse `-SkipResidentAgent`.
 - Ejecutar `python .\windows-agent\pipa_cli.py self-test` para validar la
   configuración de aplicaciones, URLs, rutas de voz, colas de League y
   gateway sin abrir aplicaciones ni contactar con League Client; incluye un
@@ -143,7 +148,8 @@ Por ejemplo, el Core ya entiende frases como `abre WhatsApp`, `abre WhatsApp
 para mama`, `abre Discord`, `abre Codex`, `abre una aplicación configurada
 calculadora`, `abre Apple Music`, `busca en Apple Music Daft Punk`, `busca
 una canción de Daft Punk en Apple Music`, `busca partida`, `busca partida solo`,
-`control multimedia next` y `crea un temporizador 60`, además de preparar un
+`control multimedia next`, `busca la canción de Daft Punk en Apple Music` y,
+después de elegirla, `reproduce la canción seleccionada`, además de preparar un
 mensaje de WhatsApp sin enviarlo —por ejemplo `abre WhatsApp con mama y escribe
 Hola`—, consultar el estado de League y cancelar una búsqueda con confirmación.
 Desde una sesión autenticada, las acciones externas requieren confirmación y las

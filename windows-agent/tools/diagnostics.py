@@ -57,6 +57,8 @@ _COMMAND_ROUTE_CASES = (
         {"term": "Daft Punk"},
     ),
     ("reproduce la canción Daft Punk en Apple Music", "music_search", {"term": "Daft Punk"}),
+    ("reproduce la canción seleccionada", "media_action", {"action": "play_pause"}),
+    ("reanuda la pista", "media_action", {"action": "play_pause"}),
     ("abre WhatsApp", "whatsapp_open", {}),
     (
         "prepara WhatsApp para +34 600 123 456 y dile Hola",
@@ -262,7 +264,9 @@ def _check_command_routes() -> dict[str, Any]:
     missing_routes = public_tool_names - recognized_tool_names
     if missing_routes:
         raise ValueError("public command catalog has no parser route")
-    confirmation_count = len(_COMMAND_ROUTE_CASES) - len(_SAFE_COMMANDS)
+    confirmation_count = sum(
+        catalog.get(tool_name).safety == "unsafe" for _phrase, tool_name, _arguments in _COMMAND_ROUTE_CASES
+    )
     return {
         "recognized_commands": len(_COMMAND_ROUTE_CASES),
         "confirmation_gated_commands": confirmation_count,

@@ -46,6 +46,9 @@ jobs:
       - name: Check Trusted Unlock safety
         shell: pwsh
         run: ./scripts/check_trusted_unlock_safety.ps1
+      - name: Run pre-hardware integration gate
+        shell: pwsh
+        run: ./scripts/check_pre_hardware.ps1 -SkipResidentAgent
       - name: Run backend tests
         run: python -B -m unittest discover -s backend/tests -p "test_*.py"
       - name: Run Windows Agent tests

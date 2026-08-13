@@ -228,6 +228,8 @@ abre Apple Music
 abre Codex
 abre la aplicación calculadora
 control multimedia next
+reproduce la canción seleccionada
+reanuda la pista
 crea un temporizador 60
 abre una URL validada https://example.com
 busca en Apple Music Daft Punk
@@ -258,7 +260,10 @@ estado de League
 
 Las acciones externas siguen pasando por confirmación cuando llegan desde una
 sesión autenticada. Las frases de Apple Music abren una búsqueda; no seleccionan
-ni reproducen una canción por sí solas. La de Discord `llama a amigo por Discord`
+una canción por sí solas. Después de elegir una pista,
+`reproduce la canción seleccionada` envía la tecla multimedia de
+reproducción/pausa al reproductor activo. No garantiza que Apple Music sea el
+reproductor activo. La de Discord `llama a amigo por Discord`
 abre el canal del alias y deja el botón `Llamar` para la persona; no inicia una
 llamada. La de WhatsApp abre WhatsApp Web; no pulsa `Enviar`.
 

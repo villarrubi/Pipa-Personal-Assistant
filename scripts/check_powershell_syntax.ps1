@@ -15,6 +15,7 @@ $relativeFiles = @(
     'scripts/check_waveshare_pinmap.ps1',
     'scripts/check_firmware_config.ps1',
     'scripts/check_trusted_unlock_safety.ps1',
+    'scripts/check_pre_hardware.ps1',
     'scripts/configure_mobile_firewall.ps1',
     'scripts/configure_mobile_transport.ps1'
 )

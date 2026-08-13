@@ -44,7 +44,29 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     if not normalized:
         return None
 
-    if normalized in {"pausa", "pausa la musica", "continua", "reproduce"}:
+    if normalized in {
+        "pausa",
+        "pausa la musica",
+        "pausa la cancion",
+        "pausa la pista",
+        "continua",
+        "continua la musica",
+        "continua la cancion",
+        "continua la pista",
+        "reanuda",
+        "reanuda la musica",
+        "reanuda la cancion",
+        "reanuda la pista",
+        "reproduce",
+        "reproduce la cancion",
+        "reproduce la cancion seleccionada",
+        "reproduce la pista",
+        "reproduce la pista seleccionada",
+        "reproduce la seleccion",
+        "pon la cancion",
+        "dale al play",
+        "dale play",
+    }:
         return ParsedIntent("media_action", {"action": "play_pause"})
     if normalized in {"siguiente cancion", "siguiente"}:
         return ParsedIntent("media_action", {"action": "next"})

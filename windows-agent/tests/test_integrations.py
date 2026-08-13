@@ -422,6 +422,14 @@ class IntegrationTests(unittest.TestCase):
 
     def test_voice_intents_cover_the_new_entry_points(self):
         self.assertEqual(parse_text_intent("pausa la música").tool_name, "media_action")
+        self.assertEqual(
+            parse_text_intent("reproduce la canción seleccionada").arguments,
+            {"action": "play_pause"},
+        )
+        self.assertEqual(
+            parse_text_intent("reanuda la pista").arguments,
+            {"action": "play_pause"},
+        )
         self.assertEqual(parse_text_intent("estado del ordenador").tool_name, "system_status")
         self.assertEqual(parse_text_intent("estado de integraciones").tool_name, "integration_status")
         self.assertEqual(parse_text_intent("estado de batería").tool_name, "system_power")
