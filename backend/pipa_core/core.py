@@ -102,6 +102,8 @@ _CAPABILITY_BOOLEAN_FIELDS = frozenset(
         "open_client",
         "matchmaking",
         "cancel_matchmaking",
+        "accept_match",
+        "requires_manual_accept",
         "writes_to_chat",
         "requires_confirmation",
     }
@@ -707,6 +709,8 @@ class PipaCore:
                 return "El estado de búsqueda de League no está disponible."
             if result.get("searching") is True:
                 return "League está buscando partida."
+            if result.get("state") == "unknown":
+                return "No se pudo confirmar el estado de búsqueda de League."
             return "League no está buscando partida."
         if tool_name == "league_status":
             search = result.get("search")

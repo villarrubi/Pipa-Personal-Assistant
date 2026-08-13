@@ -89,6 +89,8 @@ def build_integration_capabilities(
             "open_client": league_available,
             "matchmaking": league_available,
             "cancel_matchmaking": league_ready,
+            "accept_match": False,
+            "requires_manual_accept": True,
             "queues": sorted(QUEUE_IDS),
             "requires_confirmation": True,
         },

@@ -247,6 +247,8 @@ class AppsAndUrlsTests(unittest.TestCase):
     def test_whatsapp_rejects_invalid_phone(self):
         with self.assertRaises(ValueError):
             build_whatsapp_compose_url("not-a-phone", "Hola")
+        with self.assertRaises(ValueError):
+            build_whatsapp_compose_url("000000000000000", "Hola")
 
     def test_whatsapp_message_rejects_invisible_controls_but_allows_line_feed(self):
         with self.assertRaises(ValueError):

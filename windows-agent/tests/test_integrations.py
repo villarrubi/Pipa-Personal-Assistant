@@ -158,6 +158,8 @@ class IntegrationTests(unittest.TestCase):
         self.assertFalse(result["integrations"]["whatsapp"]["contact_aliases_configured"])
         self.assertFalse(result["integrations"]["discord"]["start_call"])
         self.assertFalse(result["integrations"]["discord"]["contact_aliases_configured"])
+        self.assertFalse(result["integrations"]["league"]["accept_match"])
+        self.assertTrue(result["integrations"]["league"]["requires_manual_accept"])
         self.assertFalse(result["integrations"]["league"]["client_ready"])
         find_client.assert_called_once_with()
 
@@ -172,6 +174,8 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(result["apple_music"]["media_control"])
         self.assertFalse(result["whatsapp"]["send_message"])
         self.assertFalse(result["discord"]["start_call"])
+        self.assertFalse(result["league"]["accept_match"])
+        self.assertTrue(result["league"]["requires_manual_accept"])
         self.assertNotIn("token", encoded)
         self.assertNotIn("command", encoded)
         self.assertNotIn("url", encoded)
@@ -1078,6 +1082,19 @@ class IntegrationTests(unittest.TestCase):
             api,
             "_request",
             side_effect=[None, {"searchState": "Searching"}],
+        ) as request:
+            with self.assertRaises(LeagueClientError):
+                api.cancel_search()
+
+        self.assertEqual(request.call_count, 2)
+
+    def test_league_cancel_fails_closed_for_an_unknown_postcondition(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+        with patch.object(
+            api,
+            "_request",
+            side_effect=[None, {"searchState": "FutureStateFromNewClient"}],
         ) as request:
             with self.assertRaises(LeagueClientError):
                 api.cancel_search()

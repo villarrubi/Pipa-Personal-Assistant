@@ -217,8 +217,9 @@ de recuperación y acceso.
   configuradas, nunca sus rutas o argumentos.
 - Una orden confirmada de búsqueda de League puede abrir el cliente allowlisted
   si no está iniciado, pero solo espera un tiempo acotado y no amplía la
-  allowlist ni ejecuta comandos del sistema; estado y cancelación siguen siendo
-  fail-closed si el cliente no está disponible.
+  allowlist ni ejecuta comandos del sistema; estado, cancelación y estados
+  desconocidos siguen siendo fail-closed si el cliente no está disponible. La
+  aceptación de una partida requiere una acción visible del usuario.
 
 ## Datos prohibidos en Git
 

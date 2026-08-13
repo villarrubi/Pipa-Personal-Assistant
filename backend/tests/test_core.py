@@ -99,6 +99,11 @@ class CoreTests(unittest.TestCase):
                 "League está buscando partida.",
             ),
             (
+                "league_search_status",
+                {"success": True, "supported": True, "searching": False, "state": "unknown"},
+                "No se pudo confirmar el estado de búsqueda de League.",
+            ),
+            (
                 "timer_list",
                 {"success": True, "timers": [{"timer_id": "private-id", "label": "private label"}]},
                 "Temporizadores registrados: 1.",

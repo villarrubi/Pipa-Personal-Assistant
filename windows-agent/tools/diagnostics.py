@@ -231,6 +231,7 @@ def _check_integration_policy() -> dict[str, Any]:
         ("apple_music", "playback"),
         ("whatsapp", "send_message"),
         ("discord", "start_call"),
+        ("league", "accept_match"),
         ("codex", "writes_to_chat"),
     )
     required_true = (
@@ -238,6 +239,7 @@ def _check_integration_policy() -> dict[str, Any]:
         ("apple_music", "requires_manual_selection"),
         ("whatsapp", "requires_manual_send"),
         ("discord", "requires_manual_call"),
+        ("league", "requires_manual_accept"),
     )
     for integration, field in required_false:
         values = integrations.get(integration)

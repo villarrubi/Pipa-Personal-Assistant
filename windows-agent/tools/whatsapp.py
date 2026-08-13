@@ -17,7 +17,7 @@ from tools.urls import validate_external_url
 
 MAX_MESSAGE_LENGTH = 4096
 WHATSAPP_WEB_URL = "https://web.whatsapp.com/"
-_PHONE_ALLOWED = re.compile(r"^[0-9]{7,15}$")
+_PHONE_ALLOWED = re.compile(r"^[1-9][0-9]{6,14}$")
 
 
 def normalize_phone(phone: str) -> str:

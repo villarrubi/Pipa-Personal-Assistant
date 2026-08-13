@@ -44,7 +44,11 @@ final class PipaMobileUITests: XCTestCase {
         )
         let league = PipaMobileIntegration(
             id: "league",
-            payload: ["available": true, "client_ready": false]
+            payload: [
+                "available": true,
+                "client_ready": false,
+                "requires_manual_accept": true,
+            ]
         )
 
         XCTAssertEqual(music?.title, "Apple Music")
@@ -53,7 +57,10 @@ final class PipaMobileUITests: XCTestCase {
             "Apple Music Web disponible; busca y selecciona la pista y controla reproducción/pausa manualmente."
         )
         XCTAssertFalse(music?.appConfigured ?? true)
-        XCTAssertEqual(league?.detail, "El cliente está configurado, pero no está listo ahora.")
+        XCTAssertEqual(
+            league?.detail,
+            "El cliente está configurado, pero no está listo ahora; aceptar la partida será manual."
+        )
         XCTAssertNil(PipaMobileIntegration(id: "unknown", payload: ["available": true]))
     }
 

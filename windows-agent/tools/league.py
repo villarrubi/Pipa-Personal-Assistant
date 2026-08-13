@@ -311,7 +311,11 @@ class LeagueClientApi:
                 accepted_statuses=frozenset({404}),
             )
             verification = self.search_status()
-            if verification["supported"] is not True or verification["searching"] is True:
+            if (
+                verification["supported"] is not True
+                or verification["state"] != "not_searching"
+                or verification["searching"] is True
+            ):
                 raise LeagueClientError("League Client no confirmó la cancelación de matchmaking.")
             return {"cancelled": True}
 

@@ -251,7 +251,9 @@ public struct PipaMobileIntegration: Identifiable {
                 detail = "\(target); abre el canal e inicia la llamada manualmente."
             }
         } else if id == "league", payload["client_ready"] as? Bool == false {
-            detail = "El cliente está configurado, pero no está listo ahora."
+            detail = "El cliente está configurado, pero no está listo ahora; aceptar la partida será manual."
+        } else if id == "league", payload["requires_manual_accept"] as? Bool == true {
+            detail = "Puedes buscar partida; cuando aparezca, tendrás que aceptarla manualmente."
         } else {
             detail = "Disponible con confirmación cuando corresponda."
         }

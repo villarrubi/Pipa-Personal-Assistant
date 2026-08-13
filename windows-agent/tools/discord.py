@@ -20,9 +20,10 @@ DISCORD_APP_URL = "https://discord.com/app"
 
 
 def _validate_snowflake(value: str, field_name: str) -> str:
-    if not isinstance(value, str) or _SNOWFLAKE.fullmatch(value.strip()) is None:
+    candidate = value.strip() if isinstance(value, str) else ""
+    if _SNOWFLAKE.fullmatch(candidate) is None or int(candidate) <= 0:
         raise ValueError(f"{field_name} debe ser un ID de Discord válido.")
-    return value.strip()
+    return candidate
 
 
 def build_discord_channel_url(channel_id: str, guild_id: str | None = None) -> str:

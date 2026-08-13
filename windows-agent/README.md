@@ -216,10 +216,12 @@ dispositivo sí exige firma Ed25519 y confirmación para herramientas externas.
   matchmaking. Si el cliente no está listo al confirmar `league_search`, el
   agente abre la aplicación allowlisted y espera como máximo 30 segundos; las
   consultas de estado y la cancelación nunca abren procesos automáticamente.
+  La aceptación de una partida no está automatizada: el usuario debe aceptarla
+  manualmente cuando aparezca.
   Si League devuelve un estado de matchmaking que Pipa todavía no conoce,
-  la búsqueda falla cerrada y no crea lobby ni inicia cola. El estado público
-  solo expone `searching`, `not_searching` o `unknown`, y el lobby incluye la
-  cola allowlisted cuando se puede identificar.
+  la búsqueda y la cancelación fallan cerradas y no crean lobby ni inician cola.
+  El estado público solo expone `searching`, `not_searching` o `unknown`, y el
+  lobby incluye la cola allowlisted cuando se puede identificar.
 - El móvil también puede consultar por separado el estado de búsqueda de
   League, la batería/red del PC y los temporizadores locales; esas consultas
   no requieren confirmación. Cancelar un temporizador solo afecta a la memoria
