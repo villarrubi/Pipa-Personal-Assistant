@@ -169,6 +169,28 @@ class MainRouteTests(unittest.TestCase):
         resolve_contact.assert_called_once_with("amigo")
         open_call.assert_called_once_with("12345678901234567", None)
 
+    @patch("main.open_league", return_value={"success": True, "target": "allowlisted_app"})
+    @patch("main.with_client_or_launch")
+    def test_league_search_route_can_launch_the_allowlisted_client(self, with_client_or_launch, open_league):
+        with_client_or_launch.return_value = {"started": True, "client_started": True}
+
+        response = main.api_league_search(main.LeagueQueueRequest(queue="normal"))
+
+        self.assertEqual(response, {"started": True, "client_started": True})
+        callback, launcher = with_client_or_launch.call_args.args
+        self.assertIs(launcher, open_league)
+        self.assertEqual(callback(SimpleNamespace(start_search=lambda queue: queue)), "normal")
+
+    @patch("main.with_client_or_launch", side_effect=main.LeagueClientError("private token detail"))
+    def test_league_search_route_hides_client_error_details(self, with_client_or_launch):
+        with self.assertRaises(main.HTTPException) as error:
+            main.api_league_search(main.LeagueQueueRequest(queue="normal"))
+
+        self.assertEqual(error.exception.status_code, 503)
+        self.assertEqual(error.exception.detail, "League no está disponible ahora.")
+        self.assertNotIn("token", error.exception.detail)
+        with_client_or_launch.assert_called_once()
+
     @patch("main.resolve_whatsapp_contact", return_value=("mama", "34600123456"))
     @patch("main.webbrowser.open", return_value=True)
     def test_whatsapp_contact_open_never_prepares_a_message(self, open_browser, resolve_contact):

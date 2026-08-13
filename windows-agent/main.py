@@ -34,7 +34,7 @@ from tools.contacts import resolve_discord_contact, resolve_whatsapp_contact
 from tools.diagnostics import get_self_test
 from tools.discord import open_discord_app, open_discord_call, open_discord_channel
 from tools.integration_catalog import get_command_catalog
-from tools.league import LeagueClientError, with_client
+from tools.league import LeagueClientError, with_client, with_client_or_launch
 from tools.media import send_media_action
 from tools.security_policy import LOCAL_CONFIRMATION_PATHS
 from tools.system import get_network_status, get_power_status, get_system_status, lock_pc
@@ -485,7 +485,13 @@ def api_league_search_status():
 @app.post("/league/search")
 def api_league_search(request: LeagueQueueRequest):
     try:
-        return with_client(lambda client: client.start_search(request.queue))
+        # Keep the REST/CLI surface aligned with the authenticated device
+        # tool: an explicit, confirmed matchmaking request may launch the
+        # allowlisted client and wait within the adapter's hard timeout.
+        return with_client_or_launch(
+            lambda client: client.start_search(request.queue),
+            open_league,
+        )
     except ValueError as error:
         raise HTTPException(status_code=400, detail="La cola de League no es válida.") from error
     except LeagueClientError as error:
