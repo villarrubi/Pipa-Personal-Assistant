@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 
 from tools.apps import AppsConfigError, open_app
 from tools.browser import open_validated_url, without_destination
+from tools.text_policy import validate_bounded_text
 from tools.urls import validate_external_url
 
 MAX_MESSAGE_LENGTH = 4096
@@ -32,10 +33,12 @@ def normalize_phone(phone: str) -> str:
 
 def build_whatsapp_compose_url(phone: str, message: str) -> str:
     normalized_phone = normalize_phone(phone)
-    if not isinstance(message, str) or not message.strip():
-        raise ValueError("El mensaje no puede estar vacío.")
-    if len(message) > MAX_MESSAGE_LENGTH:
-        raise ValueError(f"El mensaje no puede superar {MAX_MESSAGE_LENGTH} caracteres.")
+    message = validate_bounded_text(
+        message,
+        "El mensaje",
+        MAX_MESSAGE_LENGTH,
+        allow_line_feed=True,
+    )
 
     return validate_external_url(f"https://wa.me/{normalized_phone}?" + urlencode({"text": message}))
 

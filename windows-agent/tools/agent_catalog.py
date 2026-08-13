@@ -25,6 +25,7 @@ from tools.discord import build_discord_channel_url, open_discord_app, open_disc
 from tools.league import resolve_queue_id, with_client, with_client_or_launch
 from tools.media import send_media_action
 from tools.system import get_network_status, get_power_status, get_system_status, lock_pc
+from tools.text_policy import validate_bounded_text
 from tools.timers import MAX_TIMER_SECONDS, TimerManager, validate_timer_id
 from tools.urls import validate_external_url
 from tools.whatsapp import (
@@ -43,19 +44,10 @@ def _text(arguments: dict[str, Any], name: str) -> str:
 
 
 def _validate_argument_text(value: Any, name: str, maximum: int, *, allow_line_feed: bool = False) -> None:
-    if not isinstance(value, str) or not value.strip() or len(value.encode("utf-8")) > maximum:
-        raise ValueError(f"{name} debe ser texto no vacío y acotado")
-    for character in value:
-        code_point = ord(character)
-        if (
-            (code_point < 0x20 and not (allow_line_feed and code_point == 0x0A))
-            or 0x7F <= code_point <= 0x9F
-            or 0x200B <= code_point <= 0x200F
-            or 0x202A <= code_point <= 0x202E
-            or 0x2060 <= code_point <= 0x2069
-            or code_point == 0xFEFF
-        ):
-            raise ValueError(f"{name} contiene caracteres no permitidos")
+    try:
+        validate_bounded_text(value, name, maximum, allow_line_feed=allow_line_feed)
+    except ValueError as error:
+        raise ValueError(f"{name} debe ser texto no vacío y acotado") from error
 
 
 def _argument_schema(

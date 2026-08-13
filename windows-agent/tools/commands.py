@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 
 from tools.apps import AppsConfigError, open_app
 from tools.browser import open_validated_url, without_destination
+from tools.text_policy import validate_bounded_text
 from tools.urls import validate_external_url
 
 MAX_QUERY_LENGTH = 200
@@ -20,12 +21,8 @@ APPLE_MUSIC_BROWSE_URL = f"https://music.apple.com/{APPLE_MUSIC_STOREFRONT}/brow
 
 
 def _validate_query(value: str, field_name: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{field_name} no puede estar vacío.")
-    query = value.strip()
-    if len(query) > MAX_QUERY_LENGTH:
-        raise ValueError(f"{field_name} no puede superar {MAX_QUERY_LENGTH} caracteres.")
-    return query
+    query = validate_bounded_text(value, field_name, MAX_QUERY_LENGTH)
+    return query.strip()
 
 
 def build_web_search_url(query: str) -> str:

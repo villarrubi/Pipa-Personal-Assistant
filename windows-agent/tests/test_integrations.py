@@ -282,6 +282,18 @@ class IntegrationTests(unittest.TestCase):
                 {"unexpected": "must-not-be-ignored"},
                 owner_id="waveshare-test",
             )
+        with self.assertRaises(ValueError):
+            router.invoke(
+                "web_search",
+                {"query": "Pipa\u202ecodex"},
+                owner_id="waveshare-test",
+            )
+        with self.assertRaises(ValueError):
+            router.invoke(
+                "whatsapp_compose",
+                {"phone": "+34 600 123 456", "message": "Hola\x00Mamá"},
+                owner_id="waveshare-test",
+            )
 
         self.assertEqual(router.confirmations._pending, {})
 

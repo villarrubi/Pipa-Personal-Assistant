@@ -100,8 +100,8 @@ public final class PipaMobileAppleMusicController: ObservableObject {
                 self.searchResults = foundSongs.map {
                     PipaMobileAppleMusicResult(
                         id: String(describing: $0.id),
-                        title: $0.title,
-                        artist: $0.artistName
+                        title: Self.safeMusicText($0.title, fallback: "Canción"),
+                        artist: Self.safeMusicText($0.artistName, fallback: "Artista desconocido")
                     )
                 }
                 self.statusMessage = "Elige una canción para reproducirla en este iPhone."
@@ -136,9 +136,11 @@ public final class PipaMobileAppleMusicController: ObservableObject {
             do {
                 self.player.queue = [song]
                 try await self.player.play()
-                self.currentTrack = song.title
+                let title = Self.safeMusicText(song.title, fallback: "Canción")
+                let artist = Self.safeMusicText(song.artistName, fallback: "Artista desconocido")
+                self.currentTrack = title
                 self.isPlaying = true
-                self.statusMessage = "Reproduciendo: \(song.title) — \(song.artistName)"
+                self.statusMessage = "Reproduciendo: \(title) — \(artist)"
             } catch {
                 self.statusMessage = "No se pudo reproducir la canción seleccionada."
             }
@@ -203,6 +205,13 @@ public final class PipaMobileAppleMusicController: ObservableObject {
     }
 
     #if os(iOS)
+    private static func safeMusicText(_ value: String, fallback: String) -> String {
+        guard PipaMobileTextPolicy.isSafeDisplayText(value, maxBytes: 256) else {
+            return fallback
+        }
+        return value
+    }
+
     private func applyAuthorization(_ status: MusicAuthorization.Status) {
         isAuthorized = status == .authorized
         statusMessage = isAuthorized

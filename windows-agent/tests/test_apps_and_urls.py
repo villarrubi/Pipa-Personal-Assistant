@@ -140,6 +140,12 @@ class AppsAndUrlsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_web_search_url("x" * 201)
 
+    def test_search_queries_reject_invisible_controls(self):
+        for builder in (build_web_search_url, build_apple_music_search_url):
+            with self.subTest(builder=builder.__name__):
+                with self.assertRaises(ValueError):
+                    builder("Pipa\u202ecodex")
+
     def test_league_queue_allowlist(self):
         self.assertEqual(resolve_queue_id("ranked_solo"), 420)
         with self.assertRaises(ValueError):
@@ -241,6 +247,15 @@ class AppsAndUrlsTests(unittest.TestCase):
     def test_whatsapp_rejects_invalid_phone(self):
         with self.assertRaises(ValueError):
             build_whatsapp_compose_url("not-a-phone", "Hola")
+
+    def test_whatsapp_message_rejects_invisible_controls_but_allows_line_feed(self):
+        with self.assertRaises(ValueError):
+            build_whatsapp_compose_url("+34 600-123-456", "Hola\x00Mamá")
+        with self.assertRaises(ValueError):
+            build_whatsapp_compose_url("+34 600-123-456", "Hola\u202eMamá")
+
+        url = build_whatsapp_compose_url("+34 600-123-456", "Hola\nMamá")
+        self.assertTrue(url.startswith("https://wa.me/34600123456?text="))
 
     @patch.object(system, "ctypes")
     def test_lock_failure_does_not_return_platform_exception(self, ctypes):
