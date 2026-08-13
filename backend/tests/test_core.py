@@ -212,6 +212,70 @@ class CoreTests(unittest.TestCase):
             {"id", "tool_name", "phrase", "description", "safety", "requires_confirmation"},
         )
 
+    def test_catalog_request_preserves_bounded_structured_parameters(self):
+        self.core.command_catalog = lambda: [
+            {
+                "id": "whatsapp_compose",
+                "tool_name": "safe",
+                "phrase": "prepara WhatsApp",
+                "description": "Prepara un chat.",
+                "safety": "safe",
+                "requires_confirmation": False,
+                "parameters": [
+                    {"name": "message", "label": "Mensaje", "kind": "message", "max_length": 3800},
+                    {
+                        "name": "queue",
+                        "label": "Cola",
+                        "kind": "queue",
+                        "max_length": 32,
+                        "options": ["aram", "normal_draft"],
+                    },
+                ],
+            }
+        ]
+
+        outputs = self._send("catalog_request")
+
+        self.assertEqual(
+            outputs[0]["commands"][0]["parameters"],
+            [
+                {"name": "message", "label": "Mensaje", "kind": "message", "max_length": 3800},
+                {
+                    "name": "queue",
+                    "label": "Cola",
+                    "kind": "queue",
+                    "max_length": 32,
+                    "options": ["aram", "normal_draft"],
+                },
+            ],
+        )
+
+    def test_catalog_rejects_untrusted_parameter_metadata(self):
+        self.core.command_catalog = lambda: [
+            {
+                "id": "unsafe-parameter",
+                "tool_name": "safe",
+                "phrase": "prueba",
+                "description": "Prueba.",
+                "safety": "safe",
+                "requires_confirmation": False,
+                "parameters": [
+                    {
+                        "name": "query",
+                        "label": "Consulta",
+                        "kind": "text",
+                        "max_length": 200,
+                        "private": "no debe cruzar",
+                    }
+                ],
+            }
+        ]
+
+        outputs = self._send("catalog_request")
+
+        self.assertEqual(outputs, [{"protocol_version": 1, "type": "error", "code": "catalog_unavailable"}])
+        self.assertNotIn("no debe cruzar", str(outputs))
+
     def test_catalog_provider_failure_is_generic_and_fails_closed(self):
         self.core.command_catalog = lambda: [{"id": "bad", "private": "should-not-cross"}]
 

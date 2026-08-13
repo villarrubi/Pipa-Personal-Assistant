@@ -118,6 +118,73 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertNil(command.rendered(with: ["teléfono": "+34 600 123 456", "mensaje": "Hola\nMundo"]))
     }
 
+    func testStructuredCatalogCommandAcceptsMessageLineFeedsAndTypedArguments() throws {
+        let command = try XCTUnwrap(
+            PipaMobileCommand(payload: [
+                "id": "whatsapp_compose",
+                "tool_name": "whatsapp_compose",
+                "phrase": "prepara WhatsApp para <teléfono> y dile <mensaje>",
+                "description": "Prepara el chat.",
+                "safety": "unsafe",
+                "requires_confirmation": true,
+                "parameters": [
+                    ["name": "phone", "label": "Teléfono", "kind": "phone", "max_length": 32],
+                    ["name": "message", "label": "Mensaje", "kind": "message", "max_length": 3800],
+                ],
+            ])
+        )
+
+        XCTAssertEqual(command.parameters.map(\.id), ["phone", "message"])
+        XCTAssertEqual(
+            command.toolArguments(with: ["teléfono": "+34 600 123 456", "mensaje": "Hola\nMundo"])?["phone"] as? String,
+            "+34 600 123 456"
+        )
+        XCTAssertEqual(
+            command.toolArguments(with: ["teléfono": "+34 600 123 456", "mensaje": "Hola\nMundo"])?["message"] as? String,
+            "Hola\nMundo"
+        )
+        XCTAssertEqual(
+            command.rendered(with: ["teléfono": "+34 600 123 456", "mensaje": "Hola\nMundo"]),
+            "prepara WhatsApp para +34 600 123 456 y dile Hola\nMundo"
+        )
+    }
+
+    func testStructuredCatalogCommandRejectsMalformedParameterMetadata() {
+        let command = PipaMobileCommand(payload: [
+            "id": "bad",
+            "tool_name": "whatsapp_compose",
+            "phrase": "prepara WhatsApp para <teléfono>",
+            "description": "Prepara el chat.",
+            "safety": "unsafe",
+            "requires_confirmation": true,
+            "parameters": [
+                ["name": "phone", "label": "Teléfono", "kind": "unknown", "max_length": 32],
+            ],
+        ])
+
+        XCTAssertNil(command)
+
+        let extraFieldCommand = PipaMobileCommand(payload: [
+            "id": "bad",
+            "tool_name": "whatsapp_compose",
+            "phrase": "prepara WhatsApp para <teléfono>",
+            "description": "Prepara el chat.",
+            "safety": "unsafe",
+            "requires_confirmation": true,
+            "parameters": [
+                [
+                    "name": "phone",
+                    "label": "Teléfono",
+                    "kind": "phone",
+                    "max_length": 32,
+                    "private": "must not cross the catalog boundary",
+                ],
+            ],
+        ])
+
+        XCTAssertNil(extraFieldCommand)
+    }
+
     func testVoiceDraftOnlyUpdatesTheEditorWithoutSending() {
         let model = PipaMobileViewModel()
 

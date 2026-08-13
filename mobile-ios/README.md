@@ -51,6 +51,13 @@ enviarla. Si la frase tiene marcadores (`<consulta>`, `<teléfono>`,
 vista previa acotada; después copia el resultado al editor para que la persona
 lo revise y lo envíe explícitamente. El formulario nunca ejecuta el comando.
 
+Cuando el agente publica metadatos `parameters`, ese mismo formulario ofrece
+también `Enviar acción estructurada`: valida localmente tipos, límites y
+opciones y envía un `tool_call` cifrado, sin depender del parser de frases.
+Las acciones peligrosas siguen mostrando la confirmación visible del agente;
+WhatsApp y Discord conservan su último paso manual. Agentes antiguos sin esos
+metadatos continúan usando el editor de texto compatible.
+
 En iPhone, `Dictar comando` usa `Speech` y `AVAudioEngine` con
 `requiresOnDeviceRecognition`; el resultado solo rellena el editor. La app no
 envía, confirma ni conserva audio automáticamente. Si el dispositivo no ofrece

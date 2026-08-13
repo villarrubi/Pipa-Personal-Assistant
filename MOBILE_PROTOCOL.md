@@ -119,6 +119,37 @@ textos cortas. No se permiten objetos anidados, números, rutas, IDs, URLs,
 tokens, teléfonos, contactos ni resultados del adaptador. El teléfono ignora
 integraciones desconocidas y muestra únicamente las que reconoce.
 
+Los comandos con argumentos pueden incluir además una lista `parameters` de
+metadatos no sensibles. Cada entrada solo contiene `name`, `label`, `kind`,
+`max_length` y, opcionalmente, una lista corta de `options` allowlisted:
+
+```json
+{
+  "id": "league_search",
+  "tool_name": "league_search",
+  "phrase": "busca una partida <cola>",
+  "description": "Inicia matchmaking en una cola allowlisted.",
+  "safety": "unsafe",
+  "requires_confirmation": true,
+  "parameters": [
+    {
+      "name": "queue",
+      "label": "Cola",
+      "kind": "queue",
+      "max_length": 32,
+      "options": ["aram", "normal_draft", "ranked_solo"]
+    }
+  ]
+}
+```
+
+La UI Swift valida esos metadatos y, cuando están presentes, ofrece un
+formulario local y envía un `tool_call` estructurado cifrado. Los valores no se
+guardan en el catálogo ni se devuelven en confirmaciones. Si un agente antiguo
+no publica `parameters`, la UI conserva el camino compatible de frase libre.
+Los cuerpos de mensaje pueden contener saltos de línea únicamente en el campo
+tipado `message`; los controles y formatos invisibles siguen rechazándose.
+
 El teléfono envía primero:
 
 ```json

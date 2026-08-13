@@ -22,6 +22,70 @@ public enum PipaMobileConnectionState: String {
     }
 }
 
+public struct PipaMobileCommandParameter: Identifiable {
+    public let id: String
+    public let label: String
+    public let kind: String
+    public let maxLength: Int
+    public let options: [String]
+
+    init?(payload: [String: Any]) {
+        guard payload.keys.allSatisfy({ ["name", "label", "kind", "max_length", "options"].contains($0) }),
+              let name = payload["name"] as? String,
+              let label = payload["label"] as? String,
+              let kind = payload["kind"] as? String,
+              let maxLength = payload["max_length"] as? Int,
+              Self.isValidName(name),
+              !label.isEmpty,
+              PipaMobileTextPolicy.isSafeDisplayText(label, maxBytes: 128),
+              [
+                  "text", "message", "phone", "integer", "queue", "action", "app", "contact",
+                  "channel_id", "url",
+              ].contains(kind),
+              (1...4096).contains(maxLength),
+              label.utf8.count <= 128 else {
+            return nil
+        }
+
+        let options: [String]
+        if let rawOptions = payload["options"] {
+            guard let parsedOptions = rawOptions as? [String],
+                  parsedOptions.count <= 16,
+                  Set(parsedOptions).count == parsedOptions.count,
+                  parsedOptions.allSatisfy({
+                      !$0.isEmpty &&
+                          $0.utf8.count <= 128 &&
+                          PipaMobileTextPolicy.isSafeDisplayText($0, maxBytes: 128)
+                  }) else {
+                return nil
+            }
+            options = parsedOptions
+        } else {
+            options = []
+        }
+
+        self.id = name
+        self.label = label
+        self.kind = kind
+        self.maxLength = maxLength
+        self.options = options
+    }
+
+    private static func isValidName(_ value: String) -> Bool {
+        guard let first = value.utf8.first,
+              value.utf8.count <= 64,
+              (first >= 0x41 && first <= 0x5A) || (first >= 0x61 && first <= 0x7A) else {
+            return false
+        }
+        return value.utf8.dropFirst().allSatisfy { byte in
+            (byte >= 0x41 && byte <= 0x5A) ||
+                (byte >= 0x61 && byte <= 0x7A) ||
+                (byte >= 0x30 && byte <= 0x39) ||
+                byte == 0x2D || byte == 0x5F
+        }
+    }
+}
+
 public struct PipaMobileCommand: Identifiable {
     public let id: String
     public let toolName: String
@@ -29,9 +93,13 @@ public struct PipaMobileCommand: Identifiable {
     public let description: String
     public let safety: String
     public let requiresConfirmation: Bool
+    public let parameters: [PipaMobileCommandParameter]
 
     init?(payload: [String: Any]) {
-        guard let id = payload["id"] as? String,
+        guard payload.keys.allSatisfy({
+                  ["id", "tool_name", "phrase", "description", "safety", "requires_confirmation", "parameters"].contains($0)
+              }),
+              let id = payload["id"] as? String,
               let toolName = payload["tool_name"] as? String,
               let phrase = payload["phrase"] as? String,
               let description = payload["description"] as? String,
@@ -53,12 +121,30 @@ public struct PipaMobileCommand: Identifiable {
               safety == "safe" || safety == "unsafe" else {
             return nil
         }
+
+        let parameters: [PipaMobileCommandParameter]
+        if let rawParameters = payload["parameters"] {
+            guard let rawList = rawParameters as? [[String: Any]],
+                  rawList.count <= 8 else {
+                return nil
+            }
+            let parsed = rawList.compactMap(PipaMobileCommandParameter.init(payload:))
+            guard parsed.count == rawList.count,
+                  Set(parsed.map(\.id)).count == parsed.count else {
+                return nil
+            }
+            parameters = parsed
+        } else {
+            parameters = []
+        }
+
         self.id = id
         self.toolName = toolName
         self.phrase = phrase
         self.description = description
         self.safety = safety
         self.requiresConfirmation = requiresConfirmation
+        self.parameters = parameters
     }
 }
 
@@ -400,48 +486,61 @@ public final class PipaMobileViewModel: ObservableObject {
         guard !text.isEmpty,
               !requestInProgress,
               pendingConfirmation == nil,
-              let activeClient = client else { return }
+              client != nil else { return }
         textCommand = ""
-        clearMessages()
-        requestInProgress = true
-        let generation = sessionGeneration
-        let task = Task { [weak self, activeClient, generation] in
-            do {
-                let responses = try await activeClient.sendText(text)
-                guard !Task.isCancelled, self?.sessionGeneration == generation else { return }
-                guard self?.apply(responses: responses) == true else {
-                    self?.closeAfterOperationFailure(
-                        activeClient,
-                        message: "La respuesta del agente no es válida."
-                    )
-                    return
-                }
-            } catch {
-                guard !Task.isCancelled, self?.sessionGeneration == generation else { return }
-                self?.closeAfterOperationFailure(
-                    activeClient,
-                    message: "No se pudo enviar el comando."
-                )
-            }
-            self?.requestInProgress = false
-            self?.requestTask = nil
+        startRequest(failureMessage: "No se pudo enviar el comando.") { activeClient in
+            try await activeClient.sendText(text)
         }
-        requestTask = task
+    }
+
+    /// Send a catalog command with validated typed arguments instead of
+    /// relying on the Spanish text parser. The visible preview is shown by
+    /// the editor before this method is called; unsafe tools still stop at
+    /// the normal confirmation screen.
+    public func sendStructuredCommand(
+        _ command: PipaMobileCommand,
+        values: [String: String]
+    ) {
+        guard let arguments = command.toolArguments(with: values) else {
+            fail("Completa los campos con valores válidos.")
+            return
+        }
+        guard !requestInProgress, pendingConfirmation == nil, client != nil else { return }
+        textCommand = ""
+        startRequest(failureMessage: "No se pudo enviar la acción estructurada.") { activeClient in
+            try await activeClient.callTool(name: command.toolName, arguments: arguments)
+        }
     }
 
     public func resolveConfirmation(accepted: Bool) {
         guard !requestInProgress,
               let pending = pendingConfirmation,
-              let activeClient = client else { return }
+              client != nil else { return }
         pendingConfirmation = nil
+        startRequest(failureMessage: "No se pudo resolver la confirmación.") { activeClient in
+            try await activeClient.confirm(
+                confirmationID: pending.confirmationID,
+                accepted: accepted
+            )
+        }
+    }
+
+    static func isSafeConfirmationSummary(toolName: String, summary: String) -> Bool {
+        let expected = deviceConfirmationSummaries[toolName] ?? "Confirmar acción externa."
+        return summary == expected
+    }
+
+    private func startRequest(
+        failureMessage: String,
+        operation: @escaping (PipaMobileTCPClient) async throws -> [[String: Any]]
+    ) {
+        guard !requestInProgress, pendingConfirmation == nil, let activeClient = client else { return }
+        clearMessages()
         requestInProgress = true
         let generation = sessionGeneration
         let task = Task { [weak self, activeClient, generation] in
             do {
-                let responses = try await activeClient.confirm(
-                    confirmationID: pending.confirmationID,
-                    accepted: accepted
-                )
+                let responses = try await operation(activeClient)
                 guard !Task.isCancelled, self?.sessionGeneration == generation else { return }
                 guard self?.apply(responses: responses) == true else {
                     self?.closeAfterOperationFailure(
@@ -452,20 +551,12 @@ public final class PipaMobileViewModel: ObservableObject {
                 }
             } catch {
                 guard !Task.isCancelled, self?.sessionGeneration == generation else { return }
-                self?.closeAfterOperationFailure(
-                    activeClient,
-                    message: "No se pudo resolver la confirmación."
-                )
+                self?.closeAfterOperationFailure(activeClient, message: failureMessage)
             }
             self?.requestInProgress = false
             self?.requestTask = nil
         }
         requestTask = task
-    }
-
-    static func isSafeConfirmationSummary(toolName: String, summary: String) -> Bool {
-        let expected = deviceConfirmationSummaries[toolName] ?? "Confirmar acción externa."
-        return summary == expected
     }
 
     private func apply(responses: [[String: Any]]) -> Bool {

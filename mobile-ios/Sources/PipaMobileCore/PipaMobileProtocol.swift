@@ -41,6 +41,25 @@ public enum PipaMobileTextPolicy {
     public static func isSafeDisplayText(_ value: String, maxBytes: Int) -> Bool {
         !value.isEmpty && value.utf8.count <= maxBytes && !containsDisplayControl(value)
     }
+
+    /// WhatsApp message bodies may contain line feeds. All other protocol,
+    /// control and invisible formatting characters remain forbidden. JSON
+    /// escaping keeps the line feed inside the encrypted tool-call argument,
+    /// away from the outer newline-delimited framing.
+    public static func isSafeMessageText(_ value: String, maxBytes: Int) -> Bool {
+        !value.isEmpty &&
+            value.utf8.count <= maxBytes &&
+            !value.unicodeScalars.contains { scalar in
+                let codePoint = scalar.value
+                return (codePoint < 0x20 && codePoint != 0x0A) ||
+                    codePoint == 0x7F ||
+                    (0x80...0x9F).contains(codePoint) ||
+                    (0x200B...0x200F).contains(codePoint) ||
+                    (0x202A...0x202E).contains(codePoint) ||
+                    (0x2060...0x2069).contains(codePoint) ||
+                    codePoint == 0xFEFF
+            }
+    }
 }
 
 public struct PipaMobileIdentity {

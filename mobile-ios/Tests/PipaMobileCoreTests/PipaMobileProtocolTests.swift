@@ -52,6 +52,8 @@ final class PipaMobileProtocolTests: XCTestCase {
         XCTAssertTrue(PipaMobileTextPolicy.containsDisplayControl("texto\u{0085}"))
         XCTAssertTrue(PipaMobileTextPolicy.isSafeDisplayText("texto visible", maxBytes: 64))
         XCTAssertFalse(PipaMobileTextPolicy.isSafeDisplayText("texto\u{200B}oculto", maxBytes: 64))
+        XCTAssertTrue(PipaMobileTextPolicy.isSafeMessageText("línea 1\nlínea 2", maxBytes: 64))
+        XCTAssertFalse(PipaMobileTextPolicy.isSafeMessageText("mensaje\u{0000}", maxBytes: 64))
     }
 
     func testBase64URLRejectsPaddingAndInvalidCharacters() throws {

@@ -42,6 +42,8 @@ public struct PipaMobileRootView: View {
         .sheet(item: $commandToEdit) { command in
             PipaMobileCommandEditor(command: command) { rendered in
                 model.useCommandText(rendered)
+            } onExecute: { command, values in
+                model.sendStructuredCommand(command, values: values)
             }
         }
     }

@@ -134,6 +134,9 @@ que las solicitó y caducan si no se confirman.
   permite completar en un formulario local los parámetros de búsquedas,
   WhatsApp, Discord o League antes de preparar la frase, sin enviarla
   automáticamente.
+- Cuando el agente publica metadatos tipados, ese formulario también puede
+  enviar un `tool_call` estructurado cifrado: valida localmente teléfonos,
+  mensajes, enteros, colas y opciones sin depender del parser de frases.
 - Al conectar, la app iPhone muestra también qué integraciones están
   disponibles en el PC y qué paso manual queda pendiente; esa matriz no
   contiene rutas, URLs, contactos, IDs ni tokens.

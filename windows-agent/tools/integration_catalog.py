@@ -7,9 +7,31 @@ by the Core and the actual adapter still validates its own arguments.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 from tools.league import QUEUE_IDS
+
+
+def _parameter(
+    name: str,
+    label: str,
+    kind: str,
+    max_length: int,
+    *,
+    options: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    """Describe a bounded, non-sensitive input for a structured client."""
+
+    value: dict[str, Any] = {
+        "name": name,
+        "label": label,
+        "kind": kind,
+        "max_length": max_length,
+    }
+    if options:
+        value["options"] = list(options)
+    return value
 
 
 def build_integration_capabilities(
@@ -103,6 +125,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Abre una búsqueda en el navegador.",
         "safety": "unsafe",
         "requires_confirmation": True,
+        "parameters": [_parameter("query", "Consulta", "text", 200)],
     },
     {
         "id": "open_app",
@@ -111,6 +134,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Abre una aplicación previamente configurada en el PC.",
         "safety": "unsafe",
         "requires_confirmation": True,
+        "parameters": [_parameter("app", "Aplicación", "app", 80)],
     },
     {
         "id": "open_codex",
@@ -135,6 +159,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Abre los resultados; la pista se elige y reproduce manualmente.",
         "safety": "unsafe",
         "requires_confirmation": True,
+        "parameters": [_parameter("term", "Artista o canción", "text", 200)],
     },
     {
         "id": "whatsapp_compose",
@@ -143,6 +168,10 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Abre el chat con el texto preparado; nunca pulsa Enviar.",
         "safety": "unsafe",
         "requires_confirmation": True,
+        "parameters": [
+            _parameter("phone", "Teléfono", "phone", 32),
+            _parameter("message", "Mensaje", "message", 3800),
+        ],
     },
     {
         "id": "whatsapp_open",
@@ -159,6 +188,10 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Usa un alias local, abre el chat y deja el envío para la persona.",
         "safety": "unsafe",
         "requires_confirmation": True,
+        "parameters": [
+            _parameter("contact", "Contacto", "contact", 80),
+            _parameter("message", "Mensaje", "message", 3800),
+        ],
     },
     {
         "id": "whatsapp_contact_open",
@@ -167,6 +200,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Abre el chat de un alias local sin preparar ni enviar mensajes.",
         "safety": "unsafe",
         "requires_confirmation": True,
+        "parameters": [_parameter("contact", "Contacto", "contact", 80)],
     },
     {
         "id": "discord_open_app",
@@ -183,6 +217,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Abre un canal o DM; nunca inicia una llamada.",
         "safety": "unsafe",
         "requires_confirmation": True,
+        "parameters": [_parameter("channel_id", "ID del canal", "channel_id", 20)],
     },
     {
         "id": "discord_contact",
@@ -191,6 +226,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Usa un alias local, abre el canal y deja la llamada para la persona.",
         "safety": "unsafe",
         "requires_confirmation": True,
+        "parameters": [_parameter("contact", "Contacto", "contact", 80)],
     },
     {
         "id": "discord_call",
@@ -199,6 +235,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Abre el destino de llamada; la persona pulsa Llamar manualmente.",
         "safety": "unsafe",
         "requires_confirmation": True,
+        "parameters": [_parameter("contact", "Contacto", "contact", 80)],
     },
     {
         "id": "league_open",
@@ -215,6 +252,15 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Inicia matchmaking en una cola allowlisted; abre League si aún no está listo.",
         "safety": "unsafe",
         "requires_confirmation": True,
+        "parameters": [
+            _parameter(
+                "queue",
+                "Cola",
+                "queue",
+                32,
+                options=tuple(sorted(QUEUE_IDS)),
+            )
+        ],
     },
     {
         "id": "league_status",
@@ -247,6 +293,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Ajusta el volumen del ordenador.",
         "safety": "safe",
         "requires_confirmation": False,
+        "parameters": [_parameter("percent", "Volumen (0-100)", "integer", 3)],
     },
     {
         "id": "system_power",
@@ -287,6 +334,15 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Envía una tecla multimedia allowlisted.",
         "safety": "safe",
         "requires_confirmation": False,
+        "parameters": [
+            _parameter(
+                "action",
+                "Acción",
+                "action",
+                16,
+                options=("play_pause", "next", "previous", "stop"),
+            )
+        ],
     },
     {
         "id": "media_play_pause",
@@ -319,6 +375,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Crea un temporizador local en memoria.",
         "safety": "safe",
         "requires_confirmation": False,
+        "parameters": [_parameter("seconds", "Segundos", "integer", 6)],
     },
     {
         "id": "timer_list",
@@ -335,6 +392,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Cancela un temporizador local por su identificador.",
         "safety": "safe",
         "requires_confirmation": False,
+        "parameters": [_parameter("timer_id", "ID del temporizador", "text", 32)],
     },
     {
         "id": "system_lock",
@@ -351,6 +409,7 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "description": "Abre una URL HTTP(S) validada en el navegador.",
         "safety": "unsafe",
         "requires_confirmation": True,
+        "parameters": [_parameter("url", "Dirección", "url", 2048)],
     },
 )
 
@@ -358,4 +417,4 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
 def get_command_catalog() -> list[dict[str, Any]]:
     """Return fresh JSON-safe command descriptors for a local UI."""
 
-    return [dict(command) for command in _COMMANDS]
+    return deepcopy(_COMMANDS)

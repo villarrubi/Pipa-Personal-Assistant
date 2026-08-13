@@ -99,6 +99,23 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn("manualmente", commands["discord_call"]["description"])
         self.assertIn("sin escribir", commands["open_codex"]["description"])
         self.assertIn("reproductor multimedia activo", commands["media_play_pause"]["description"])
+        self.assertEqual(
+            commands["whatsapp_compose"]["parameters"],
+            [
+                {"name": "phone", "label": "Teléfono", "kind": "phone", "max_length": 32},
+                {"name": "message", "label": "Mensaje", "kind": "message", "max_length": 3800},
+            ],
+        )
+
+    def test_command_catalog_returns_independent_nested_parameter_metadata(self):
+        first = get_command_catalog()
+        whatsapp = next(command for command in first if command["id"] == "whatsapp_compose")
+        whatsapp["parameters"][0]["name"] = "mutated"
+
+        second = get_command_catalog()
+
+        original = next(command for command in second if command["id"] == "whatsapp_compose")
+        self.assertEqual(original["parameters"][0]["name"], "phone")
 
     @patch("tools.capabilities.find_client_connection", side_effect=LeagueClientError("not ready"))
     def test_capabilities_are_explicit_about_manual_final_steps(self, find_client):

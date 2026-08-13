@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -20,7 +21,17 @@ from .tools import ToolRouter
 CONFIRMATION_CAPABILITIES = frozenset({"display", "touch"})
 MAX_CATALOG_COMMANDS = 64
 MAX_CATALOG_FIELD_LENGTH = 256
-_CATALOG_FIELDS = frozenset({"id", "tool_name", "phrase", "description", "safety", "requires_confirmation"})
+MAX_CATALOG_PARAMETERS = 8
+MAX_CATALOG_PARAMETER_OPTIONS = 16
+MAX_CATALOG_PARAMETER_TEXT_LENGTH = 128
+_CATALOG_FIELDS = frozenset(
+    {"id", "tool_name", "phrase", "description", "safety", "requires_confirmation", "parameters"}
+)
+_CATALOG_PARAMETER_FIELDS = frozenset({"name", "label", "kind", "max_length", "options"})
+_CATALOG_PARAMETER_KINDS = frozenset(
+    {"text", "message", "phone", "integer", "queue", "action", "app", "contact", "channel_id", "url"}
+)
+_CATALOG_PARAMETER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
 MAX_CAPABILITY_GROUPS = 16
 MAX_CAPABILITY_FIELDS = 16
 MAX_CAPABILITY_KEY_LENGTH = 64
@@ -75,6 +86,78 @@ _CAPABILITY_BOOLEAN_FIELDS = frozenset(
 _CAPABILITY_STRING_FIELDS = frozenset({"execution"})
 _CAPABILITY_LIST_FIELDS = frozenset({"queues"})
 _PRE_HELLO_MESSAGE_TYPES = frozenset({"ping", "device_status", "device_hello", "abort"})
+
+
+def _is_safe_catalog_text(value: str) -> bool:
+    return not any(
+        ord(character) < 0x20
+        or 0x7F <= ord(character) <= 0x9F
+        or 0x200B <= ord(character) <= 0x200F
+        or 0x202A <= ord(character) <= 0x202E
+        or 0x2060 <= ord(character) <= 0x2069
+        or ord(character) == 0xFEFF
+        for character in value
+    )
+
+
+def _validate_catalog_parameters(value: Any) -> list[dict[str, Any]]:
+    """Validate structured input metadata without accepting user data."""
+
+    if not isinstance(value, list) or len(value) > MAX_CATALOG_PARAMETERS:
+        raise ValueError("invalid catalog parameters")
+
+    validated: list[dict[str, Any]] = []
+    seen_names: set[str] = set()
+    for parameter in value:
+        if not isinstance(parameter, dict) or set(parameter) - _CATALOG_PARAMETER_FIELDS:
+            raise ValueError("invalid catalog parameter fields")
+        name = parameter.get("name")
+        label = parameter.get("label")
+        kind = parameter.get("kind")
+        max_length = parameter.get("max_length")
+        if (
+            not isinstance(name, str)
+            or _CATALOG_PARAMETER_NAME.fullmatch(name) is None
+            or name in seen_names
+            or not isinstance(label, str)
+            or not label.strip()
+            or len(label) > MAX_CATALOG_PARAMETER_TEXT_LENGTH
+            or not _is_safe_catalog_text(label)
+            or not isinstance(kind, str)
+            or kind not in _CATALOG_PARAMETER_KINDS
+            or isinstance(max_length, bool)
+            or not isinstance(max_length, int)
+            or not 1 <= max_length <= 4096
+        ):
+            raise ValueError("invalid catalog parameter")
+
+        options = parameter.get("options", [])
+        if (
+            not isinstance(options, list)
+            or len(options) > MAX_CATALOG_PARAMETER_OPTIONS
+            or not all(
+                isinstance(option, str)
+                and option.strip()
+                and len(option) <= MAX_CATALOG_PARAMETER_TEXT_LENGTH
+                and _is_safe_catalog_text(option)
+                for option in options
+            )
+        ):
+            raise ValueError("invalid catalog parameter options")
+        if len(set(options)) != len(options):
+            raise ValueError("invalid catalog parameter options")
+
+        seen_names.add(name)
+        normalized: dict[str, Any] = {
+            "name": name,
+            "label": label.strip(),
+            "kind": kind,
+            "max_length": max_length,
+        }
+        if options:
+            normalized["options"] = [option.strip() for option in options]
+        validated.append(normalized)
+    return validated
 
 
 def _validate_capability_catalog(value: Any) -> dict[str, dict[str, Any]]:
@@ -341,6 +424,9 @@ class PipaCore:
                 description = value.get("description")
                 safety = value.get("safety")
                 requires_confirmation = value.get("requires_confirmation")
+                parameters = (
+                    _validate_catalog_parameters(value["parameters"]) if "parameters" in value else None
+                )
                 text_fields = (command_id, tool_name, phrase, description)
                 if any(
                     not isinstance(item, str) or not item.strip() or len(item) > MAX_CATALOG_FIELD_LENGTH
@@ -357,16 +443,17 @@ class PipaCore:
                 if command_id in seen_ids:
                     raise ValueError("catalog contains duplicate command IDs")
                 seen_ids.add(command_id)
-                commands.append(
-                    {
-                        "id": command_id,
-                        "tool_name": tool_name.strip(),
-                        "phrase": phrase.strip(),
-                        "description": description.strip(),
-                        "safety": safety,
-                        "requires_confirmation": requires_confirmation,
-                    }
-                )
+                command = {
+                    "id": command_id,
+                    "tool_name": tool_name.strip(),
+                    "phrase": phrase.strip(),
+                    "description": description.strip(),
+                    "safety": safety,
+                    "requires_confirmation": requires_confirmation,
+                }
+                if parameters is not None:
+                    command["parameters"] = parameters
+                commands.append(command)
         except Exception:
             return [server_message("error", code="catalog_unavailable")]
         catalog_fields: dict[str, Any] = {"commands": commands}

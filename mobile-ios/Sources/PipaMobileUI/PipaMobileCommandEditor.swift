@@ -28,16 +28,51 @@ public extension PipaMobileCommand {
     /// protocol or make the preview misleading.
     func rendered(with values: [String: String]) -> String? {
         var rendered = phrase
-        for label in placeholders {
+        for (index, label) in placeholders.enumerated() {
             guard let rawValue = values[label] else { return nil }
             let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard PipaMobileTextPolicy.isSafeDisplayText(value, maxBytes: 4096) else {
+            let parameter = parameters.count == placeholders.count ? parameters[index] : nil
+            let safe = parameter?.kind == "message"
+                ? PipaMobileTextPolicy.isSafeMessageText(value, maxBytes: parameter?.maxLength ?? 4096)
+                : PipaMobileTextPolicy.isSafeDisplayText(value, maxBytes: parameter?.maxLength ?? 4096)
+            guard safe else {
                 return nil
             }
             rendered = rendered.replacingOccurrences(of: "<\(label)>", with: value)
         }
-        guard PipaMobileTextPolicy.isSafeDisplayText(rendered, maxBytes: 4000) else { return nil }
+        let renderedIsSafe = parameters.contains(where: { $0.kind == "message" })
+            ? PipaMobileTextPolicy.isSafeMessageText(rendered, maxBytes: 4000)
+            : PipaMobileTextPolicy.isSafeDisplayText(rendered, maxBytes: 4000)
+        guard renderedIsSafe else { return nil }
         return rendered
+    }
+
+    /// Convert the visible form into the registered tool's typed arguments.
+    /// Commands from older agents without parameter metadata keep using text.
+    func toolArguments(with values: [String: String]) -> [String: Any]? {
+        guard !parameters.isEmpty, parameters.count == placeholders.count else { return nil }
+        var arguments: [String: Any] = [:]
+        for (index, parameter) in parameters.enumerated() {
+            let placeholder = placeholders[index]
+            guard let rawValue = values[placeholder] else { return nil }
+            let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            let safe = parameter.kind == "message"
+                ? PipaMobileTextPolicy.isSafeMessageText(value, maxBytes: parameter.maxLength)
+                : PipaMobileTextPolicy.isSafeDisplayText(value, maxBytes: parameter.maxLength)
+            guard safe,
+                  parameter.options.isEmpty || parameter.options.contains(value) else {
+                return nil
+            }
+
+            switch parameter.kind {
+            case "integer":
+                guard let integer = Int(value) else { return nil }
+                arguments[parameter.id] = integer
+            default:
+                arguments[parameter.id] = value
+            }
+        }
+        return arguments
     }
 }
 
@@ -47,11 +82,17 @@ public struct PipaMobileCommandEditor: View {
 
     private let command: PipaMobileCommand
     private let onPrepare: (String) -> Void
+    private let onExecute: ((PipaMobileCommand, [String: String]) -> Void)?
     @State private var values: [String: String]
 
-    public init(command: PipaMobileCommand, onPrepare: @escaping (String) -> Void) {
+    public init(
+        command: PipaMobileCommand,
+        onPrepare: @escaping (String) -> Void,
+        onExecute: ((PipaMobileCommand, [String: String]) -> Void)? = nil
+    ) {
         self.command = command
         self.onPrepare = onPrepare
+        self.onExecute = onExecute
         _values = State(
             initialValue: Dictionary(uniqueKeysWithValues: command.placeholders.map { ($0, "") })
         )
@@ -64,8 +105,13 @@ public struct PipaMobileCommandEditor: View {
                     Text(command.description)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    ForEach(command.placeholders, id: \.self) { label in
-                        field(for: label)
+                    ForEach(Array(command.placeholders.enumerated()), id: \.offset) { index, label in
+                        field(
+                            for: label,
+                            parameter: command.parameters.count == command.placeholders.count
+                                ? command.parameters[index]
+                                : nil
+                        )
                     }
                 }
 
@@ -87,6 +133,19 @@ public struct PipaMobileCommandEditor: View {
                         dismiss()
                     }
                     .disabled(command.rendered(with: values) == nil)
+
+                    if onExecute != nil {
+                        Button("Enviar acción estructurada") {
+                            guard command.toolArguments(with: values) != nil else { return }
+                            onExecute?(command, values)
+                            dismiss()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(command.toolArguments(with: values) == nil)
+                        Text("Usa los campos validados del comando y conserva la confirmación cuando sea necesaria.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .navigationTitle(command.id)
@@ -99,12 +158,12 @@ public struct PipaMobileCommandEditor: View {
     }
 
     @ViewBuilder
-    private func field(for label: String) -> some View {
+    private func field(for label: String, parameter: PipaMobileCommandParameter?) -> some View {
         let binding = Binding<String>(
             get: { values[label] ?? "" },
             set: { values[label] = $0 }
         )
-        if label.localizedCaseInsensitiveContains("mensaje") {
+        if parameter?.kind == "message" || label.localizedCaseInsensitiveContains("mensaje") {
             TextEditor(text: binding)
                 .frame(minHeight: 90)
                 .overlay(alignment: .topLeading) {
@@ -115,12 +174,19 @@ public struct PipaMobileCommandEditor: View {
                             .allowsHitTesting(false)
                     }
                 }
+        } else if let options = parameter?.options, !options.isEmpty {
+            Picker(label, selection: binding) {
+                Text("Selecciona una opción").tag("")
+                ForEach(options, id: \.self) { option in
+                    Text(option).tag(option)
+                }
+            }
         } else {
             TextField(label, text: binding)
 #if os(iOS)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-                .keyboardType(label.localizedCaseInsensitiveContains("teléfono") ? .phonePad : .default)
+                .keyboardType(parameter?.kind == "phone" || label.localizedCaseInsensitiveContains("teléfono") ? .phonePad : .default)
 #endif
         }
     }

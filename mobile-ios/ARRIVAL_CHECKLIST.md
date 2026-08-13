@@ -71,6 +71,12 @@ Configurar en Windows una IP privada concreta y un puerto explícito:
 - Conectar y comprobar `device_hello_ack`.
 - Pedir el catálogo y confirmar que no contiene URLs, rutas, tokens,
   contactos ni resultados de herramientas.
+- Abrir un comando con `parameters`, comprobar que el formulario muestra solo
+  etiquetas, tipos, límites y opciones allowlisted, y que `Enviar acción
+  estructurada` convierte un entero/cola en el tipo correcto.
+- Probar un mensaje de WhatsApp con un salto de línea: debe viajar solo como
+  argumento cifrado, no aparecer en `confirm_request` y seguir requiriendo
+  pulsar `Enviar` en WhatsApp.
 - Ejecutar primero `system_status` o `league_status`.
 - Comprobar que un `tool_call` externo solo produce `confirm_request`.
 - Rechazar una confirmación y comprobar que no se abre ninguna aplicación.
