@@ -247,7 +247,7 @@ public final class PipaSecureRecordLayer {
         let materialKey = HKDF<SHA256>.deriveKey(
             inputKeyMaterial: SymmetricKey(data: sharedSecretData),
             salt: transcriptHash,
-            sharedInfo: info,
+            info: info,
             outputByteCount: 72
         )
         let material = materialKey.withUnsafeBytes { rawBuffer in

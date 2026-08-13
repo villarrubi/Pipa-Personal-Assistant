@@ -1,6 +1,19 @@
 import Foundation
 import Network
 
+private final class PipaAsyncGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var completed = false
+
+    func claim() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !completed else { return false }
+        completed = true
+        return true
+    }
+}
+
 public struct PipaMobileCatalog {
     public let commands: [[String: Any]]
     public let capabilities: [String: [String: Any]]
@@ -222,38 +235,24 @@ public actor PipaMobileTCPClient {
 
     private func start(_ connection: NWConnection) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let lock = NSLock()
-            var finished = false
+            let gate = PipaAsyncGate()
             let timeout = DispatchWorkItem {
-                lock.lock()
-                guard !finished else {
-                    lock.unlock()
-                    return
-                }
-                finished = true
-                lock.unlock()
+                guard gate.claim() else { return }
                 connection.cancel()
                 continuation.resume(throwing: PipaMobileError.transportUnavailable)
             }
             connection.stateUpdateHandler = { state in
-                lock.lock()
-                guard !finished else {
-                    lock.unlock()
-                    return
-                }
                 switch state {
                 case .ready:
-                    finished = true
-                    lock.unlock()
+                    guard gate.claim() else { return }
                     timeout.cancel()
                     continuation.resume()
                 case .failed(_), .cancelled:
-                    finished = true
-                    lock.unlock()
+                    guard gate.claim() else { return }
                     timeout.cancel()
                     continuation.resume(throwing: PipaMobileError.transportUnavailable)
                 default:
-                    lock.unlock()
+                    break
                 }
             }
             connection.start(queue: queue)
@@ -391,16 +390,9 @@ public actor PipaMobileTCPClient {
             throw PipaMobileError.payloadTooLarge
         }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let lock = NSLock()
-            var finished = false
+            let gate = PipaAsyncGate()
             connection.send(content: data, completion: .contentProcessed { error in
-                lock.lock()
-                guard !finished else {
-                    lock.unlock()
-                    return
-                }
-                finished = true
-                lock.unlock()
+                guard gate.claim() else { return }
                 if error == nil {
                     continuation.resume()
                 } else {
@@ -408,13 +400,7 @@ public actor PipaMobileTCPClient {
                 }
             })
             queue.asyncAfter(deadline: .now() + Self.ioTimeout) {
-                lock.lock()
-                guard !finished else {
-                    lock.unlock()
-                    return
-                }
-                finished = true
-                lock.unlock()
+                guard gate.claim() else { return }
                 connection.cancel()
                 continuation.resume(throwing: PipaMobileError.transportUnavailable)
             }
@@ -457,19 +443,12 @@ public actor PipaMobileTCPClient {
 
     private func receiveChunk(_ connection: NWConnection, maximumLength: Int) async throws -> (Data?, Bool) {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(Data?, Bool), Error>) in
-            let lock = NSLock()
-            var finished = false
+            let gate = PipaAsyncGate()
             connection.receive(
                 minimumIncompleteLength: 1,
                 maximumLength: maximumLength
             ) { data, _, isComplete, error in
-                lock.lock()
-                guard !finished else {
-                    lock.unlock()
-                    return
-                }
-                finished = true
-                lock.unlock()
+                guard gate.claim() else { return }
                 if error != nil {
                     continuation.resume(throwing: PipaMobileError.transportUnavailable)
                 } else {
@@ -477,13 +456,7 @@ public actor PipaMobileTCPClient {
                 }
             }
             queue.asyncAfter(deadline: .now() + Self.ioTimeout) {
-                lock.lock()
-                guard !finished else {
-                    lock.unlock()
-                    return
-                }
-                finished = true
-                lock.unlock()
+                guard gate.claim() else { return }
                 connection.cancel()
                 continuation.resume(throwing: PipaMobileError.transportUnavailable)
             }
