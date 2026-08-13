@@ -8,11 +8,22 @@ sys.path.insert(0, str(ROOT / "windows-agent"))
 from tools.secure_diagnostics import (  # noqa: E402
     run_mobile_protocol_self_test,
     run_mobile_tcp_self_test,
+    run_secure_audio_self_test,
     run_secure_self_test,
 )
 
 
 class SecureDiagnosticsTests(unittest.TestCase):
+    def test_secure_audio_self_test_uses_synthetic_pcm_and_bounded_capture(self):
+        result = run_secure_audio_self_test()
+
+        self.assertTrue(result["encrypted_round_trip"])
+        self.assertTrue(result["capture_gate"])
+        self.assertTrue(result["ordered_stream"])
+        self.assertTrue(result["bounded_summary"])
+        self.assertFalse(result["external_actions_executed"])
+        self.assertFalse(result["persistent_keys_touched"])
+
     def test_secure_self_test_only_reports_successful_bounded_checks(self):
         result = run_secure_self_test()
 

@@ -26,6 +26,7 @@ from tools.mobile_config import inspect_mobile_transport  # noqa: E402
 from tools.secure_diagnostics import (  # noqa: E402
     run_mobile_protocol_self_test,
     run_mobile_tcp_self_test,
+    run_secure_audio_self_test,
     run_secure_self_test,
 )
 from tools.security_policy import CLI_CONFIRMATION_COMMANDS, LOCAL_CONFIRMATION_PATHS  # noqa: E402
@@ -96,6 +97,10 @@ def _parser() -> argparse.ArgumentParser:
         help="Valida el código actual sin depender del agente residente.",
     )
     commands.add_parser("secure-test", help="Valida el cifrado v2 en memoria, sin hardware ni red.")
+    commands.add_parser(
+        "secure-audio-test",
+        help="Valida el contrato de audio cifrado con PCM sintético, sin hardware.",
+    )
     commands.add_parser("mobile-test", help="Valida el flujo móvil v2 en memoria, sin hardware ni red.")
     commands.add_parser("mobile-tcp-test", help="Valida el transporte móvil TCP v2 solo en loopback.")
     commands.add_parser(
@@ -492,6 +497,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if arguments.command == "secure-test":
             print(json.dumps(_secure_test(), ensure_ascii=False, indent=2))
+            return 0
+        if arguments.command == "secure-audio-test":
+            result = {
+                "success": True,
+                "hardware_required": False,
+                "checks": {"secure_audio": run_secure_audio_self_test()},
+            }
+            print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
         if arguments.command == "local-self-test":
             result = _local_self_test()

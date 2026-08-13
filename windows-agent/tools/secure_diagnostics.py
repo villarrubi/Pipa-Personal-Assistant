@@ -13,6 +13,12 @@ import json
 from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from secure_audio import (
+    AudioCaptureGate,
+    SecureAudioConsumer,
+    SecureAudioReceiver,
+    SecureAudioSender,
+)
 from secure_core_connection import SecureCoreConnection
 from secure_json_channel import SecureJsonChannel
 from secure_mobile_client import SecureMobileClient
@@ -24,6 +30,7 @@ from secure_session import (
     ServerHello,
     complete_client_handshake,
     create_client_hello,
+    secure_session_from_shared_secret,
 )
 from secure_session_server import SecureSessionServer
 from secure_tcp_gateway import SecureTcpGateway
@@ -192,6 +199,77 @@ def run_secure_self_test() -> dict[str, object]:
         "handshake": True,
         "encrypted_round_trip": True,
         "tamper_rejected": tamper_rejected,
+        "external_actions_executed": False,
+        "persistent_keys_touched": False,
+    }
+
+
+def run_secure_audio_self_test() -> dict[str, object]:
+    """Exercise bounded encrypted audio with synthetic samples only.
+
+    The check proves the future capture path still needs codec readiness,
+    visible consent and an ordered encrypted stream, without opening a
+    microphone, socket or serial port.
+    """
+
+    shared_secret = bytes(range(1, 33))
+    transcript_hash = bytes(range(32, 64))
+    sender_session = secure_session_from_shared_secret(
+        "audio-diagnostic",
+        shared_secret,
+        transcript_hash,
+        role="client",
+    )
+    receiver_session = secure_session_from_shared_secret(
+        "audio-diagnostic",
+        shared_secret,
+        transcript_hash,
+        role="server",
+    )
+    sender = SecureAudioSender(sender_session, "diagnostic-stream")
+    first = sender.seal_chunk(b"\x01\x02" * 8, final=False)
+    final = sender.seal_chunk(b"\x03\x04" * 8, final=True)
+    gate = AudioCaptureGate()
+    if not gate.mark_codec_ready(True):
+        raise ValueError("secure audio diagnostic could not enter codec-ready state")
+    if not gate.begin_listening(
+        display_ready=True,
+        consented=True,
+        secure_transport_ready=True,
+    ):
+        raise ValueError("secure audio diagnostic bypassed the capture consent gate")
+
+    received_bytes = 0
+
+    def consume(chunk: memoryview, _is_final: bool) -> None:
+        nonlocal received_bytes
+        received_bytes += len(chunk)
+
+    consumer = SecureAudioConsumer(
+        SecureAudioReceiver(receiver_session),
+        consume,
+        gate,
+    )
+    if consumer.consume_frame(first):
+        raise ValueError("secure audio diagnostic marked a non-final chunk as final")
+    if not consumer.consume_frame(final):
+        raise ValueError("secure audio diagnostic did not finish the stream")
+    summary = consumer.finalize()
+    if (
+        received_bytes != 32
+        or summary.stream_bytes != 32
+        or summary.stream_duration_ms != 1
+        or gate.can_capture
+    ):
+        raise ValueError("secure audio diagnostic returned an invalid bounded summary")
+
+    sender_session.close()
+    receiver_session.close()
+    return {
+        "encrypted_round_trip": True,
+        "capture_gate": True,
+        "ordered_stream": True,
+        "bounded_summary": True,
         "external_actions_executed": False,
         "persistent_keys_touched": False,
     }

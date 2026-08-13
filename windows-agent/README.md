@@ -56,6 +56,7 @@ python .\windows-agent\pipa_cli.py self-test
 python .\windows-agent\pipa_cli.py local-self-test
 python .\windows-agent\pipa_cli.py local-capabilities
 python .\windows-agent\pipa_cli.py secure-test
+python .\windows-agent\pipa_cli.py secure-audio-test
 python .\windows-agent\pipa_cli.py mobile-test
 python .\windows-agent\pipa_cli.py mobile-config
 python .\windows-agent\secure_identity_admin.py show
@@ -321,6 +322,10 @@ cada comando parametrizado mantiene el mismo número de campos que sus marcadore
 `secure-test`
 además ejecuta en memoria el handshake y el cifrado v2; no toca la identidad
 persistente de DPAPI.
+`secure-audio-test` ejecuta el contrato de audio con muestras PCM sintéticas:
+comprueba la compuerta de codec, pantalla, consentimiento y transporte seguro,
+el orden cifrado de los chunks y el resumen acotado. No abre micrófono,
+puertos, navegador ni aplicaciones, y no guarda las muestras.
 
 `mobile-test` prueba además el cliente móvil de referencia, su anuncio de
 pantalla/touch, la confirmación y la reducción de resultados para las cinco

@@ -173,6 +173,10 @@ de recuperación y acceso.
 - El mismo diagnóstico recorre el lifecycle v1 con un dispositivo efímero:
   autentica, procesa texto, exige confirmación para una acción externa y rechaza
   esa acción si no se anuncia `touch`; todos los handlers son inertes.
+- El diagnóstico `secure-audio-test`, incluido también en `self-test`, recorre
+  el framing PCM cifrado con muestras sintéticas, exige la compuerta de codec,
+  pantalla, consentimiento y transporte seguro, y solo expone contadores
+  booleanos/acotados; no abre micrófono, red, serie ni guarda muestras.
 - El núcleo iOS `mobile-ios/PipaMobileCore` no expone la clave privada de la
   identidad como API pública; la identidad se genera/carga mediante Keychain
   con `ThisDeviceOnly`, y el cliente fija la clave pública y el `server_id` del

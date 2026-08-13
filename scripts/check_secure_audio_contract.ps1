@@ -13,6 +13,7 @@ $firmwareSessionPath = Join-Path $repoRoot 'firmware/src/pipa_secure_session.cpp
 $firmwareAudioHeaderPath = Join-Path $repoRoot 'firmware/src/pipa_secure_audio.h'
 $firmwareAudioPath = Join-Path $repoRoot 'firmware/src/pipa_secure_audio.cpp'
 $firmwareMainPath = Join-Path $repoRoot 'firmware/src/main.cpp'
+$secureDiagnosticsPath = Join-Path $repoRoot 'windows-agent/tools/secure_diagnostics.py'
 
 foreach ($path in @($pythonPath, $pythonTestPath, $swiftPath, $fixturePath, $firmwareSessionPath, $firmwareAudioHeaderPath, $firmwareAudioPath, $firmwareMainPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
@@ -155,8 +156,9 @@ $productionPython = @(Get-ChildItem -Path @(
 })
 foreach ($path in $productionPython) {
     $source = Get-Content -LiteralPath $path.FullName -Raw
-    if ($source -match '(?im)^\s*(?:from\s+secure_audio\s+import|import\s+secure_audio)\b') {
-        throw "El audio seguro no puede conectarse aún al código residente: $($path.FullName)"
+    if ($source -match '(?im)^\s*(?:from\s+secure_audio\s+import|import\s+secure_audio)\b' -and
+        $path.FullName -ne $secureDiagnosticsPath) {
+        throw "El audio seguro no puede conectarse al código residente fuera del diagnóstico sintético: $($path.FullName)"
     }
 }
 

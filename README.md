@@ -112,6 +112,10 @@ que las solicitó y caducan si no se confirman.
 - Ejecutar `python .\windows-agent\pipa_cli.py secure-test` para comprobar en
   memoria el handshake autenticado, el cifrado y el rechazo de manipulación
   del protocolo v2, sin hardware, red ni claves persistentes.
+- Ejecutar `python .\windows-agent\pipa_cli.py secure-audio-test` para
+  comprobar el contrato de audio cifrado con PCM sintético, consentimiento,
+  orden y límites, sin activar micrófono, red, puerto serie ni claves
+  persistentes.
 - Ejecutar `python .\windows-agent\pipa_cli.py mobile-test` para validar en
   memoria el flujo futuro de iPhone: handshake, capacidades de pantalla/touch,
   confirmación y resultado sin datos privados.
