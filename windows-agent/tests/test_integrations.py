@@ -370,6 +370,26 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(resolve_contact.call_count, 3)
         open_browser.assert_called_once_with("https://wa.me/34600123456")
 
+    @patch("tools.whatsapp.webbrowser.open", return_value=True)
+    def test_whatsapp_phone_open_never_prepares_or_sends_a_message(self, open_browser):
+        catalog = build_agent_catalog(TimerManager())
+        router = ToolRouter(catalog)
+        pending = router.invoke(
+            "whatsapp_phone_open",
+            {"phone": "+34 600 123 456"},
+            owner_id="waveshare-test",
+        )
+
+        self.assertEqual(pending["status"], "needs_confirmation")
+        result = router.resolve_confirmation(
+            pending["confirmation"]["confirmation_id"], True, owner_id="waveshare-test"
+        )
+
+        self.assertTrue(result["result"]["success"])
+        self.assertFalse(result["result"]["sent"])
+        self.assertNotIn("url", result["result"])
+        open_browser.assert_called_once_with("https://wa.me/34600123456")
+
     @patch("tools.agent_catalog.resolve_whatsapp_contact", return_value=("mama", "34600123456"))
     @patch("tools.agent_catalog.webbrowser.open", return_value=True)
     def test_contact_alias_is_validated_before_and_resolved_after_confirmation(

@@ -5,6 +5,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$confirmationContract = Join-Path $repoRoot 'scripts/check_mobile_confirmation_contract.py'
 $requiredFiles = @(
     'mobile-ios/Package.swift',
     'mobile-ios/Sources/PipaMobileCore/PipaMobileProtocol.swift',
@@ -34,6 +35,10 @@ foreach ($relativePath in $requiredFiles) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Falta el archivo del paquete iOS: $relativePath"
     }
+}
+
+if (-not (Test-Path -LiteralPath $confirmationContract -PathType Leaf)) {
+    throw 'Falta el verificador del contrato de confirmaciones móvil.'
 }
 
 $package = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Package.swift')
@@ -96,6 +101,17 @@ foreach ($check in $requiredPatterns) {
 if ($appInfo -ne $infoPlist) {
     throw 'App/Info.plist y App/Info.plist.example deben mantenerse sincronizados.'
 }
+
+$python = Get-Command python -CommandType Application -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+if ($null -eq $python) {
+    throw 'No se encontró Python para verificar el contrato de confirmaciones móvil.'
+}
+$contractOutput = @(& $python.Source $confirmationContract 2>&1)
+if ($LASTEXITCODE -ne 0) {
+    throw "El contrato de confirmaciones móvil falló: $($contractOutput -join ' ')"
+}
+Write-Host ($contractOutput -join "`n")
 
 $forbiddenPatterns = @(
     'public let privateKey',
