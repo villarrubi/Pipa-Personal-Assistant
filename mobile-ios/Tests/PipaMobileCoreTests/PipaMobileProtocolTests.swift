@@ -50,6 +50,7 @@ final class PipaMobileProtocolTests: XCTestCase {
         XCTAssertTrue(PipaMobileTextPolicy.containsProtocolControl("línea\nrota"))
         XCTAssertTrue(PipaMobileTextPolicy.containsDisplayControl("nombre\u{202E}oculto"))
         XCTAssertTrue(PipaMobileTextPolicy.containsDisplayControl("texto\u{0085}"))
+        XCTAssertTrue(PipaMobileTextPolicy.containsDisplayControl("texto\u{E000}"))
         XCTAssertTrue(PipaMobileTextPolicy.isSafeDisplayText("texto visible", maxBytes: 64))
         XCTAssertFalse(PipaMobileTextPolicy.isSafeDisplayText("texto\u{200B}oculto", maxBytes: 64))
         XCTAssertTrue(PipaMobileTextPolicy.isSafeMessageText("línea 1\nlínea 2", maxBytes: 64))

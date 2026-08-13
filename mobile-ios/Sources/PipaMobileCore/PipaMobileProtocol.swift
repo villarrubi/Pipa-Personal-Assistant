@@ -34,7 +34,8 @@ public enum PipaMobileTextPolicy {
                 (0x200B...0x200F).contains(codePoint) ||
                 (0x202A...0x202E).contains(codePoint) ||
                 (0x2060...0x2069).contains(codePoint) ||
-                codePoint == 0xFEFF
+                codePoint == 0xFEFF ||
+                (0xE000...0xF8FF).contains(codePoint)
         }
     }
 
@@ -57,7 +58,8 @@ public enum PipaMobileTextPolicy {
                     (0x200B...0x200F).contains(codePoint) ||
                     (0x202A...0x202E).contains(codePoint) ||
                     (0x2060...0x2069).contains(codePoint) ||
-                    codePoint == 0xFEFF
+                    codePoint == 0xFEFF ||
+                    (0xE000...0xF8FF).contains(codePoint)
             }
     }
 }
