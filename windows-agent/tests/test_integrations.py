@@ -999,6 +999,29 @@ class IntegrationTests(unittest.TestCase):
         self.assertNotIn("Mamá", str(confirmation))
         self.assertEqual(result.responses[1]["state"], "confirm")
 
+    def test_structured_discord_server_channel_stops_at_confirmation_without_leaking_ids(self):
+        protocol = self._authenticated_protocol()
+        result = protocol.process(
+            parse_client_message(
+                {
+                    "protocol_version": 1,
+                    "type": "tool_call",
+                    "name": "discord_open",
+                    "arguments": {
+                        "guild_id": "98765432109876543",
+                        "channel_id": "12345678901234567",
+                    },
+                }
+            )
+        )
+
+        confirmation = result.responses[0]
+        self.assertEqual(confirmation["type"], "confirm_request")
+        self.assertEqual(confirmation["tool_name"], "discord_open")
+        self.assertNotIn("98765432109876543", str(confirmation))
+        self.assertNotIn("12345678901234567", str(confirmation))
+        self.assertEqual(result.responses[1]["state"], "confirm")
+
     def _authenticated_protocol(self):
         device = InMemoryTrustedDevice.generate("integration-device")
         store = InMemoryDeviceStore()
