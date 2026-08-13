@@ -82,6 +82,60 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertEqual(controller.statusMessage, "Escribe una búsqueda musical válida y acotada.")
     }
 
+    func testLocalWhatsAppLinkPreparesMessageWithoutChangingItsContents() throws {
+        let url = try XCTUnwrap(
+            PipaMobileLocalIntegrationLinks.whatsappComposeURL(
+                phone: "+34 600-123-456",
+                message: "Hola\nMamá"
+            )
+        )
+
+        XCTAssertEqual(url.scheme, "https")
+        XCTAssertEqual(url.host, "wa.me")
+        XCTAssertEqual(url.path, "/34600123456")
+        XCTAssertTrue(url.absoluteString.contains("text=Hola%0AM%C3%A1m%C3%A1"))
+    }
+
+    func testLocalWhatsAppLinkRejectsInvalidOrUnsafeInput() {
+        XCTAssertNil(
+            PipaMobileLocalIntegrationLinks.whatsappComposeURL(
+                phone: "not-a-phone",
+                message: "Hola"
+            )
+        )
+        XCTAssertNil(
+            PipaMobileLocalIntegrationLinks.whatsappComposeURL(
+                phone: "+34 600 123 456",
+                message: "Hola\u{202E}Mamá"
+            )
+        )
+    }
+
+    func testLocalDiscordLinkUsesDMByDefaultAndServerWhenProvided() throws {
+        let directMessage = try XCTUnwrap(
+            PipaMobileLocalIntegrationLinks.discordChannelURL(channelID: "12345678901234567")
+        )
+        XCTAssertEqual(directMessage.absoluteString, "https://discord.com/channels/@me/12345678901234567")
+
+        let serverChannel = try XCTUnwrap(
+            PipaMobileLocalIntegrationLinks.discordChannelURL(
+                channelID: "12345678901234567",
+                guildID: "98765432109876543"
+            )
+        )
+        XCTAssertEqual(serverChannel.absoluteString, "https://discord.com/channels/98765432109876543/12345678901234567")
+    }
+
+    func testLocalDiscordLinkRejectsInvalidIdentifiers() {
+        XCTAssertNil(PipaMobileLocalIntegrationLinks.discordChannelURL(channelID: "not-an-id"))
+        XCTAssertNil(
+            PipaMobileLocalIntegrationLinks.discordChannelURL(
+                channelID: "12345678901234567",
+                guildID: "not-a-server"
+            )
+        )
+    }
+
     func testConfirmationSummaryRejectsArgumentsAndAllowsFixedLabels() {
         XCTAssertTrue(
             PipaMobileViewModel.isSafeConfirmationSummary(

@@ -105,6 +105,11 @@ pendiente es captura I²S y STT español con privacidad, consentimiento e
 indicador de escucha, no enviar micrófono en claro por el protocolo actual.
 Véase la [documentación oficial de reconocimiento de comandos ESP-SR](https://docs.espressif.com/projects/esp-sr/en/latest/esp32s3/speech_command_recognition/README.html).
 
+El contrato de la futura implementación de audio, sus estados, límites,
+política de borrado y criterios de aceptación está en
+[AUDIO_STT_DESIGN.md](AUDIO_STT_DESIGN.md). Hasta validar la placa física, no
+se debe añadir una capacidad de audio real ni transportar muestras.
+
 ## Configuración local
 
 Copia la plantilla al archivo local ignorado:

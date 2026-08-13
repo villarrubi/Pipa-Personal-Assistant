@@ -62,6 +62,13 @@ la ejecución; no se debe copiar ninguna clave privada ni token al repositorio.
 La guía oficial está en
 <https://developer.apple.com/documentation/musickit/integrating-musickit-into-your-app>.
 
+También hay una sección local para WhatsApp y Discord. WhatsApp usa un enlace
+HTTPS wa.me para abrir un chat o preparar el texto; Discord usa un enlace
+HTTPS al canal o DM. El sistema puede entregar esos enlaces a la app instalada
+o abrirlos en Safari. No se usa UI automation ni APIs privadas: WhatsApp
+siempre requiere pulsar Enviar y Discord requiere pulsar Llamar. Los campos
+permanecen solo en memoria de la pantalla y no se guardan en Keychain.
+
 La lista de comandos incluye un botón `Usar` para preparar una frase sin
 enviarla. Las acciones actuales sin parámetros muestran `Ejecutar` y usan el
 camino estructurado cifrado; las acciones peligrosas siguen deteniéndose en

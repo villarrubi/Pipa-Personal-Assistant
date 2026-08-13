@@ -78,6 +78,9 @@ que las solicitó y caducan si no se confirman.
   Waveshare conectado.
 - Dictar un comando en el iPhone y revisarlo en el editor antes de enviarlo;
   no depende todavía del hardware Waveshare.
+- Desde el iPhone, abrir un chat de WhatsApp con un mensaje preparado o un
+  canal de Discord mediante enlaces HTTPS; el envío y la llamada siguen siendo
+  manuales y esos datos no se guardan.
 - Ejecutar `python .\windows-agent\pipa_cli.py doctor` para comprobar en una
   sola operación la salud local, capacidades, protocolo e integraciones.
 - Ejecutar `powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File
@@ -154,6 +157,8 @@ El núcleo Swift para iOS está en
 [mobile-ios/README.md](mobile-ios/README.md).
 La validación cuando haya Mac/iPhone está enumerada en
 [mobile-ios/ARRIVAL_CHECKLIST.md](mobile-ios/ARRIVAL_CHECKLIST.md).
+El diseño previo a hardware de audio y voz está en
+[firmware/AUDIO_STT_DESIGN.md](firmware/AUDIO_STT_DESIGN.md).
 
 Por ejemplo, el Core ya entiende frases como `abre WhatsApp`, `abre WhatsApp
 para mama`, `abre Discord`, `abre Codex`, `abre una aplicación configurada

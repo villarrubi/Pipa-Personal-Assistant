@@ -103,6 +103,18 @@ Validar una por una, siempre con confirmación visible:
   espera un tiempo acotado; la cola sigue allowlisted y cancelar requiere que
   el cliente ya esté listo.
 
+En el mismo iPhone, probar los enlaces locales de WhatsApp y Discord:
+
+- preparar un chat de WhatsApp y comprobar que el texto aparece en el chat,
+  pero no se envía hasta pulsar Enviar;
+- abrir un DM y un canal de servidor de Discord con IDs válidos;
+- usar Preparar llamada y comprobar que solo abre el canal, sin iniciar audio
+  ni llamada;
+- introducir controles Unicode, teléfonos o IDs inválidos y comprobar que la
+  app no abre ningún enlace;
+- verificar que al cerrar la pantalla los campos no reaparecen tras reiniciar
+  la app.
+
 En el mismo iPhone, probar también la ruta local de Apple Music:
 
 - comprobar primero que el App ID tiene MusicKit activado y que el target está
