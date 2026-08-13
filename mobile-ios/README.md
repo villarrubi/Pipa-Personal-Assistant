@@ -81,6 +81,12 @@ o abrirlos en Safari. No se usa UI automation ni APIs privadas: WhatsApp
 siempre requiere pulsar Enviar y Discord requiere pulsar Llamar. Los campos
 permanecen solo en memoria de la pantalla y no se guardan en Keychain.
 
+Cada acción local pendiente conserva la instantánea exacta de los valores
+validados al abrir su diálogo. Si el formulario cambia mientras se muestra la
+confirmación, la ejecución no cambia de destino; si la app pasa a segundo
+plano, se descarta la acción pendiente y se cancela cualquier Wake-on-LAN en
+curso.
+
 La lista de comandos incluye un botón `Usar` para preparar una frase sin
 enviarla. Las acciones actuales sin parámetros muestran `Ejecutar` y usan el
 camino estructurado cifrado; si una acción directa publica `default_arguments`,

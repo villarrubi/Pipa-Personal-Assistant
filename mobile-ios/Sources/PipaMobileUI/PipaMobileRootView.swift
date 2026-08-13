@@ -23,15 +23,34 @@ public struct PipaMobileRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
 
-    private enum LocalIntegrationAction: String, Identifiable, Equatable {
-        case webSearch
-        case wakeOnLan
-        case whatsappChat
-        case whatsappMessage
-        case discordChannel
-        case discordCall
+    /// A confirmed local action carries the exact validated values that were
+    /// visible when the dialog opened.  Keeping the values in the pending
+    /// action prevents edits behind the dialog from changing the destination
+    /// after the user has reviewed it.
+    private enum LocalIntegrationAction: Identifiable, Equatable {
+        case webSearch(query: String)
+        case wakeOnLan(mac: String)
+        case whatsappChat(phone: String)
+        case whatsappMessage(phone: String, message: String)
+        case discordChannel(channelID: String, guildID: String?)
+        case discordCall(channelID: String, guildID: String?)
 
-        var id: String { rawValue }
+        var id: String {
+            switch self {
+            case .webSearch:
+                return "webSearch"
+            case .wakeOnLan:
+                return "wakeOnLan"
+            case .whatsappChat:
+                return "whatsappChat"
+            case .whatsappMessage:
+                return "whatsappMessage"
+            case .discordChannel:
+                return "discordChannel"
+            case .discordCall:
+                return "discordCall"
+            }
+        }
 
         var title: String {
             switch self {
@@ -66,6 +85,7 @@ public struct PipaMobileRootView: View {
                 return "Se abrirá el destino; tendrás que pulsar Llamar manualmente."
             }
         }
+
     }
 
     public init(model: PipaMobileViewModel? = nil) {
@@ -91,6 +111,7 @@ public struct PipaMobileRootView: View {
             if phase != .active {
                 model.disconnect()
                 localWakeOnLan.cancel()
+                pendingLocalIntegrationAction = nil
 #if os(iOS)
                 speechRecognizer.stop()
 #endif
@@ -324,7 +345,7 @@ public struct PipaMobileRootView: View {
                     localIntegrationStatus = "Escribe una búsqueda válida y acotada."
                     return
                 }
-                pendingLocalIntegrationAction = .webSearch
+                pendingLocalIntegrationAction = .webSearch(query: localWebQuery)
             }
             .buttonStyle(.borderedProminent)
             .disabled(localWebQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -344,7 +365,7 @@ public struct PipaMobileRootView: View {
                 .privacySensitive()
             Button("Encender PC") {
                 guard localWakeOnLan.validate(mac: localWakeOnLanMAC) else { return }
-                pendingLocalIntegrationAction = .wakeOnLan
+                pendingLocalIntegrationAction = .wakeOnLan(mac: localWakeOnLanMAC)
             }
             .buttonStyle(.borderedProminent)
             .disabled(
@@ -374,7 +395,7 @@ public struct PipaMobileRootView: View {
                         localIntegrationStatus = "Introduce un teléfono internacional válido."
                         return
                     }
-                    pendingLocalIntegrationAction = .whatsappChat
+                    pendingLocalIntegrationAction = .whatsappChat(phone: localWhatsAppPhone)
                 }
                 Button("Preparar mensaje") {
                     guard PipaMobileLocalIntegrationLinks.whatsappComposeURL(
@@ -384,7 +405,10 @@ public struct PipaMobileRootView: View {
                         localIntegrationStatus = "Revisa el teléfono y el mensaje."
                         return
                     }
-                    pendingLocalIntegrationAction = .whatsappMessage
+                    pendingLocalIntegrationAction = .whatsappMessage(
+                        phone: localWhatsAppPhone,
+                        message: localWhatsAppMessage
+                    )
                 }
             }
 
@@ -417,54 +441,65 @@ public struct PipaMobileRootView: View {
             localIntegrationStatus = "Introduce IDs de Discord válidos."
             return
         }
-        pendingLocalIntegrationAction = manualCall ? .discordCall : .discordChannel
+        pendingLocalIntegrationAction = manualCall
+            ? .discordCall(channelID: localDiscordChannelID, guildID: guild.isEmpty ? nil : guild)
+            : .discordChannel(channelID: localDiscordChannelID, guildID: guild.isEmpty ? nil : guild)
     }
 
     private func performPendingLocalIntegrationAction() {
         guard let action = pendingLocalIntegrationAction else { return }
         pendingLocalIntegrationAction = nil
         switch action {
-        case .webSearch:
-            guard let url = PipaMobileLocalIntegrationLinks.webSearchURL(query: localWebQuery) else {
+        case let .webSearch(query):
+            guard let url = PipaMobileLocalIntegrationLinks.webSearchURL(query: query) else {
                 localIntegrationStatus = "Escribe una búsqueda válida y acotada."
                 return
             }
             openURL(url)
             localIntegrationStatus = "Búsqueda abierta en Safari."
-        case .wakeOnLan:
-            guard localWakeOnLan.validate(mac: localWakeOnLanMAC) else { return }
-            localWakeOnLan.wake(mac: localWakeOnLanMAC)
-        case .whatsappChat:
-            guard let url = PipaMobileLocalIntegrationLinks.whatsappChatURL(phone: localWhatsAppPhone) else {
+        case let .wakeOnLan(mac):
+            guard localWakeOnLan.validate(mac: mac) else { return }
+            localWakeOnLan.wake(mac: mac)
+        case let .whatsappChat(phone):
+            guard let url = PipaMobileLocalIntegrationLinks.whatsappChatURL(phone: phone) else {
                 localIntegrationStatus = "Introduce un teléfono internacional válido."
                 return
             }
             openURL(url)
             localIntegrationStatus = "Chat de WhatsApp abierto; no se ha preparado ni enviado ningún mensaje."
-        case .whatsappMessage:
+        case let .whatsappMessage(phone, message):
             guard let url = PipaMobileLocalIntegrationLinks.whatsappComposeURL(
-                phone: localWhatsAppPhone,
-                message: localWhatsAppMessage
+                phone: phone,
+                message: message
             ) else {
                 localIntegrationStatus = "Revisa el teléfono y el mensaje."
                 return
             }
             openURL(url)
             localIntegrationStatus = "Mensaje preparado en WhatsApp; pulsa Enviar manualmente."
-        case .discordChannel, .discordCall:
-            let guild = localDiscordGuildID.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard let url = PipaMobileLocalIntegrationLinks.discordChannelURL(
-                channelID: localDiscordChannelID,
-                guildID: guild.isEmpty ? nil : guild
-            ) else {
-                localIntegrationStatus = "Introduce IDs de Discord válidos."
-                return
-            }
-            openURL(url)
-            localIntegrationStatus = action == .discordCall
-                ? "Canal de Discord abierto; pulsa Llamar manualmente."
-                : "Canal de Discord abierto; no se ha iniciado ninguna llamada."
+        case let .discordChannel(channelID, guildID):
+            performDiscordDestination(channelID: channelID, guildID: guildID, manualCall: false)
+        case let .discordCall(channelID, guildID):
+            performDiscordDestination(channelID: channelID, guildID: guildID, manualCall: true)
         }
+    }
+
+    private func performDiscordDestination(
+        channelID: String,
+        guildID: String?,
+        manualCall: Bool
+    ) {
+        guard let url = PipaMobileLocalIntegrationLinks.discordChannelURL(
+            channelID: channelID,
+            guildID: guildID
+        ) else {
+            localIntegrationStatus = "Introduce IDs de Discord válidos."
+            return
+        }
+        openURL(url)
+        localIntegrationStatus = manualCall
+            ? "Canal de Discord abierto; pulsa Llamar manualmente."
+            : "Canal de Discord abierto; no se ha iniciado ninguna llamada."
     }
 
     private var commandSection: some View {
