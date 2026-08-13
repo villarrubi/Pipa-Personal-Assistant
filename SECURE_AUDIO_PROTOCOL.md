@@ -58,8 +58,11 @@ nuevo.
 - Windows: `windows-agent/secure_audio.py`. `SecureAudioConsumer` exige un
   `AudioCaptureGate` en estado `LISTENING` antes de entregar cada bloque
   autenticado a un callback local mediante un `memoryview` efímero, borra el
-  buffer al devolverlo y solo devuelve contadores acotados al finalizar. No
-  acumula una grabación ni está conectado al agente residente.
+  buffer al devolverlo y solo devuelve contadores acotados al finalizar. El
+  receptor convierte el plaintext a un `bytearray` en la frontera criptográfica
+  para que también pueda ponerse a cero en las rutas de error; no expone
+  muestras como texto ni acumula una grabación y no está conectado al agente
+  residente.
 - Windows también incluye `SecureAudioTranscriber`, un adaptador inyectable
   que entrega esos chunks al futuro proveedor STT y acepta únicamente una
   transcripción final validada por la política de texto; no elige proveedor,

@@ -192,6 +192,18 @@ class SecureAudioTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             len(retained_views[0])
 
+    def test_receiver_exposes_plaintext_as_a_mutable_buffer(self):
+        sender = SecureAudioSender(self._session("client"), "stream-mutable")
+        frame = sender.seal_chunk(b"\x01\x02" * 4, final=True)
+        receiver = SecureAudioReceiver(self._session("server"))
+
+        plaintext = receiver.open_chunk(frame)
+
+        self.assertIsInstance(plaintext, bytearray)
+        self.assertEqual(plaintext, b"\x01\x02" * 4)
+        plaintext[:] = b"\x00" * len(plaintext)
+        self.assertEqual(plaintext, b"\x00" * 8)
+
     def test_consumer_callback_failure_closes_session_without_retrying(self):
         sender = SecureAudioSender(self._session("client"), "stream-failure")
         frame = sender.seal_chunk(b"\x01\x02" * 4, final=True)

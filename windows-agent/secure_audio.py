@@ -207,6 +207,23 @@ def _validate_samples(samples: bytes) -> bytes:
     return samples
 
 
+def _validate_decrypted_samples(samples: bytearray) -> bytearray:
+    """Validate plaintext without converting it back to an immutable bytes object."""
+
+    if not isinstance(samples, bytearray):
+        raise AudioFrameError("decrypted audio samples have an invalid buffer type")
+    if not 0 < len(samples) <= MAX_AUDIO_CHUNK_BYTES or len(samples) % AUDIO_BYTES_PER_SAMPLE:
+        raise AudioFrameError("audio chunk size is invalid")
+    return samples
+
+
+def _zero_buffer(buffer: bytearray) -> None:
+    """Best-effort zeroization for the mutable buffers owned by this module."""
+
+    if buffer:
+        buffer[:] = b"\x00" * len(buffer)
+
+
 class SecureAudioSender:
     """Create sequential encrypted PCM chunks without storing a stream."""
 
@@ -282,8 +299,10 @@ class SecureAudioReceiver:
     def stream_duration_ms(self) -> int:
         return self._stream_bytes * 1000 // (AUDIO_SAMPLE_RATE * AUDIO_CHANNELS * AUDIO_BYTES_PER_SAMPLE)
 
-    def open_chunk(self, frame: Mapping[str, object]) -> bytes:
-        """Return one plaintext chunk; invalid input closes the secure session."""
+    def open_chunk(self, frame: Mapping[str, object]) -> bytearray:
+        """Return mutable plaintext; callers must zero it after consuming it."""
+
+        plaintext = bytearray()
 
         try:
             if not isinstance(frame, Mapping) or set(frame) != _FRAME_FIELDS:
@@ -300,8 +319,13 @@ class SecureAudioReceiver:
             if metadata["chunk_index"] != self._next_chunk:
                 raise AudioFrameError("audio chunks are out of order")
 
-            plaintext = self.session.open(dict(frame), additional_data=_additional_data(metadata))
-            plaintext = _validate_samples(plaintext)
+            decrypted = self.session.open(dict(frame), additional_data=_additional_data(metadata))
+            # Convert once at the cryptographic boundary.  The immutable
+            # object returned by the crypto backend is released immediately;
+            # all buffers owned by this audio layer are mutable from here on.
+            plaintext = bytearray(decrypted)
+            del decrypted
+            plaintext = _validate_decrypted_samples(plaintext)
             if self._stream_bytes + len(plaintext) > MAX_AUDIO_STREAM_BYTES:
                 raise AudioFrameError("audio stream is too large")
 
@@ -310,6 +334,7 @@ class SecureAudioReceiver:
             self._finished = metadata["final"]
             return plaintext
         except (AudioFrameError, RecordError) as error:
+            _zero_buffer(plaintext)
             self._discard_state()
             self.session.close()
             if isinstance(error, AudioFrameError):
@@ -411,8 +436,7 @@ class SecureAudioConsumer:
             self._on_chunk = None
             raise
 
-        buffer = bytearray(samples)
-        del samples
+        buffer = samples
         view = memoryview(buffer)
         final = self.receiver.complete
         try:
@@ -428,7 +452,7 @@ class SecureAudioConsumer:
             raise AudioFrameError("audio consumer failed") from error
         finally:
             view.release()
-            buffer[:] = b"\x00" * len(buffer)
+            _zero_buffer(buffer)
 
         self._finished = final
         return final
