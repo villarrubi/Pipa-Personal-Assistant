@@ -55,10 +55,11 @@ nuevo.
 
 ## Implementaciones y pruebas
 
-- Windows: `windows-agent/secure_audio.py`. `SecureAudioConsumer` entrega cada
-  bloque autenticado a un callback local mediante un `memoryview` efímero,
-  borra el buffer al devolverlo y solo devuelve contadores acotados al finalizar.
-  No acumula una grabación ni está conectado al agente residente.
+- Windows: `windows-agent/secure_audio.py`. `SecureAudioConsumer` exige un
+  `AudioCaptureGate` en estado `LISTENING` antes de entregar cada bloque
+  autenticado a un callback local mediante un `memoryview` efímero, borra el
+  buffer al devolverlo y solo devuelve contadores acotados al finalizar. No
+  acumula una grabación ni está conectado al agente residente.
 - iPhone: `mobile-ios/Sources/PipaMobileCore/PipaSecureAudio.swift`.
 - Firmware: `firmware/src/pipa_secure_audio.h/.cpp` contiene un primitive
   acotado de framing, cifrado y apertura, ejecutado únicamente por el vector
@@ -79,12 +80,16 @@ cancelación e indicador en la placa.
 ## Entrega al futuro STT
 
 El consumidor de Windows es la única pieza preparada para recibir audio antes
-de la integración física. El callback recibe `(memoryview, final)` y debe
-procesar el bloque localmente; la vista se invalida al volver del callback y el
-buffer temporal se pone a cero. El callback no debe conservar una copia ni
-escribir audio en disco. Si falla, el consumidor cierra la sesión segura. Si
-la secuencia termina sin `final`, también se cierra: una transcripción parcial
-no se interpreta como un comando.
+de la integración física. Antes de usarlo, el futuro driver debe marcar el
+codec como listo y llamar a `begin_capture(display_ready=True,
+consented=True, secure_transport_ready=True)`. El `AudioCaptureGate` rechaza
+cualquier otro orden y solo permite `CODEC_READY -> LISTENING -> DRAINING ->
+CODEC_READY`; un fallo deja el estado en `ERROR`. El callback recibe
+`(memoryview, final)` y debe procesar el bloque localmente; la vista se invalida
+al volver del callback y el buffer temporal se pone a cero. El callback no debe
+conservar una copia ni escribir audio en disco. Si falla, el consumidor cierra
+la sesión segura. Si la secuencia termina sin `final`, también se cierra: una
+transcripción parcial no se interpreta como un comando.
 
 Todavía no existe un callback STT concreto, no se anuncia `voice`/`audio` en
 las capacidades y `hold_end`/`audio_end` siguen respondiendo

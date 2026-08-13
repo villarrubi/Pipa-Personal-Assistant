@@ -35,7 +35,14 @@ foreach ($required in @(
     'MAX_AUDIO_CHUNK_BYTES = 4096',
     'MAX_AUDIO_CHUNKS = 64',
     'MAX_AUDIO_STREAM_BYTES = MAX_AUDIO_CHUNK_BYTES * MAX_AUDIO_CHUNKS',
-    'session.seal(samples, additional_data='
+    'session.seal(samples, additional_data=',
+    'class AudioCaptureGate:',
+    'class AudioCaptureState(StrEnum):',
+    'mark_codec_ready',
+    'begin_listening',
+    'begin_draining',
+    'finish_draining',
+    'gate.can_capture'
 )) {
     if ($python.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
         throw "El contrato Python no contiene el límite o la operación requerida: $required"

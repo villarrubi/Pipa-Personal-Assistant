@@ -12,6 +12,7 @@ import json
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 from secure_session import RecordError, SecureSession
@@ -59,6 +60,82 @@ class AudioStreamSummary:
 
 
 AudioChunkConsumer = Callable[[memoryview, bool], None]
+
+
+class AudioCaptureState(StrEnum):
+    """Policy state for a future local audio capture route."""
+
+    DISABLED = "disabled"
+    CODEC_READY = "codec_ready"
+    LISTENING = "listening"
+    DRAINING = "draining"
+    ERROR = "error"
+
+
+class AudioCaptureGate:
+    """Require physical readiness, consent and a secure route before capture."""
+
+    def __init__(self) -> None:
+        self._state = AudioCaptureState.DISABLED
+
+    @property
+    def state(self) -> AudioCaptureState:
+        return self._state
+
+    @property
+    def can_capture(self) -> bool:
+        return self._state is AudioCaptureState.LISTENING
+
+    @property
+    def can_advertise_audio(self) -> bool:
+        return self._state is AudioCaptureState.CODEC_READY
+
+    def mark_codec_ready(self, codec_initialized: bool) -> bool:
+        """Enter the stable ready state only after bounded physical setup."""
+
+        if self._state not in {AudioCaptureState.DISABLED, AudioCaptureState.ERROR}:
+            return False
+        if not codec_initialized:
+            self._state = AudioCaptureState.ERROR
+            return False
+        self._state = AudioCaptureState.CODEC_READY
+        return True
+
+    def begin_listening(
+        self,
+        *,
+        display_ready: bool,
+        consented: bool,
+        secure_transport_ready: bool,
+    ) -> bool:
+        """Open capture only when all independent policy gates are true."""
+
+        if (
+            self._state is not AudioCaptureState.CODEC_READY
+            or not display_ready
+            or not consented
+            or not secure_transport_ready
+        ):
+            return False
+        self._state = AudioCaptureState.LISTENING
+        return True
+
+    def begin_draining(self) -> bool:
+        if self._state is not AudioCaptureState.LISTENING:
+            return False
+        self._state = AudioCaptureState.DRAINING
+        return True
+
+    def finish_draining(self) -> bool:
+        if self._state is not AudioCaptureState.DRAINING:
+            return False
+        self._state = AudioCaptureState.CODEC_READY
+        return True
+
+    def fail(self) -> None:
+        """Disable capture after any transport, buffer or callback failure."""
+
+        self._state = AudioCaptureState.ERROR
 
 
 def _canonical(value: Mapping[str, Any]) -> bytes:
@@ -260,12 +337,20 @@ class SecureAudioConsumer:
     reused accidentally.
     """
 
-    def __init__(self, receiver: SecureAudioReceiver, on_chunk: AudioChunkConsumer) -> None:
+    def __init__(
+        self,
+        receiver: SecureAudioReceiver,
+        on_chunk: AudioChunkConsumer,
+        gate: AudioCaptureGate,
+    ) -> None:
         if not isinstance(receiver, SecureAudioReceiver):
             raise TypeError("receiver must be SecureAudioReceiver")
         if not callable(on_chunk):
             raise TypeError("on_chunk must be callable")
+        if not isinstance(gate, AudioCaptureGate):
+            raise TypeError("gate must be AudioCaptureGate")
         self.receiver = receiver
+        self.gate = gate
         self._on_chunk: AudioChunkConsumer | None = on_chunk
         self._closed = False
         self._finished = False
@@ -286,6 +371,22 @@ class SecureAudioConsumer:
     def stream_duration_ms(self) -> int:
         return self.receiver.stream_duration_ms
 
+    def begin_capture(
+        self,
+        *,
+        display_ready: bool,
+        consented: bool,
+        secure_transport_ready: bool,
+    ) -> None:
+        """Open this stream only after the visible consent policy succeeds."""
+
+        if self._closed or not self.gate.begin_listening(
+            display_ready=display_ready,
+            consented=consented,
+            secure_transport_ready=secure_transport_ready,
+        ):
+            raise AudioFrameError("audio capture policy is not ready")
+
     def consume_frame(self, frame: Mapping[str, object]) -> bool:
         """Decrypt and deliver one frame; return whether it was the final one."""
 
@@ -294,9 +395,13 @@ class SecureAudioConsumer:
         if self._finished:
             self.close()
             raise AudioFrameError("audio stream is already finished")
+        if not self.gate.can_capture:
+            self.close()
+            raise AudioFrameError("audio capture policy is not active")
         try:
             samples = self.receiver.open_chunk(frame)
         except AudioFrameError:
+            self.gate.fail()
             self._closed = True
             self._on_chunk = None
             raise
@@ -326,11 +431,12 @@ class SecureAudioConsumer:
     def finalize(self) -> AudioStreamSummary:
         """Return only bounded counters after a final frame was consumed."""
 
-        if self._closed:
-            raise AudioFrameError("audio consumer is closed")
-        if not self._finished or not self.receiver.complete:
+        if self._closed or not self._finished or not self.receiver.complete:
             self.close()
             raise AudioFrameError("audio stream ended before its final frame")
+        if not self.gate.begin_draining() or not self.gate.finish_draining():
+            self.close()
+            raise AudioFrameError("audio capture policy cannot drain")
         return AudioStreamSummary(self.stream_bytes, self.stream_duration_ms)
 
     def cancel(self) -> None:
@@ -339,6 +445,9 @@ class SecureAudioConsumer:
         if self._closed:
             return
         self.receiver.cancel()
+        if self.gate.state is AudioCaptureState.LISTENING:
+            if not self.gate.begin_draining() or not self.gate.finish_draining():
+                self.gate.fail()
         self._finished = False
 
     def close(self) -> None:
@@ -347,6 +456,7 @@ class SecureAudioConsumer:
         if self._closed:
             return
         self.receiver.close()
+        self.gate.fail()
         self._closed = True
         self._finished = False
         self._on_chunk = None

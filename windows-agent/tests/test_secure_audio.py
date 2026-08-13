@@ -8,6 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from secure_audio import (  # noqa: E402
     MAX_AUDIO_CHUNK_BYTES,
     MAX_AUDIO_CHUNKS,
+    AudioCaptureGate,
+    AudioCaptureState,
     AudioFrameError,
     SecureAudioConsumer,
     SecureAudioReceiver,
@@ -28,6 +30,56 @@ class SecureAudioTests(unittest.TestCase):
             bytes(range(32, 64)),
             role=role,
         )
+
+    @staticmethod
+    def _listening_gate() -> AudioCaptureGate:
+        gate = AudioCaptureGate()
+        assert gate.mark_codec_ready(True)
+        assert gate.begin_listening(
+            display_ready=True,
+            consented=True,
+            secure_transport_ready=True,
+        )
+        return gate
+
+    def test_capture_gate_requires_readiness_consent_and_visible_indicator(self):
+        gate = AudioCaptureGate()
+
+        self.assertEqual(gate.state, AudioCaptureState.DISABLED)
+        self.assertFalse(gate.can_advertise_audio)
+        self.assertFalse(
+            gate.begin_listening(display_ready=True, consented=True, secure_transport_ready=True)
+        )
+        self.assertFalse(gate.mark_codec_ready(False))
+        self.assertEqual(gate.state, AudioCaptureState.ERROR)
+        self.assertTrue(gate.mark_codec_ready(True))
+        self.assertFalse(
+            gate.begin_listening(display_ready=False, consented=True, secure_transport_ready=True)
+        )
+        self.assertFalse(
+            gate.begin_listening(display_ready=True, consented=False, secure_transport_ready=True)
+        )
+        self.assertFalse(
+            gate.begin_listening(display_ready=True, consented=True, secure_transport_ready=False)
+        )
+        self.assertTrue(gate.begin_listening(display_ready=True, consented=True, secure_transport_ready=True))
+        self.assertTrue(gate.begin_draining())
+        self.assertTrue(gate.finish_draining())
+        self.assertTrue(gate.can_advertise_audio)
+
+    def test_consumer_rejects_audio_before_explicit_capture_consent(self):
+        sender = SecureAudioSender(self._session("client"), "stream-policy")
+        frame = sender.seal_chunk(b"\x01\x02" * 4, final=True)
+        receiver = SecureAudioReceiver(self._session("server"))
+        gate = AudioCaptureGate()
+        self.assertTrue(gate.mark_codec_ready(True))
+        consumer = SecureAudioConsumer(receiver, lambda _view, _final: None, gate)
+
+        with self.assertRaises(AudioFrameError):
+            consumer.consume_frame(frame)
+
+        self.assertTrue(consumer.closed)
+        self.assertEqual(gate.state, AudioCaptureState.ERROR)
 
     def test_cross_language_fixture_contains_only_encrypted_audio(self):
         vector = json.loads(FIXTURE.read_text(encoding="utf-8"))
@@ -109,7 +161,8 @@ class SecureAudioTests(unittest.TestCase):
             retained_views.append(view)
             self.assertEqual(final, len(received) == 2)
 
-        consumer = SecureAudioConsumer(receiver, consume)
+        gate = self._listening_gate()
+        consumer = SecureAudioConsumer(receiver, consume, gate)
 
         self.assertFalse(consumer.consume_frame(first))
         self.assertTrue(consumer.consume_frame(second))
@@ -119,6 +172,7 @@ class SecureAudioTests(unittest.TestCase):
         self.assertEqual(summary.stream_bytes, 16)
         self.assertEqual(summary.stream_duration_ms, 0)
         self.assertTrue(consumer.complete)
+        self.assertEqual(gate.state, AudioCaptureState.CODEC_READY)
         with self.assertRaises(ValueError):
             len(retained_views[0])
 
@@ -130,11 +184,12 @@ class SecureAudioTests(unittest.TestCase):
         def fail(_view: memoryview, _final: bool) -> None:
             raise RuntimeError("private transcriber detail")
 
-        consumer = SecureAudioConsumer(receiver, fail)
+        consumer = SecureAudioConsumer(receiver, fail, self._listening_gate())
         with self.assertRaises(AudioFrameError):
             consumer.consume_frame(frame)
 
         self.assertTrue(consumer.closed)
+        self.assertEqual(consumer.gate.state, AudioCaptureState.ERROR)
         with self.assertRaises(ClosedSessionError):
             receiver.session.seal(b"\x00\x00")
         with self.assertRaises(AudioFrameError):
@@ -144,7 +199,7 @@ class SecureAudioTests(unittest.TestCase):
         sender = SecureAudioSender(self._session("client"), "stream-truncated")
         frame = sender.seal_chunk(b"\x01\x02" * 4, final=False)
         receiver = SecureAudioReceiver(self._session("server"))
-        consumer = SecureAudioConsumer(receiver, lambda _view, _final: None)
+        consumer = SecureAudioConsumer(receiver, lambda _view, _final: None, self._listening_gate())
 
         self.assertFalse(consumer.consume_frame(frame))
         with self.assertRaises(AudioFrameError):
@@ -159,10 +214,13 @@ class SecureAudioTests(unittest.TestCase):
         first = first_sender.seal_chunk(b"\x01\x02" * 4, final=False)
         receiver = SecureAudioReceiver(self._session("server"))
         received: list[bytes] = []
-        consumer = SecureAudioConsumer(receiver, lambda view, _final: received.append(bytes(view)))
+        gate = self._listening_gate()
+        consumer = SecureAudioConsumer(receiver, lambda view, _final: received.append(bytes(view)), gate)
 
         self.assertFalse(consumer.consume_frame(first))
         consumer.cancel()
+        self.assertEqual(gate.state, AudioCaptureState.CODEC_READY)
+        consumer.begin_capture(display_ready=True, consented=True, secure_transport_ready=True)
 
         second_sender = SecureAudioSender(first_sender.session, "stream-new")
         second = second_sender.seal_chunk(b"\x03\x04" * 4, final=True)
