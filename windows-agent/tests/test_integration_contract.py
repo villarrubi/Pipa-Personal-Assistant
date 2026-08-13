@@ -51,6 +51,7 @@ class IntegrationContractTests(unittest.TestCase):
             "music_search",
             "whatsapp_compose",
             "whatsapp_contact",
+            "whatsapp_phone_open",
             "discord_contact",
             "discord_call",
             "discord_call_channel",

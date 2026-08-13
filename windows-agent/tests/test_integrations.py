@@ -68,6 +68,7 @@ class IntegrationTests(unittest.TestCase):
                 "whatsapp_open",
                 "whatsapp_compose",
                 "whatsapp_contact_open",
+                "whatsapp_phone_open",
                 "discord_open_app",
                 "discord_open",
                 "discord_call_channel",
@@ -123,6 +124,10 @@ class IntegrationTests(unittest.TestCase):
             },
         )
         self.assertEqual(commands["discord_open_app"]["parameters"], [])
+        self.assertEqual(
+            commands["whatsapp_phone_open"]["parameters"],
+            [{"name": "phone", "label": "Teléfono", "kind": "phone", "max_length": 32}],
+        )
         self.assertEqual(
             commands["whatsapp_compose"]["parameters"],
             [
@@ -490,6 +495,7 @@ class IntegrationTests(unittest.TestCase):
             "whatsapp_compose": {"phone": "+34 600 123 456", "message": "Hola"},
             "whatsapp_contact": {"contact": "mama", "message": "Hola"},
             "whatsapp_contact_open": {"contact": "mama"},
+            "whatsapp_phone_open": {"phone": "+34 600 123 456"},
             "whatsapp_open": {},
             "league_search": {"queue": "ranked_solo"},
             "league_cancel": {},
@@ -649,6 +655,10 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(
             parse_text_intent("abre WhatsApp para mama").arguments,
             {"contact": "mama"},
+        )
+        self.assertEqual(
+            parse_text_intent("abre WhatsApp para +34 600 123 456").tool_name,
+            "whatsapp_phone_open",
         )
         self.assertEqual(parse_text_intent("abre Apple Music").tool_name, "music_open")
         self.assertEqual(parse_text_intent("abre Codex").tool_name, "open_codex")

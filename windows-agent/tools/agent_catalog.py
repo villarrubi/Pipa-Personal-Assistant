@@ -34,6 +34,7 @@ from tools.text_policy import validate_bounded_text
 from tools.timers import MAX_TIMER_SECONDS, TimerManager, validate_timer_id
 from tools.urls import validate_external_url
 from tools.whatsapp import (
+    build_whatsapp_chat_url,
     build_whatsapp_compose_url,
     open_whatsapp_chat,
     open_whatsapp_compose,
@@ -144,6 +145,10 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
         required_text={"contact": 80},
         check=lambda arguments: resolve_whatsapp_contact(arguments["contact"]),
     )
+    whatsapp_phone_arguments = _argument_schema(
+        required_text={"phone": 32},
+        check=lambda arguments: build_whatsapp_chat_url(arguments["phone"]),
+    )
     discord_contact_arguments = _argument_schema(
         required_text={"contact": 80},
         check=lambda arguments: resolve_discord_contact(arguments["contact"]),
@@ -206,6 +211,9 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
         contact = _text(arguments, "contact")
         contact_name, phone = resolve_whatsapp_contact(contact)
         return open_whatsapp_chat(phone) | {"contact": contact_name}
+
+    def whatsapp_phone_open(arguments):
+        return open_whatsapp_chat(_text(arguments, "phone"))
 
     def audio_volume(arguments):
         percent = arguments.get("percent")
@@ -395,6 +403,13 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                 safety="unsafe",
                 confirm_summary=lambda args: f"Abrir WhatsApp para contacto {_text(args, 'contact')}",
                 argument_validator=whatsapp_contact_arguments,
+            ),
+            ToolDefinition(
+                "whatsapp_phone_open",
+                whatsapp_phone_open,
+                safety="unsafe",
+                confirm_summary=_unsafe_summary("Abrir un chat de WhatsApp"),
+                argument_validator=whatsapp_phone_arguments,
             ),
             ToolDefinition(
                 "whatsapp_open",

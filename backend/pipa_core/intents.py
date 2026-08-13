@@ -224,6 +224,14 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     if whatsapp_chat_open:
         return ParsedIntent("whatsapp_contact_open", {"contact": whatsapp_chat_open.group(1).strip()})
 
+    whatsapp_phone_open = re.fullmatch(
+        r"(?:abre|abrir) (?:el )?whatsapp (?:para|a) ([+\d][\d\s().-]{6,24})",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if whatsapp_phone_open:
+        return ParsedIntent("whatsapp_phone_open", {"phone": whatsapp_phone_open.group(1).strip()})
+
     whatsapp_contact_open = re.fullmatch(
         r"(?:abre|abrir) (?:el )?whatsapp (?:para|a) (.+)",
         original,

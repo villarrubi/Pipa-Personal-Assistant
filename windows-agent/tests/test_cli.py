@@ -127,6 +127,12 @@ class CliTests(unittest.TestCase):
         arguments = pipa_cli._parser().parse_args(["league-search", "solo"])
         self.assertEqual(pipa_cli._route(arguments), ("POST", "/league/search", {"queue": "solo"}))
 
+        arguments = pipa_cli._parser().parse_args(["whatsapp-phone-open", "+34600123456"])
+        self.assertEqual(
+            pipa_cli._route(arguments),
+            ("POST", "/whatsapp/phone/open", {"phone": "+34600123456"}),
+        )
+
         arguments = pipa_cli._parser().parse_args(["league-search-status"])
         self.assertEqual(pipa_cli._route(arguments), ("GET", "/league/search/status", None))
 
@@ -260,6 +266,8 @@ class CliTests(unittest.TestCase):
         self.assertFalse(whatsapp_contact.confirm)
         whatsapp_contact_open = pipa_cli._parser().parse_args(["whatsapp-contact-open", "mama"])
         self.assertFalse(whatsapp_contact_open.confirm)
+        whatsapp_phone_open = pipa_cli._parser().parse_args(["whatsapp-phone-open", "+34600123456"])
+        self.assertFalse(whatsapp_phone_open.confirm)
         discord_contact = pipa_cli._parser().parse_args(["discord-contact", "mama", "--confirm"])
         self.assertTrue(discord_contact.confirm)
         discord_call = pipa_cli._parser().parse_args(["discord-call", "mama", "--confirm"])

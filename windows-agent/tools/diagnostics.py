@@ -103,6 +103,11 @@ _COMMAND_ROUTE_CASES = (
     ),
     ("abre WhatsApp para mama", "whatsapp_contact_open", {"contact": "mama"}),
     ("abre el chat de mama en WhatsApp", "whatsapp_contact_open", {"contact": "mama"}),
+    (
+        "abre WhatsApp para +34 600 123 456",
+        "whatsapp_phone_open",
+        {"phone": "+34 600 123 456"},
+    ),
     ("abre Discord", "discord_open_app", {}),
     ("abre Discord canal 12345678901234567", "discord_open", {"channel_id": "12345678901234567"}),
     (

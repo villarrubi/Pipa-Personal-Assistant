@@ -223,6 +223,15 @@ class MainRouteTests(unittest.TestCase):
         resolve_contact.assert_called_once_with("mama")
         open_browser.assert_called_once_with("https://wa.me/34600123456")
 
+    @patch("main.webbrowser.open", return_value=True)
+    def test_whatsapp_phone_open_never_prepares_or_sends_a_message(self, open_browser):
+        response = main.api_whatsapp_phone_open(main.WhatsAppPhoneRequest(phone="+34 600 123 456"))
+
+        self.assertTrue(response["success"])
+        self.assertFalse(response["sent"])
+        self.assertNotIn("url", response)
+        open_browser.assert_called_once_with("https://wa.me/34600123456")
+
     def test_new_routes_are_registered(self):
         paths = {route.path for route in main.app.routes}
         self.assertTrue(
@@ -233,6 +242,7 @@ class MainRouteTests(unittest.TestCase):
                 "/whatsapp/open",
                 "/whatsapp/contact/compose",
                 "/whatsapp/contact/open",
+                "/whatsapp/phone/open",
                 "/discord/open",
                 "/discord/contact/open",
                 "/discord/contact/call",
@@ -298,6 +308,7 @@ class MainRouteTests(unittest.TestCase):
                 "/whatsapp/compose",
                 "/whatsapp/contact/compose",
                 "/whatsapp/contact/open",
+                "/whatsapp/phone/open",
                 "/discord/open",
                 "/discord/channel/open",
                 "/discord/channel/call",

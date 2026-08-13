@@ -203,6 +203,15 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "parameters": [_parameter("contact", "Contacto", "contact", 80)],
     },
     {
+        "id": "whatsapp_phone_open",
+        "tool_name": "whatsapp_phone_open",
+        "phrase": "abre WhatsApp para <teléfono>",
+        "description": "Abre un chat por teléfono sin preparar ni enviar mensajes.",
+        "safety": "unsafe",
+        "requires_confirmation": True,
+        "parameters": [_parameter("phone", "Teléfono", "phone", 32)],
+    },
+    {
         "id": "discord_open_app",
         "tool_name": "discord_open_app",
         "phrase": "abre Discord",

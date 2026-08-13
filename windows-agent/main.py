@@ -296,6 +296,10 @@ class WhatsAppRequest(StrictRequest):
     message: str = Field(min_length=1, max_length=4096)
 
 
+class WhatsAppPhoneRequest(StrictRequest):
+    phone: str = Field(min_length=7, max_length=32)
+
+
 class DiscordChannelRequest(StrictRequest):
     channel_id: str = Field(min_length=17, max_length=20)
     guild_id: str | None = Field(default=None, min_length=17, max_length=20)
@@ -599,6 +603,14 @@ def api_whatsapp_contact_open(request: ContactRequest):
         return open_whatsapp_chat(phone) | {"contact": contact_name}
     except ValueError as error:
         raise HTTPException(status_code=400, detail="El contacto de WhatsApp no está disponible.") from error
+
+
+@app.post("/whatsapp/phone/open")
+def api_whatsapp_phone_open(request: WhatsAppPhoneRequest):
+    try:
+        return open_whatsapp_chat(request.phone)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail="El teléfono de WhatsApp no es válido.") from error
 
 
 @app.post("/discord/open")

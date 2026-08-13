@@ -150,6 +150,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     whatsapp_contact_open.add_argument("contact")
     add_confirmation_flag(whatsapp_contact_open)
+    whatsapp_phone_open = commands.add_parser(
+        "whatsapp-phone-open", help="Abre un chat de WhatsApp por teléfono sin enviar nada."
+    )
+    whatsapp_phone_open.add_argument("phone")
+    add_confirmation_flag(whatsapp_phone_open)
     discord_open = commands.add_parser("discord-open", help="Abre Discord sin iniciar llamadas.")
     add_confirmation_flag(discord_open)
     discord = commands.add_parser("discord-channel", help="Abre un canal o DM de Discord.")
@@ -272,6 +277,8 @@ def _route(arguments: argparse.Namespace) -> tuple[str, str, dict[str, object] |
         )
     if command == "whatsapp-contact-open":
         return "POST", "/whatsapp/contact/open", {"contact": arguments.contact}
+    if command == "whatsapp-phone-open":
+        return "POST", "/whatsapp/phone/open", {"phone": arguments.phone}
     if command == "discord-open":
         return "POST", "/discord/open", {}
     if command == "discord-channel":

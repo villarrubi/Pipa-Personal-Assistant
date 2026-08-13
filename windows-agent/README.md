@@ -68,6 +68,7 @@ python .\windows-agent\pipa_cli.py preview "busca una partida clasificatoria sol
 python .\windows-agent\pipa_cli.py music-search "Daft Punk" --confirm
 python .\windows-agent\pipa_cli.py whatsapp-contact mama "Ya estoy en casa" --confirm
 python .\windows-agent\pipa_cli.py whatsapp-contact-open mama --confirm
+python .\windows-agent\pipa_cli.py whatsapp-phone-open +34600123456 --confirm
 python .\windows-agent\pipa_cli.py discord-contact amigo --confirm
 python .\windows-agent\pipa_cli.py discord-call-channel 12345678901234567 --confirm
 python .\windows-agent\pipa_cli.py league-status
@@ -172,7 +173,7 @@ valida por ser simplemente “oculta”.
 | GET/POST/DELETE | `/league/status`, `/league/search`, `/league/search/status` | Estado y matchmaking allowlisted |
 | GET/POST | `/audio/*`, `/media/action` | Volumen y teclas multimedia |
 | GET/POST/DELETE | `/timers` | Temporizadores en memoria |
-| POST | `/whatsapp/open`, `/whatsapp/compose`, `/whatsapp/contact/compose`, `/whatsapp/contact/open` | Abrir WhatsApp o preparar/abrir chat, sin enviar |
+| POST | `/whatsapp/open`, `/whatsapp/compose`, `/whatsapp/contact/compose`, `/whatsapp/contact/open`, `/whatsapp/phone/open` | Abrir WhatsApp o preparar/abrir chat, sin enviar |
 | POST | `/discord/open`, `/discord/channel/open`, `/discord/channel/call`, `/discord/contact/open` | Abrir Discord o preparar un canal, sin iniciar llamada |
 | POST | `/discord/contact/call` | Abrir el destino de una llamada; el usuario pulsa Llamar |
 | GET | `/pipa/protocol` | Estado del Core y gateway USB |
@@ -427,6 +428,10 @@ una operación automática de envío o llamada. Un alias desconocido se rechaza
 antes de pedir confirmación y se vuelve a comprobar al aceptar, por si el
 fichero local cambió mientras la confirmación estaba visible. El fichero se
 limita a 128 KiB, 64 contactos y aliases acotados.
+
+Para abrir un chat por un número sin guardarlo como alias usa
+`whatsapp-phone-open +34600123456 --confirm` o la frase `abre WhatsApp para
++34 600 123 456`. Solo abre el chat y no prepara ni envía ningún mensaje.
 
 ## Waveshare por USB
 
