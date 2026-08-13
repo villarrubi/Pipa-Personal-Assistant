@@ -107,6 +107,9 @@ de recuperación y acceso.
 - El preflight comprueba en runtime que el puerto del agente solo escucha en
   loopback; un binding en `0.0.0.0` o una interfaz externa hace fallar la
   verificación.
+- El cargador Waveshare exige `-AllowDevelopmentFirmware` porque las imágenes
+  actuales aún no tienen Secure Boot ni cifrado de Flash; no se puede aceptar
+  una imagen de desarrollo por omisión como si fuera una release.
 - Temporizadores activos y registros completados acotados para evitar
   acumulación indefinida.
 - Memoria temporal limitada por hecho, dispositivo y número total de

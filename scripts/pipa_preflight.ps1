@@ -109,6 +109,7 @@ Invoke-RepoScriptCheck -Name 'Git history audit' -RelativePath 'scripts/check_gi
 Invoke-RepoScriptCheck -Name 'iOS package structure' -RelativePath 'scripts/check_mobile_ios_package.ps1'
 Invoke-RepoScriptCheck -Name 'Waveshare V1/V2 pin map' -RelativePath 'scripts/check_waveshare_pinmap.ps1'
 Invoke-RepoScriptCheck -Name 'Firmware configuration safety' -RelativePath 'scripts/check_firmware_config.ps1'
+Invoke-RepoScriptCheck -Name 'Firmware flashing safety' -RelativePath 'scripts/check_firmware_flash_safety.ps1'
 Invoke-RepoScriptCheck -Name 'Trusted Unlock safety' -RelativePath 'scripts/check_trusted_unlock_safety.ps1'
 Invoke-RepoScriptCheck -Name 'Secure audio contract isolation' -RelativePath 'scripts/check_secure_audio_contract.ps1'
 Invoke-RepoScriptCheck -Name 'Audio state machine isolation' -RelativePath 'scripts/check_audio_state_machine.ps1'

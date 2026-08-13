@@ -79,8 +79,10 @@ Para una placa V2 confirmada:
 
 ```powershell
 .\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c
-.\scripts\flash_waveshare.ps1 -Port COM7 -Environment waveshare-185c -WhatIf
-.\scripts\flash_waveshare.ps1 -Port COM7 -Environment waveshare-185c
+.\scripts\flash_waveshare.ps1 -Port COM7 -Environment waveshare-185c `
+  -AllowDevelopmentFirmware -WhatIf
+.\scripts\flash_waveshare.ps1 -Port COM7 -Environment waveshare-185c `
+  -AllowDevelopmentFirmware
 ```
 
 El segundo comando vuelve a sondar la placa, recompila y solicita confirmacion

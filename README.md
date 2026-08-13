@@ -335,9 +335,11 @@ emparejamiento debe hacerse después comparando el fingerprint de la clave por
 un canal físico.
 
 Cuando la placa ya haya sido validada, usa `scripts/flash_waveshare.ps1` para
-compilar y cargar únicamente el entorno de producción correspondiente a la
-revisión V1/V2. El script bloquea las variantes experimentales y pide
-confirmación antes de escribir en el dispositivo.
+compilar y cargar únicamente el entorno de desarrollo correspondiente a la
+revisión V1/V2. El script bloquea las variantes experimentales y exige
+`-AllowDevelopmentFirmware`, además de pedir confirmación antes de escribir en
+el dispositivo. La imagen actual no tiene todavía Secure Boot ni cifrado de
+Flash, por lo que no se puede tratar como firmware de producción.
 
 Solo quedará trabajo dependiente del dispositivo:
 

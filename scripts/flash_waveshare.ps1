@@ -11,7 +11,9 @@ param(
     [double]$ProbeDuration = 8,
 
     [ValidateSet(1, 2)]
-    [int]$ExpectedBoardRevision = 2
+    [int]$ExpectedBoardRevision = 2,
+
+    [switch]$AllowDevelopmentFirmware
 )
 
 Set-StrictMode -Version Latest
@@ -21,6 +23,10 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $firmwarePath = Join-Path $repoRoot 'firmware'
 $checkPath = Join-Path $repoRoot 'windows-agent/pipa_hardware_check.py'
 $pioPath = Join-Path $firmwarePath '.venv/Scripts/pio.exe'
+
+if (-not $AllowDevelopmentFirmware) {
+    throw 'Las imagenes Waveshare disponibles son de desarrollo: no incluyen Secure Boot ni cifrado de Flash. Repite con -AllowDevelopmentFirmware solo para la validacion inicial del hardware.'
+}
 
 if ($Environment -eq 'waveshare-185c' -and $ExpectedBoardRevision -ne 2) {
     throw 'El entorno waveshare-185c requiere ExpectedBoardRevision 2.'
@@ -65,6 +71,7 @@ if ($null -eq $probeReport -or $probeReport.success -ne $true) {
 }
 
 Write-Host "Hardware validado; se usara el entorno $Environment." -ForegroundColor Green
+Write-Host 'Aviso: se ha aceptado explicitamente firmware de desarrollo; no es una imagen de produccion segura.' -ForegroundColor Yellow
 Write-Host 'Las variantes secure-session-vector, secure-session-v2 y audio-i2s-lab no se pueden flashear con este script.'
 
 $previousPlatformioCore = [Environment]::GetEnvironmentVariable('PLATFORMIO_CORE_DIR', 'Process')

@@ -43,6 +43,9 @@ jobs:
       - name: Check firmware configuration safety
         shell: pwsh
         run: ./scripts/check_firmware_config.ps1
+      - name: Check firmware flashing safety
+        shell: pwsh
+        run: ./scripts/check_firmware_flash_safety.ps1
       - name: Check audio I2S lab safety
         shell: pwsh
         run: ./scripts/check_audio_i2s_lab.ps1
