@@ -20,6 +20,7 @@ import re
 import sys
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 EXPECTED_MARKERS = {
     "io_expander": "IO expander ready",
@@ -29,6 +30,7 @@ EXPECTED_MARKERS = {
 }
 _BOARD_REVISION_PATTERN = re.compile(r"^board revision:\s*(?P<revision>[12])$")
 _MAX_DIAGNOSTIC_BYTES = 4_096
+_MAX_FIXTURE_BYTES = 64 * 1024
 _AUDIO_PROBE_READY = "audio codec probe ready"
 _AUDIO_PROBE_UNAVAILABLE = "audio codecs not detected"
 _AUDIO_OUTPUT_PRESENT = "audio output ES8311: present"
@@ -187,11 +189,16 @@ def _port(value: str) -> str:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Comprobación serie segura de Pipa.")
-    parser.add_argument(
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument(
         "--port",
         type=_port,
         default=None,
         help="Puerto explícito; si se omite usa PIPA_SERIAL_PORT.",
+    )
+    source.add_argument(
+        "--fixture",
+        help="Fixture local de diagnóstico; no abre ningún puerto ni valida hardware real.",
     )
     parser.add_argument(
         "--duration",
@@ -240,6 +247,24 @@ def _collect(port: str, duration: float) -> HardwareDiagnostics:
     return diagnostics
 
 
+def _collect_fixture(path: str) -> HardwareDiagnostics:
+    """Parse a bounded local transcript without opening a serial port."""
+
+    if not isinstance(path, str) or not path.strip():
+        raise RuntimeError("el fixture de hardware no es válido")
+    try:
+        raw = Path(path).read_bytes()
+    except (OSError, ValueError) as error:
+        raise RuntimeError("no se pudo leer el fixture de hardware") from error
+    if len(raw) > _MAX_FIXTURE_BYTES:
+        raise RuntimeError("el fixture de hardware es demasiado grande")
+
+    diagnostics = HardwareDiagnostics()
+    for line in raw.splitlines(keepends=True):
+        diagnostics.observe(line)
+    return diagnostics
+
+
 def _human_report(port: str, report: dict[str, object]) -> str:
     ready = report["ready"]
     assert isinstance(ready, dict)
@@ -281,23 +306,29 @@ def _human_report(port: str, report: dict[str, object]) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     arguments = _parser().parse_args(argv)
-    port = arguments.port
-    if not port:
-        configured_port = os.environ.get("PIPA_SERIAL_PORT", "").strip()
-        if configured_port:
-            try:
-                port = _port(configured_port)
-            except argparse.ArgumentTypeError as error:
-                print(f"Error: {error}", file=sys.stderr)
-                return 2
-    if not port:
-        print("Error: indica --port COM7 o configura PIPA_SERIAL_PORT.", file=sys.stderr)
-        return 2
     if not 0.5 <= arguments.duration <= 120:
         print("Error: --duration debe estar entre 0.5 y 120 segundos.", file=sys.stderr)
         return 2
+    source_label = "fixture local"
     try:
-        report = _collect(port, arguments.duration).result(
+        if arguments.fixture:
+            diagnostics = _collect_fixture(arguments.fixture)
+        else:
+            port = arguments.port
+            if not port:
+                configured_port = os.environ.get("PIPA_SERIAL_PORT", "").strip()
+                if configured_port:
+                    try:
+                        port = _port(configured_port)
+                    except argparse.ArgumentTypeError as error:
+                        print(f"Error: {error}", file=sys.stderr)
+                        return 2
+            if not port:
+                print("Error: indica --port COM7 o configura PIPA_SERIAL_PORT.", file=sys.stderr)
+                return 2
+            source_label = port
+            diagnostics = _collect(port, arguments.duration)
+        report = diagnostics.result(
             arguments.expected_board_revision,
             include_fingerprint=arguments.fingerprint,
         )
@@ -310,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
     if arguments.json:
         print(json.dumps(report, ensure_ascii=False, sort_keys=True))
     else:
-        print(_human_report(port, report))
+        print(_human_report(source_label, report))
     return 0 if report["success"] else 1
 
 

@@ -1,0 +1,8 @@
+# Pipa firmware fixture: synthetic host-only transcript
+# board revision: 2
+# PIPA_PUBLIC_KEY=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8
+# IO expander ready
+# display ready
+# battery ADC ready
+# touch controller ready
+# audio codecs not detected

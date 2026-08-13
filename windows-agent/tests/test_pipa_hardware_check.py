@@ -1,5 +1,7 @@
 import argparse
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -7,7 +9,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "windows-agent"))
 
-from pipa_hardware_check import HardwareDiagnostics, _port  # noqa: E402
+from pipa_hardware_check import HardwareDiagnostics, _collect_fixture, _port, main  # noqa: E402
 
 
 class HardwareDiagnosticsTests(unittest.TestCase):
@@ -116,6 +118,51 @@ class HardwareDiagnosticsTests(unittest.TestCase):
             self.assertEqual(_port(" com7 "), "COM7")
             with self.assertRaises(argparse.ArgumentTypeError):
                 _port("COM1000")
+
+    def test_fixture_uses_the_same_parser_without_opening_serial(self):
+        fixture = "\n".join(
+            (
+                "# board revision: 2",
+                "# PIPA_PUBLIC_KEY=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                "# IO expander ready",
+                "# display ready",
+                "# battery ADC ready",
+                "# touch controller ready",
+                "# audio codecs not detected",
+            )
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "waveshare-v2.txt"
+            path.write_text(fixture, encoding="utf-8")
+            with patch("pipa_hardware_check._collect", side_effect=AssertionError("serial opened")):
+                diagnostics = _collect_fixture(str(path))
+            report = diagnostics.result(2)
+
+        self.assertTrue(report["success"])
+        self.assertFalse(report["audio"]["probe_ready"])
+
+    def test_fixture_cli_returns_redacted_json(self):
+        fixture = "\n".join(
+            (
+                "# board revision: 2",
+                "# PIPA_PUBLIC_KEY=AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+                "# IO expander ready",
+                "# display ready",
+                "# battery ADC ready",
+                "# touch controller ready",
+            )
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "waveshare-v2.txt"
+            path.write_text(fixture, encoding="utf-8")
+            with patch("sys.stdout") as stdout:
+                self.assertEqual(main(["--fixture", str(path), "--json", "--fingerprint"]), 0)
+                output = "".join(call.args[0] for call in stdout.write.call_args_list)
+
+        report = json.loads(output)
+        self.assertTrue(report["success"])
+        self.assertIn("public_key_fingerprint", report)
+        self.assertNotIn("AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8", output)
 
 
 if __name__ == "__main__":

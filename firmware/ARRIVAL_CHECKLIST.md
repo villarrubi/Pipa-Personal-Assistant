@@ -32,6 +32,15 @@ la prueba fisica:
 python .\windows-agent\pipa_hardware_check.py --port COM7
 ```
 
+Antes de que llegue la placa, se puede probar el mismo parser con la
+transcripcion sintetica incluida en el repositorio. Este modo no abre ningun
+puerto, no valida hardware real y no cambia ninguna configuracion:
+
+```powershell
+python .\windows-agent\pipa_hardware_check.py `
+  --fixture .\windows-agent\tests\fixtures\waveshare-v2-boot.txt --json
+```
+
 Para obtener solo una huella comparable, sin imprimir la clave pública:
 
 ```powershell
