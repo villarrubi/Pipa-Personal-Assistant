@@ -3,12 +3,15 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+#include "pipa_audio_state.h"
+
 namespace pipa {
 
 struct AudioProbeStatus {
   bool output_codec_present = false;
   bool input_codec_present = false;
   bool amplifier_disabled = true;
+  PipaAudioState state = PipaAudioState::kDisabled;
 };
 
 /**
@@ -22,11 +25,14 @@ class PipaAudio {
  public:
   bool begin(TwoWire& wire);
   const AudioProbeStatus& status() const { return status_; }
+  PipaAudioStateMachine& stateMachine() { return state_machine_; }
+  const PipaAudioStateMachine& stateMachine() const { return state_machine_; }
 
  private:
   static bool probeAddress(TwoWire& wire, uint8_t address);
 
   AudioProbeStatus status_;
+  PipaAudioStateMachine state_machine_;
 };
 
 }  // namespace pipa

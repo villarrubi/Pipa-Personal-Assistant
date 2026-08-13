@@ -5,6 +5,13 @@ placa física. No habilita todavía micrófono, altavoz, I²S ni reconocimiento 
 voz. El firmware actual permanece en modo audio_probe: solo comprueba
 presencia I²C y mantiene el amplificador apagado.
 
+La compuerta de software de esas transiciones está en
+`firmware/src/pipa_audio_state.h/.cpp`. Es independiente de Arduino y se
+prueba en el vector seguro: ningún futuro driver puede pasar de `PROBE_ONLY` a
+`CODEC_READY` sin declarar una inicialización física correcta, ni entrar en
+`LISTENING` sin pantalla, consentimiento y transporte seguro. La compuerta no
+captura audio por sí misma.
+
 ## Hardware objetivo
 
 El objetivo es la revisión V2 del ESP32-S3-Touch-LCD-1.85C-BOX (SKU 30684).

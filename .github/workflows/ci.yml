@@ -49,6 +49,9 @@ jobs:
       - name: Check secure audio contract isolation
         shell: pwsh
         run: ./scripts/check_secure_audio_contract.ps1
+      - name: Check audio state machine isolation
+        shell: pwsh
+        run: ./scripts/check_audio_state_machine.ps1
       - name: Check Trusted Unlock safety
         shell: pwsh
         run: ./scripts/check_trusted_unlock_safety.ps1

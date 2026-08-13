@@ -10,6 +10,7 @@
 #include "pipa_device_config.h"
 #endif
 #include "board_pins.h"
+#include "pipa_audio_state.h"
 #include "pipa_protocol.h"
 #include "pipa_secure_audio.h"
 #include "pipa_secure_session.h"
@@ -131,7 +132,9 @@ void setup() {
   log(String("board revision: ") + PIPA_BOARD_REVISION);
 
 #if defined(PIPA_SECURE_SESSION_VECTOR_TEST)
-  log((pipa::PipaSecureSession::vectorSelfTest() && pipa::PipaSecureAudio::vectorSelfTest())
+  log((pipa::PipaSecureSession::vectorSelfTest() &&
+       pipa::PipaSecureAudio::vectorSelfTest() &&
+       pipa::PipaAudioStateMachine::vectorSelfTest())
           ? "secure session vector: PASS"
           : "secure session vector: FAIL");
 #endif

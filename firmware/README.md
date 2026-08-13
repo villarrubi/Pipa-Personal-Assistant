@@ -27,6 +27,11 @@ CDC. La referencia física está en la
 - Diagnóstico I²C no destructivo de ES8311 (salida) y ES7210 (entrada), con el
   amplificador apagado por defecto; la captura/reproducción real aún queda
   pendiente.
+- Máquina de estados de audio independiente (`DISABLED` → `PROBE_ONLY` →
+  `CODEC_READY` → `LISTENING` → `DRAINING`) con cierre `ERROR`; exige codec
+  inicializado, indicador visible, consentimiento y transporte seguro antes de
+  permitir una futura escucha. Su vector se ejecuta solo en
+  `secure-session-vector` y no captura muestras.
 - Entorno opt-in `audio-i2s-lab` que compila la configuración I²S V2 de
   Waveshare sin conectarla al `main`, sin codec, sin muestras y con el
   amplificador forzado a apagado; sirve para detectar cambios del SDK antes de
