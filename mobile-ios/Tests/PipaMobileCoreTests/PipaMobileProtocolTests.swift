@@ -46,6 +46,16 @@ final class PipaMobileProtocolTests: XCTestCase {
         XCTAssertEqual(String(data: data, encoding: .utf8), "{\"a\":1,\"z\":\"último\"}")
     }
 
+    func testStrictJSONRejectsDuplicateKeysIncludingEscapedDuplicates() {
+        XCTAssertFalse(PipaMobileCodec.isStrictJSONObject(Data(#"{"a":1,"a":2}"#.utf8)))
+        XCTAssertFalse(PipaMobileCodec.isStrictJSONObject(Data(#"{"a":1,"\u0061":2}"#.utf8)))
+        XCTAssertTrue(
+            PipaMobileCodec.isStrictJSONObject(
+                Data(#"{"nested":{"ok":true},"items":[null,"texto"]}"#.utf8)
+            )
+        )
+    }
+
     func testMobileTextPolicyRejectsProtocolAndBidirectionalControls() {
         XCTAssertTrue(PipaMobileTextPolicy.containsProtocolControl("línea\nrota"))
         XCTAssertTrue(PipaMobileTextPolicy.containsDisplayControl("nombre\u{202E}oculto"))

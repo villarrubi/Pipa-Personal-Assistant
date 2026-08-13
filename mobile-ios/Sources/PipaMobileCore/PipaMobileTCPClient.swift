@@ -420,6 +420,9 @@ public actor PipaMobileTCPClient {
                 guard !line.isEmpty, line.count <= PipaSecureRecordLayer.maxFrameBytes else {
                     throw PipaMobileError.invalidMessage
                 }
+                guard PipaMobileCodec.isStrictJSONObject(line) else {
+                    throw PipaMobileError.invalidMessage
+                }
                 guard let object = try JSONSerialization.jsonObject(with: line) as? [String: Any] else {
                     throw PipaMobileError.invalidMessage
                 }

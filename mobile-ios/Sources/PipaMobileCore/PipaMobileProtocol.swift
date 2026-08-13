@@ -379,6 +379,9 @@ public final class PipaSecureRecordLayer {
     public func open(frame: [String: Any]) throws -> [String: Any] {
         let plaintext = try openRaw(frame: frame, additionalData: Data("pipa/json/v2".utf8))
         do {
+            guard PipaMobileCodec.isStrictJSONObject(plaintext) else {
+                throw PipaMobileError.invalidRecord
+            }
             guard let object = try JSONSerialization.jsonObject(with: plaintext) as? [String: Any] else {
                 throw PipaMobileError.invalidRecord
             }
@@ -463,6 +466,118 @@ public final class PipaSecureRecordLayer {
     }
 }
 
+private struct PipaStrictJSONParser {
+    private let bytes: [UInt8]
+    private var index = 0
+
+    init(_ data: Data) {
+        bytes = Array(data)
+    }
+
+    mutating func parseRootObject() -> Bool {
+        guard parseObject() else { return false }
+        skipWhitespace()
+        return index == bytes.count
+    }
+
+    private mutating func parseObject() -> Bool {
+        guard consume(0x7B) else { return false } // {
+        skipWhitespace()
+        if consume(0x7D) { return true } // }
+
+        var keys = Set<String>()
+        while true {
+            skipWhitespace()
+            guard let key = parseString(), keys.insert(key).inserted else { return false }
+            skipWhitespace()
+            guard consume(0x3A), parseValue() else { return false } // :
+            skipWhitespace()
+            if consume(0x7D) { return true } // }
+            guard consume(0x2C) else { return false } // ,
+        }
+    }
+
+    private mutating func parseArray() -> Bool {
+        guard consume(0x5B) else { return false } // [
+        skipWhitespace()
+        if consume(0x5D) { return true } // ]
+
+        while true {
+            guard parseValue() else { return false }
+            skipWhitespace()
+            if consume(0x5D) { return true } // ]
+            guard consume(0x2C) else { return false } // ,
+        }
+    }
+
+    private mutating func parseValue() -> Bool {
+        skipWhitespace()
+        guard index < bytes.count else { return false }
+        switch bytes[index] {
+        case 0x22: return parseString() != nil // "
+        case 0x7B: return parseObject() // {
+        case 0x5B: return parseArray() // [
+        case 0x74: return parseLiteral([0x74, 0x72, 0x75, 0x65]) // true
+        case 0x66: return parseLiteral([0x66, 0x61, 0x6C, 0x73, 0x65]) // false
+        case 0x6E: return parseLiteral([0x6E, 0x75, 0x6C, 0x6C]) // null
+        default: return parseNumber()
+        }
+    }
+
+    private mutating func parseString() -> String? {
+        guard consume(0x22) else { return nil } // "
+        let start = index - 1
+        var escaped = false
+        while index < bytes.count {
+            let byte = bytes[index]
+            if byte == 0x22 && !escaped {
+                index += 1
+                let token = Data(bytes[start..<index])
+                return try? JSONSerialization.jsonObject(with: token) as? String
+            }
+            if byte == 0x5C && !escaped {
+                escaped = true
+            } else {
+                escaped = false
+            }
+            index += 1
+        }
+        return nil
+    }
+
+    private mutating func parseLiteral(_ literal: [UInt8]) -> Bool {
+        guard index + literal.count <= bytes.count,
+              bytes[index..<(index + literal.count)].elementsEqual(literal) else {
+            return false
+        }
+        index += literal.count
+        return true
+    }
+
+    private mutating func parseNumber() -> Bool {
+        let start = index
+        while index < bytes.count,
+              bytes[index] == 0x2D || bytes[index] == 0x2B || bytes[index] == 0x2E ||
+              bytes[index] == 0x45 || bytes[index] == 0x65 ||
+              (bytes[index] >= 0x30 && bytes[index] <= 0x39) {
+            index += 1
+        }
+        return index > start
+    }
+
+    private mutating func consume(_ byte: UInt8) -> Bool {
+        guard index < bytes.count, bytes[index] == byte else { return false }
+        index += 1
+        return true
+    }
+
+    private mutating func skipWhitespace() {
+        while index < bytes.count && [0x20, 0x09, 0x0A, 0x0D].contains(bytes[index]) {
+            index += 1
+        }
+    }
+}
+
 enum PipaMobileCodec {
     static func randomData(count: Int) -> Data {
         var generator = SystemRandomNumberGenerator()
@@ -483,6 +598,11 @@ enum PipaMobileCodec {
         } catch {
             throw PipaMobileError.invalidMessage
         }
+    }
+
+    static func isStrictJSONObject(_ data: Data) -> Bool {
+        var parser = PipaStrictJSONParser(data)
+        return parser.parseRootObject()
     }
 
     static func encodeBase64URL(_ data: Data) -> String {
