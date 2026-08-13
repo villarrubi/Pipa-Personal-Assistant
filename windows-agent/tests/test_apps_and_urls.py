@@ -251,6 +251,8 @@ class AppsAndUrlsTests(unittest.TestCase):
             build_whatsapp_compose_url("000000000000000", "Hola")
         with self.assertRaises(ValueError):
             build_whatsapp_compose_url("01234567", "Hola")
+        with self.assertRaises(ValueError):
+            build_whatsapp_compose_url("+34\u00a0600123456", "Hola")
 
     def test_whatsapp_message_rejects_invisible_controls_but_allows_line_feed(self):
         with self.assertRaises(ValueError):

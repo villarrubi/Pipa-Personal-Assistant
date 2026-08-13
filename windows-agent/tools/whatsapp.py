@@ -18,12 +18,16 @@ from tools.urls import validate_external_url
 MAX_MESSAGE_LENGTH = 4096
 WHATSAPP_WEB_URL = "https://web.whatsapp.com/"
 _PHONE_ALLOWED = re.compile(r"^[1-9][0-9]{6,14}$")
+_PHONE_FORMATTING = re.compile(r"[ ().-]")
 
 
 def normalize_phone(phone: str) -> str:
     if not isinstance(phone, str):
         raise ValueError("El teléfono debe ser texto.")
-    normalized = re.sub(r"[\s().-]", "", phone.strip())
+    # Keep this formatting set identical to PipaMobileDestinationPolicy:
+    # invisible Unicode spacing must not change the destination differently
+    # on Windows and iPhone.
+    normalized = _PHONE_FORMATTING.sub("", phone.strip())
     if normalized.startswith("+"):
         normalized = normalized[1:]
     if _PHONE_ALLOWED.fullmatch(normalized) is None:
