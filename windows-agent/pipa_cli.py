@@ -22,6 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from tools.capabilities import get_capabilities  # noqa: E402
 from tools.diagnostics import get_self_test  # noqa: E402
+from tools.integration_diagnostics import run_integration_self_test  # noqa: E402
 from tools.mobile_config import inspect_mobile_transport  # noqa: E402
 from tools.secure_diagnostics import (  # noqa: E402
     run_mobile_protocol_self_test,
@@ -112,6 +113,10 @@ def _parser() -> argparse.ArgumentParser:
         help="Muestra la matriz del código actual sin depender del agente residente.",
     )
     commands.add_parser("integration-status", help="Muestra solo el estado de las integraciones.")
+    commands.add_parser(
+        "integration-test",
+        help="Valida URLs, colas y límites de integraciones sin ejecutar acciones.",
+    )
     commands.add_parser("commands", help="Muestra frases y acciones disponibles, sin ejecutar nada.")
     commands.add_parser("protocol", help="Muestra herramientas y estado del gateway.")
     commands.add_parser("system-status", help="Consulta el estado resumido del PC.")
@@ -503,6 +508,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "success": True,
                 "hardware_required": False,
                 "checks": {"secure_audio": run_secure_audio_self_test()},
+            }
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0
+        if arguments.command == "integration-test":
+            result = {
+                "success": True,
+                "hardware_required": False,
+                "checks": {"integrations": run_integration_self_test()},
             }
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0

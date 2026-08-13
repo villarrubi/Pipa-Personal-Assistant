@@ -23,6 +23,7 @@ from tools.commands import (
 from tools.contacts import ContactsConfigError, load_contacts
 from tools.discord import build_discord_app_url, build_discord_channel_url
 from tools.integration_catalog import get_command_catalog
+from tools.integration_diagnostics import run_integration_self_test
 from tools.league import QUEUE_IDS, LeagueClientError, find_client_connection, resolve_queue_id
 from tools.secure_diagnostics import (
     run_device_protocol_self_test,
@@ -359,6 +360,7 @@ def get_self_test(
         "apps_config": _check("apps_config", _check_apps),
         "contacts_config": _check("contacts_config", _check_contacts),
         "url_builders": _check("url_builders", _check_url_builders),
+        "integration_adapters": _check("integration_adapters", run_integration_self_test),
         "league_queues": _check("league_queues", _check_league_queues),
         "league_client": _check("league_client", _check_league_client),
         "integration_policy": _check("integration_policy", _check_integration_policy),

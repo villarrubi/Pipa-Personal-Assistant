@@ -116,6 +116,10 @@ que las solicitó y caducan si no se confirman.
   comprobar el contrato de audio cifrado con PCM sintético, consentimiento,
   orden y límites, sin activar micrófono, red, puerto serie ni claves
   persistentes.
+- Ejecutar `python .\windows-agent\pipa_cli.py integration-test` para validar
+  los constructores de búsqueda/WhatsApp/Discord, las colas de League y los
+  límites de selección, envío, llamada y aceptación; no abre aplicaciones ni
+  contacta con servicios externos.
 - Ejecutar `python .\windows-agent\pipa_cli.py mobile-test` para validar en
   memoria el flujo futuro de iPhone: handshake, capacidades de pantalla/touch,
   confirmación y resultado sin datos privados.

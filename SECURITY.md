@@ -177,6 +177,11 @@ de recuperación y acceso.
   el framing PCM cifrado con muestras sintéticas, exige la compuerta de codec,
   pantalla, consentimiento y transporte seguro, y solo expone contadores
   booleanos/acotados; no abre micrófono, red, serie ni guarda muestras.
+- El diagnóstico `integration-test`, incluido también en `self-test`, comprueba
+  los destinos HTTPS allowlisted, las colas de League y que Apple Music,
+  WhatsApp, Discord, League y Codex mantengan sus pasos manuales; usa valores
+  sintéticos y no abre aplicaciones, envía mensajes, llama ni contacta con
+  League.
 - El núcleo iOS `mobile-ios/PipaMobileCore` no expone la clave privada de la
   identidad como API pública; la identidad se genera/carga mediante Keychain
   con `ThisDeviceOnly`, y el cliente fija la clave pública y el `server_id` del

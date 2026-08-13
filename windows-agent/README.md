@@ -57,6 +57,7 @@ python .\windows-agent\pipa_cli.py local-self-test
 python .\windows-agent\pipa_cli.py local-capabilities
 python .\windows-agent\pipa_cli.py secure-test
 python .\windows-agent\pipa_cli.py secure-audio-test
+python .\windows-agent\pipa_cli.py integration-test
 python .\windows-agent\pipa_cli.py mobile-test
 python .\windows-agent\pipa_cli.py mobile-config
 python .\windows-agent\secure_identity_admin.py show

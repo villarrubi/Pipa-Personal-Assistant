@@ -1,10 +1,12 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "windows-agent"))
 
+from tools.integration_diagnostics import run_integration_self_test  # noqa: E402
 from tools.secure_diagnostics import (  # noqa: E402
     run_mobile_protocol_self_test,
     run_mobile_tcp_self_test,
@@ -14,6 +16,34 @@ from tools.secure_diagnostics import (  # noqa: E402
 
 
 class SecureDiagnosticsTests(unittest.TestCase):
+    def test_integration_self_test_is_inert_and_checks_all_public_boundaries(self):
+        result = run_integration_self_test()
+
+        self.assertEqual(result["url_builders_checked"], 8)
+        self.assertEqual(result["league_queues_checked"], 5)
+        self.assertTrue(result["manual_boundaries"])
+        self.assertFalse(result["external_actions_executed"])
+        self.assertFalse(result["persistent_keys_touched"])
+
+    @patch("tools.integration_diagnostics.build_web_search_url", side_effect=ValueError("invalid"))
+    def test_integration_self_test_fails_closed_when_a_builder_breaks(self, _builder):
+        with self.assertRaises(ValueError):
+            run_integration_self_test()
+
+    @patch(
+        "tools.integration_diagnostics.build_integration_capabilities",
+        return_value={
+            "apple_music": {"playback": True, "requires_manual_selection": True},
+            "whatsapp": {"send_message": False, "requires_manual_send": True},
+            "discord": {"start_call": False, "requires_manual_call": True},
+            "league": {"accept_match": False, "requires_manual_accept": True},
+            "codex": {"writes_to_chat": False},
+        },
+    )
+    def test_integration_self_test_rejects_automatic_playback(self, _capabilities):
+        with self.assertRaises(ValueError):
+            run_integration_self_test()
+
     def test_secure_audio_self_test_uses_synthetic_pcm_and_bounded_capture(self):
         result = run_secure_audio_self_test()
 

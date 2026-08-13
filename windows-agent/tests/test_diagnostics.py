@@ -33,6 +33,8 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertTrue(result["checks"]["secure_session"]["ok"])
         self.assertTrue(result["checks"]["secure_audio"]["ok"])
         self.assertTrue(result["checks"]["secure_audio"]["capture_gate"])
+        self.assertTrue(result["checks"]["integration_adapters"]["ok"])
+        self.assertEqual(result["checks"]["integration_adapters"]["url_builders_checked"], 8)
         self.assertTrue(result["checks"]["mobile_protocol"]["ok"])
         self.assertTrue(result["checks"]["mobile_protocol"]["result_redacted"])
         self.assertTrue(result["checks"]["device_protocol"]["ok"])
