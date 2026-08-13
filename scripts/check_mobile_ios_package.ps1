@@ -21,7 +21,7 @@ $requiredFiles = @(
     'mobile-ios/App/Info.plist',
     'mobile-ios/App/Info.plist.example',
     'mobile-ios/PipaMobileApp/PipaMobile.xcodeproj/project.pbxproj',
-    'mobile-ios/PipaMobileApp/xcshareddata/xcschemes/PipaMobile.xcscheme',
+    'mobile-ios/PipaMobileApp/PipaMobile.xcodeproj/xcshareddata/xcschemes/PipaMobile.xcscheme',
     'mobile-ios/ARRIVAL_CHECKLIST.md',
     'MOBILE_PROTOCOL.md',
     'mobile-ios/Tests/PipaMobileCoreTests/PipaMobileProtocolTests.swift',
@@ -50,7 +50,7 @@ $view = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/P
 $app = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/App/PipaMobileApp.swift')
 $appInfo = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/App/Info.plist')
 $xcodeProject = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/PipaMobileApp/PipaMobile.xcodeproj/project.pbxproj')
-$xcodeScheme = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/PipaMobileApp/xcshareddata/xcschemes/PipaMobile.xcscheme')
+$xcodeScheme = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/PipaMobileApp/PipaMobile.xcodeproj/xcshareddata/xcschemes/PipaMobile.xcscheme')
 $infoPlist = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/App/Info.plist.example')
 $arrivalChecklist = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/ARRIVAL_CHECKLIST.md')
 $mobileProtocol = Get-Content -Raw (Join-Path $repoRoot 'MOBILE_PROTOCOL.md')
