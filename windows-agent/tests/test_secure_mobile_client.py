@@ -11,12 +11,12 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey 
 from secure_core_connection import SecureCoreConnection  # noqa: E402
 from secure_mobile_client import SecureMobileClient  # noqa: E402
 from secure_session import SecureIdentity  # noqa: E402
-
-from backend.pipa_core.core import PipaCore  # noqa: E402
-from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter  # noqa: E402
 from tools.agent_catalog import build_agent_catalog  # noqa: E402
 from tools.integration_catalog import get_command_catalog  # noqa: E402
 from tools.timers import TimerManager  # noqa: E402
+
+from backend.pipa_core.core import PipaCore  # noqa: E402
+from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter  # noqa: E402
 
 
 class SecureMobileClientTests(unittest.TestCase):
