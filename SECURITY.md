@@ -149,6 +149,8 @@ de recuperación y acceso.
   persisten claves ni ejecutan acciones reales durante el diagnóstico.
 - El firmware y el cliente iOS rechazan UTF-8 malformado, controles C0/C1 y
   formato bidireccional o invisible antes de mostrar una confirmación.
+- Las validaciones compartidas de Windows y iOS rechazan además puntos de
+  código Unicode de uso privado en búsquedas, mensajes y metadatos mostrados.
 - Las claves móviles, cuando se emparejen, usan
   `HKLM\SOFTWARE\Pipa\Mobile\Devices`, separado del almacén experimental de
   Trusted Unlock; emparejar un teléfono no lo añade automáticamente al broker.
