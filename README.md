@@ -139,7 +139,9 @@ que las solicitó y caducan si no se confirman.
 - Inspeccionar cómo se interpreta una frase con `pipa_cli.py intent` sin
   ejecutar ninguna acción.
 - Revisar con `pipa_cli.py preview` la herramienta, argumentos y confirmación
-  que tendría una frase, sin abrir aplicaciones ni tocar League.
+  que tendría una frase, sin abrir aplicaciones ni tocar League; también
+  indica si los argumentos y la configuración local están listos, por ejemplo
+  si existe el alias de WhatsApp o Discord.
 - Ejecutar desde la CLI una acción externa solo con `--confirm`; las consultas
   de estado siguen siendo de solo lectura.
 - Probar todo el protocolo de dispositivo con un simulador efímero.

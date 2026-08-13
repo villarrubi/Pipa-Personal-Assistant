@@ -296,9 +296,22 @@ class CliTests(unittest.TestCase):
 
         self.assertTrue(result["recognized"])
         self.assertEqual(result["tool_name"], "league_search")
+        self.assertTrue(result["arguments_valid"])
         self.assertTrue(result["requires_confirmation"])
         self.assertFalse(result["side_effects"])
         self.assertEqual(result["message"], "Buscar partida: ranked_solo")
+        self.assertIn("matchmaking", result["description"])
+
+    @patch("tools.agent_catalog.resolve_whatsapp_contact", side_effect=ValueError("missing local alias"))
+    def test_intent_preview_reports_missing_local_configuration_without_executing(self, _resolve_contact):
+        result = pipa_cli._preview_intent("prepara WhatsApp para mama y dile Hola")
+
+        self.assertTrue(result["recognized"])
+        self.assertEqual(result["tool_name"], "whatsapp_contact")
+        self.assertFalse(result["arguments_valid"])
+        self.assertTrue(result["requires_confirmation"])
+        self.assertFalse(result["side_effects"])
+        self.assertIn("configuración local", result["message"])
 
     def test_intent_preview_marks_safe_commands(self):
         result = pipa_cli._preview_intent("estado de matchmaking")

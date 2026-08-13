@@ -436,21 +436,44 @@ def _preview_intent(text: str) -> dict[str, object]:
         return {"recognized": False, "message": "La frase no tiene un comando compatible."}
 
     from tools.agent_catalog import build_agent_catalog
+    from tools.integration_catalog import get_command_catalog
     from tools.timers import TimerManager
 
     definition = build_agent_catalog(TimerManager()).get(parsed.tool_name)
+    try:
+        definition.validate_arguments(parsed.arguments)
+    except (KeyError, TypeError, ValueError):
+        arguments_valid = False
+    else:
+        arguments_valid = True
+
+    catalog_entry = next(
+        (command for command in get_command_catalog() if command.get("tool_name") == parsed.tool_name),
+        None,
+    )
+    description = (
+        catalog_entry.get("description")
+        if isinstance(catalog_entry, dict) and isinstance(catalog_entry.get("description"), str)
+        else "Herramienta local de Pipa."
+    )
     return {
         "recognized": True,
         "tool_name": parsed.tool_name,
         "arguments": parsed.arguments,
+        "arguments_valid": arguments_valid,
         "safety": definition.safety,
         "requires_confirmation": definition.safety == "unsafe",
         "side_effects": False,
         "message": (
             definition.confirm_summary(parsed.arguments)
-            if definition.safety == "unsafe" and definition.confirm_summary is not None
-            else "La herramienta se ejecutaría sin confirmación adicional."
+            if arguments_valid and definition.safety == "unsafe" and definition.confirm_summary is not None
+            else (
+                "La frase se reconoce, pero sus argumentos o la configuración local todavía no están listos."
+                if not arguments_valid
+                else "La herramienta se ejecutaría sin confirmación adicional."
+            )
         ),
+        "description": description,
     }
 
 

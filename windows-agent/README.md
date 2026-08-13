@@ -112,8 +112,11 @@ protección del modo local; el flujo del Waveshare usa además la confirmación
 ligada a su sesión autenticada y al toque físico.
 El comando `intent` solo muestra qué herramienta reconocería una frase y no
 abre aplicaciones ni contacta con el agente. `preview` añade la política de
-seguridad, los argumentos y el texto de confirmación que usaría la sesión,
-pero tampoco ejecuta la acción.
+seguridad, los argumentos, la descripción del catálogo y el texto de
+confirmación que usaría la sesión, pero tampoco ejecuta la acción. También
+valida el contrato local: por ejemplo, avisa si el alias de WhatsApp o
+Discord no existe en `contacts.local.json`, sin mostrar el destino ni llamar
+al adaptador.
 
 Para una búsqueda web explícita:
 
