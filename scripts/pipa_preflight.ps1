@@ -106,6 +106,7 @@ Invoke-RepoScriptCheck -Name 'PowerShell syntax' -RelativePath 'scripts/check_po
 Invoke-RepoScriptCheck -Name 'Agent startup lifecycle' -RelativePath 'scripts/check_agent_startup.ps1'
 Invoke-RepoScriptCheck -Name 'Repository hygiene and ignore policy' -RelativePath 'scripts/check_repo_hygiene.ps1'
 Invoke-RepoScriptCheck -Name 'Git history audit' -RelativePath 'scripts/check_git_history.ps1'
+Invoke-RepoScriptCheck -Name 'Secret pattern self-test' -RelativePath 'scripts/test_security_patterns.ps1'
 Invoke-RepoScriptCheck -Name 'iOS package structure' -RelativePath 'scripts/check_mobile_ios_package.ps1'
 Invoke-RepoScriptCheck -Name 'Waveshare V1/V2 pin map' -RelativePath 'scripts/check_waveshare_pinmap.ps1'
 Invoke-RepoScriptCheck -Name 'Firmware configuration safety' -RelativePath 'scripts/check_firmware_config.ps1'

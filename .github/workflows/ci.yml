@@ -74,6 +74,9 @@ jobs:
       - name: Check complete Git history
         shell: pwsh
         run: ./scripts/check_git_history.ps1
+      - name: Test secret pattern contract
+        shell: pwsh
+        run: ./scripts/test_security_patterns.ps1
 
   firmware-build:
     name: Firmware build

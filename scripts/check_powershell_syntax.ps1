@@ -20,7 +20,8 @@ $relativeFiles = @(
     'scripts/flash_waveshare.ps1',
     'scripts/configure_mobile_firewall.ps1',
     'scripts/configure_mobile_transport.ps1',
-    'scripts/security_patterns.ps1'
+    'scripts/security_patterns.ps1',
+    'scripts/test_security_patterns.ps1'
 )
 
 foreach ($relativeFile in $relativeFiles) {
