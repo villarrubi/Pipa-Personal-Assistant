@@ -1,11 +1,11 @@
 #pragma once
 
 // Copy this file to pipa_device_config.local.h. The copy is ignored by Git.
-#define PIPA_WIFI_SSID "replace-me"
-#define PIPA_WIFI_PASSWORD "replace-me"
+#define PIPA_WIFI_SSID ""
+#define PIPA_WIFI_PASSWORD ""
 
 // The PC's Ethernet/Wi-Fi MAC address, six hexadecimal bytes.
-#define PIPA_PC_MAC "AA:BB:CC:DD:EE:FF"
+#define PIPA_PC_MAC "00:00:00:00:00:00"
 
 // USB CDC is the default authenticated transport after Windows starts.
 #define PIPA_DEVICE_ID "waveshare-01"

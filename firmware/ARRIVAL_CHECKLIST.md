@@ -39,6 +39,23 @@ La presencia de los codecs de audio se informa tanto en el monitor como en el
 resumen de `pipa_hardware_check.py`, pero no bloquea esta prueba porque la
 captura y reproduccion siguen deliberadamente desactivadas.
 
+La forma recomendada de preparar el puerto, sin escribir nada todavía, es:
+
+```powershell
+.\scripts\prepare_waveshare.ps1 -Port COM7 -WhatIf
+```
+
+Cuando esa comprobación sea correcta, repite sin `-WhatIf` y añade
+`-RestartAgent` si quieres que el agente oculto se reinicie automáticamente:
+
+```powershell
+.\scripts\prepare_waveshare.ps1 -Port COM7 -RestartAgent
+```
+
+El script solo guarda `PIPA_SERIAL_PORT` como variable del usuario después de
+validar la placa. No carga firmware, no envía comandos al dispositivo, no
+configura Wi-Fi y no empareja la clave.
+
 ## 2. Configuración local
 
 ```powershell

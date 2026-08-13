@@ -428,6 +428,17 @@ se representa como `detectada: sí`, nunca se imprime. `pipa_preflight.ps1
 -RequireHardware` la ejecuta automáticamente si `PIPA_SERIAL_PORT` está
 configurado.
 
+Para preparar el primer puerto de forma repetible, desde la raíz del repositorio:
+
+```powershell
+.\scripts\prepare_waveshare.ps1 -Port COM7 -WhatIf
+.\scripts\prepare_waveshare.ps1 -Port COM7 -RestartAgent
+```
+
+La primera orden valida sin escribir configuración. La segunda solo guarda el
+COM del usuario después de una sonda correcta y puede reiniciar el agente sin
+mostrar una ventana. Ninguna de las dos órdenes empareja claves ni activa v2.
+
 El transporte serie v2 cifrado se activa únicamente con
 `PIPA_SERIAL_SECURITY=v2`. Requiere una identidad del agente protegida por
 DPAPI, dispositivos emparejados y que el firmware tenga provisionada la clave

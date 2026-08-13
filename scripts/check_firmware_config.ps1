@@ -6,6 +6,7 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $trackedConfig = Join-Path $repoRoot 'firmware/include/pipa_device_config.h'
+$exampleConfig = Join-Path $repoRoot 'firmware/include/pipa_device_config.example.h'
 $localConfig = Join-Path $repoRoot 'firmware/include/pipa_device_config.local.h'
 $textPolicy = Join-Path $repoRoot 'firmware/src/pipa_text_policy.h'
 $configPath = if (Test-Path -LiteralPath $localConfig -PathType Leaf) {
@@ -16,6 +17,9 @@ $configPath = if (Test-Path -LiteralPath $localConfig -PathType Leaf) {
 
 if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) {
     throw 'No existe la configuracion base del firmware.'
+}
+if (-not (Test-Path -LiteralPath $exampleConfig -PathType Leaf)) {
+    throw 'No existe la plantilla de configuracion del firmware.'
 }
 if (-not (Test-Path -LiteralPath $textPolicy -PathType Leaf)) {
     throw 'Falta la politica de texto seguro del firmware.'
@@ -39,6 +43,21 @@ foreach ($protocolSource in @('firmware/src/pipa_protocol.cpp', 'firmware/src/pi
 }
 
 $config = Get-Content -LiteralPath $configPath -Raw
+$exampleContent = Get-Content -LiteralPath $exampleConfig -Raw
+
+$safeTemplateDefines = @{
+    'PIPA_WIFI_SSID' = '""'
+    'PIPA_WIFI_PASSWORD' = '""'
+    'PIPA_PC_MAC' = '"00:00:00:00:00:00"'
+    'PIPA_SECURE_SERVER_PUBLIC_KEY' = '""'
+    'PIPA_SECURE_SESSION_ENABLED' = '0'
+}
+foreach ($entry in $safeTemplateDefines.GetEnumerator()) {
+    $templatePattern = '(?m)^\s*#define\s+' + [regex]::Escape($entry.Key) + '\s+' + [regex]::Escape($entry.Value) + '\s*$'
+    if (-not [regex]::IsMatch($exampleContent, $templatePattern)) {
+        throw "La plantilla publica no mantiene el valor seguro esperado para $($entry.Key)."
+    }
+}
 
 function Get-StringDefine {
     param(

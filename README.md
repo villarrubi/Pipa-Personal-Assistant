@@ -260,6 +260,25 @@ compilaciones del firmware; con `-RequireHardware` convierte la ausencia de
 La secuencia operativa detallada está en
 [firmware/ARRIVAL_CHECKLIST.md](firmware/ARRIVAL_CHECKLIST.md).
 
+La primera preparación recomendada valida el USB en modo pasivo antes de
+guardar ningún puerto ni reiniciar el agente:
+
+```powershell
+.\scripts\prepare_waveshare.ps1 -Port COM7 -WhatIf
+```
+
+Si el informe confirma la placa esperada, se puede guardar el COM solo para el
+usuario y reiniciar el agente oculto en una segunda operación:
+
+```powershell
+.\scripts\prepare_waveshare.ps1 -Port COM7 -RestartAgent
+```
+
+Este flujo no carga firmware, no configura Wi-Fi, no empareja claves y no
+activa la sesión segura v2. Es intencionadamente una compuerta previa; el
+emparejamiento debe hacerse después comparando el fingerprint de la clave por
+un canal físico.
+
 Solo quedará trabajo dependiente del dispositivo:
 
 1. confirmar revisión de placa, pines y controladores de pantalla/audio;
