@@ -17,6 +17,25 @@ $ProviderRegistryPath = "SOFTWARE\Microsoft\Windows\CurrentVersion\Authenticatio
 $ClsidRegistryPath = "SOFTWARE\Classes\CLSID\$ProviderGuid"
 $InprocRegistryPath = "$ClsidRegistryPath\InprocServer32"
 
+function Test-ExactValueNames {
+    param(
+        [Parameter(Mandatory)] [Microsoft.Win32.RegistryKey] $Key,
+        [Parameter(Mandatory)] [string[]] $Expected
+    )
+
+    $actual = @($Key.GetValueNames() | Sort-Object)
+    $expectedSorted = @($Expected | Sort-Object)
+    if ($actual.Count -ne $expectedSorted.Count) {
+        return $false
+    }
+    for ($index = 0; $index -lt $actual.Count; $index++) {
+        if ($actual[$index] -cne $expectedSorted[$index]) {
+            return $false
+        }
+    }
+    return $true
+}
+
 function Test-Administrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = [Security.Principal.WindowsPrincipal]::new($identity)
@@ -62,6 +81,9 @@ try {
                 $registeredClsidName -ne $ClsidDisplayName -or
                 -not [string]::Equals($registeredDll, $InstalledDllPath, [StringComparison]::OrdinalIgnoreCase) -or
                 $registeredThreadingModel -ne $ExpectedThreadingModel -or
+                -not (Test-ExactValueNames -Key $providerKey -Expected @('')) -or
+                -not (Test-ExactValueNames -Key $clsidKey -Expected @('')) -or
+                -not (Test-ExactValueNames -Key $inprocKey -Expected @('', 'ThreadingModel')) -or
                 $clsidSubKeys.Count -ne 1 -or
                 $clsidSubKeys[0] -ne 'InprocServer32') {
                 throw "La instalación no coincide exactamente con Pipα; no se eliminará ninguna clave."

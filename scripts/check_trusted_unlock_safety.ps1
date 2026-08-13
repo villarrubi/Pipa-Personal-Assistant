@@ -10,8 +10,9 @@ $credentialProviderPath = Join-Path $repoRoot 'trusted-unlock/src/CredentialProv
 $brokerPath = Join-Path $repoRoot 'windows-agent/trusted_unlock_broker.py'
 $brokerClientPath = Join-Path $repoRoot 'windows-agent/trusted_unlock_broker_client.py'
 $brokerTestsPath = Join-Path $repoRoot 'windows-agent/tests/test_trusted_unlock_broker.py'
+$uninstallPath = Join-Path $repoRoot 'trusted-unlock/uninstall.ps1'
 
-foreach ($path in @($providerPath, $credentialProviderPath, $brokerPath, $brokerClientPath, $brokerTestsPath)) {
+foreach ($path in @($providerPath, $credentialProviderPath, $brokerPath, $brokerClientPath, $brokerTestsPath, $uninstallPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Falta el archivo de seguridad Trusted Unlock: $path"
     }
@@ -22,6 +23,7 @@ $credentialProvider = Get-Content -LiteralPath $credentialProviderPath -Raw
 $broker = Get-Content -LiteralPath $brokerPath -Raw
 $brokerClient = Get-Content -LiteralPath $brokerClientPath -Raw
 $brokerTests = Get-Content -LiteralPath $brokerTestsPath -Raw
+$uninstall = Get-Content -LiteralPath $uninstallPath -Raw
 
 foreach ($marker in @(
         'constexpr bool kTrustedUnlockEnabled = false;',
@@ -78,6 +80,11 @@ if ($brokerClient.IndexOf('if pipe_name != PIPE_NAME:', [System.StringComparison
 if ($brokerTests.IndexOf('16 * 1024 + 1', [System.StringComparison]::Ordinal) -lt 0 -or
     $brokerTests.IndexOf('ticket_replay', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'Las pruebas del broker no cubren limites y anti-replay.'
+}
+foreach ($marker in @('Test-ExactValueNames', 'GetValueNames()', 'no se elimin')) {
+    if ($uninstall.IndexOf($marker, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El rollback no verifica la propiedad exacta de las claves: $marker"
+    }
 }
 
 Write-Host 'Trusted Unlock seguro: provider, broker y pruebas mantienen el desbloqueo inerte.' -ForegroundColor Green

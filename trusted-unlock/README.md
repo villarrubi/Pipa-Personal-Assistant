@@ -87,3 +87,6 @@ Para retirar Pipα:
 El rollback elimina solo las claves asociadas al CLSID de Pipα y la DLL bajo
 `%ProgramFiles%\Pipa\TrustedUnlock`. No modifica contraseña, PIN, Windows
 Hello, políticas de inicio de sesión ni otros Credential Providers.
+Antes de borrar, comprueba también que las claves contienen exactamente los
+valores y la subclave creados por el instalador; si alguien las ha modificado,
+se detiene sin borrar nada.
