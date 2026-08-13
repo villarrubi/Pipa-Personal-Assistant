@@ -20,7 +20,7 @@ public struct PipaMobileRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
 
-    private enum LocalIntegrationAction: String, Identifiable {
+    private enum LocalIntegrationAction: String, Identifiable, Equatable {
         case whatsappChat
         case whatsappMessage
         case discordChannel
