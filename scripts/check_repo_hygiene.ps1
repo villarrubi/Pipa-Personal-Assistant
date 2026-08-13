@@ -34,6 +34,13 @@ $sensitiveContentPattern = (
     'gh[oprsu]_[A-Za-z0-9]{20,}|' +
     'sk-(proj-)?[A-Za-z0-9_-]{20,}|' +
     'AKIA[0-9A-Z]{16}|' +
+    'glpat-[A-Za-z0-9_-]{20,}|' +
+    'xox[baprs]-[A-Za-z0-9-]{10,}|' +
+    'npm_[A-Za-z0-9]{30,}|' +
+    'AIza[0-9A-Za-z_-]{30,}|' +
+    'mfa\.[A-Za-z0-9_-]{20,}|' +
+    '(sk|rk)_live_[A-Za-z0-9]{16,}|' +
+    '[0-9]{8,12}:[A-Za-z0-9_-]{35}|' +
     '(?<![A-Za-z0-9_-])(password|secret|api[_-]?key|token)\s*[:=]\s*"'
 )
 foreach ($path in $reviewedFiles) {
@@ -73,6 +80,12 @@ $ignoreFixtures = @(
     'device-certificate.crt',
     'desktop-session.rdp',
     'session-token.txt',
+    '.aws/credentials',
+    '.config/gcloud/application_default_credentials.json',
+    '.npmrc',
+    '.pypirc',
+    'mobile-ios/App/Pipa.mobileprovision',
+    'mobile-ios/App/signing.p12',
     'trusted-unlock/build/Release/PipaTrustedUnlock.dll'
 )
 foreach ($fixture in $ignoreFixtures) {

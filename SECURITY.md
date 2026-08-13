@@ -251,6 +251,12 @@ de recuperación y acceso.
 - DLL, EXE, PDB, objetos, `.pio`, CMake/Visual Studio, venvs, logs y dumps.
 - Capturas de LogonUI o mensajes que muestren datos personales.
 
+La higiene local y la auditoría histórica también buscan formatos de alta
+confianza de tokens de GitHub, GitLab, Slack, npm, Google, Stripe, Discord,
+Telegram y claves privadas. No sustituyen la revocación de un secreto real:
+si uno llega a publicarse, hay que invalidarlo y coordinar la limpieza del
+historial y del remoto.
+
 Antes de publicar:
 
 ```powershell

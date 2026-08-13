@@ -48,6 +48,10 @@ firmware/libdeps/
 *.rdp
 *.reg
 *.lnk
+*.mobileprovision
+*.provisionprofile
+*.dSYM/
+*.ipa
 *secret*
 *secrets*
 *credential*
@@ -55,6 +59,10 @@ firmware/libdeps/
 *token*
 *.sqlite
 *.sqlite3
+.aws/credentials
+.config/gcloud/application_default_credentials.json
+.npmrc
+.pypirc
 
 # Build products and generated native-toolchain files
 **/build/
