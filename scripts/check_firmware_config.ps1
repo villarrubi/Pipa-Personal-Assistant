@@ -40,7 +40,17 @@ foreach ($marker in @('isSafeDisplayText', 'malformed UTF-8', '0x202A', '0xFEFF'
         throw "La politica de texto del firmware no contiene el control requerido: $marker."
     }
 }
-foreach ($protocolSource in @('firmware/src/pipa_protocol.cpp', 'firmware/src/pipa_secure_protocol.cpp')) {
+$protocolMarkers = @{
+    'firmware/src/pipa_protocol.cpp' = @(
+        'isSafeDisplayText(text, kMaxTextInput)',
+        'isSafeTextSource(safe_source)'
+    )
+    'firmware/src/pipa_secure_protocol.cpp' = @(
+        'isSafeDisplayText(text, 4000)',
+        'isSafeTextSource(safe_source)'
+    )
+}
+foreach ($protocolSource in $protocolMarkers.Keys) {
     $protocolPath = Join-Path $repoRoot $protocolSource
     if (-not (Test-Path -LiteralPath $protocolPath -PathType Leaf)) {
         throw "Falta el origen de protocolo del firmware: $protocolSource."
@@ -49,6 +59,11 @@ foreach ($protocolSource in @('firmware/src/pipa_protocol.cpp', 'firmware/src/pi
     if ($protocolContent.IndexOf('pipa_text_policy.h', [System.StringComparison]::Ordinal) -lt 0 -or
         $protocolContent.IndexOf('isSafeDisplayText', [System.StringComparison]::Ordinal) -lt 0) {
         throw "El protocolo $protocolSource no aplica la politica de texto seguro."
+    }
+    foreach ($marker in $protocolMarkers[$protocolSource]) {
+        if ($protocolContent.IndexOf($marker, [System.StringComparison]::Ordinal) -lt 0) {
+            throw "El protocolo $protocolSource no contiene el limite de texto requerido: $marker."
+        }
     }
 }
 

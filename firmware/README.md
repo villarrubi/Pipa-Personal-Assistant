@@ -106,7 +106,9 @@ mapa protegido contra cambios accidentales y se ejecuta también en el
 preflight y la CI.
 
 La capacidad `text_input` significa que el protocolo puede enviar texto ya
-reconocido; no significa que el firmware actual escuche voz. La pantalla
+reconocido; no significa que el firmware actual escuche voz. Antes de
+serializarlo, ambos transportes validan el UTF-8, rechazan controles invisibles
+y limitan la fuente del texto; la pantalla
 representa el estado recibido y muestra `CONFIRM`/`TAP` cuando hay una acción
 pendiente de confirmación.
 

@@ -96,12 +96,13 @@ void PipaSecureProtocol::sendGesture(const char* gesture) {
 }
 
 void PipaSecureProtocol::sendTextInput(const char* text, const char* source) {
-  if (!authenticated_ || text == nullptr || text[0] == '\0' || strlen(text) > 4000) return;
+  const char* safe_source = source == nullptr || source[0] == '\0' ? "unknown" : source;
+  if (!authenticated_ || !isSafeDisplayText(text, 4000) || !isSafeTextSource(safe_source)) return;
   JsonDocument document;
   document["protocol_version"] = 1;
   document["type"] = "text_input";
   document["text"] = text;
-  document["source"] = source == nullptr || source[0] == '\0' ? "unknown" : source;
+  document["source"] = safe_source;
   sendEncrypted(document);
 }
 

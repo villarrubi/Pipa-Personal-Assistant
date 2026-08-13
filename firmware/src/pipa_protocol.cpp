@@ -71,7 +71,9 @@ void PipaProtocol::sendGesture(const char* gesture) {
 }
 
 void PipaProtocol::sendTextInput(const char* text, const char* source) {
-  if (!authenticated_ || text == nullptr || text[0] == '\0' || strlen(text) > kMaxTextInput) {
+  const char* safe_source = source == nullptr || source[0] == '\0' ? "unknown" : source;
+  if (!authenticated_ || !isSafeDisplayText(text, kMaxTextInput) ||
+      !isSafeTextSource(safe_source)) {
     if (authenticated_ && text != nullptr && strlen(text) > kMaxTextInput) {
       log("outgoing text discarded: too large");
     }
@@ -81,7 +83,7 @@ void PipaProtocol::sendTextInput(const char* text, const char* source) {
   document["protocol_version"] = 1;
   document["type"] = "text_input";
   document["text"] = text;
-  document["source"] = source == nullptr || source[0] == '\0' ? "unknown" : source;
+  document["source"] = safe_source;
   sendJson(document);
 }
 

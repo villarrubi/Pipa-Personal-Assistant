@@ -72,4 +72,14 @@ inline bool isSafeDisplayText(const char* text, size_t max_bytes) {
   return true;
 }
 
+// Keep the firmware's producer contract aligned with the Core parser. A
+// printable but unknown source is still protocol-invalid and must not be
+// emitted just because it fits the display policy.
+inline bool isSafeTextSource(const char* source) {
+  if (source == nullptr) return false;
+  return strcmp(source, "voice") == 0 || strcmp(source, "touch") == 0 ||
+      strcmp(source, "mobile") == 0 || strcmp(source, "debug") == 0 ||
+      strcmp(source, "unknown") == 0;
+}
+
 }  // namespace pipa

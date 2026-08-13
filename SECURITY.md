@@ -270,6 +270,9 @@ actualizar el remoto de forma coordinada.
 - El protocolo JSON actual no debe transportar audio de micrófono en claro;
   antes de añadir STT hay que diseñar cifrado/autenticación por trama o
   procesamiento local en el dispositivo.
+- Los métodos de entrada de texto del firmware v1 y v2 validan UTF-8, rechazan
+  controles invisibles y aceptan solo las fuentes de protocolo allowlisted antes
+  de serializar el comando.
 - Para voz o móvil, solo se podrá usar la sesión v2 después de validar los
   vectores Python↔firmware y Python↔móvil, además de una política de rotación,
   revocación y actualización. No basta con reutilizar la firma Ed25519 como si
