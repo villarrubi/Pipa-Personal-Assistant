@@ -5,6 +5,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$patternsPath = Join-Path $PSScriptRoot 'security_patterns.ps1'
+if (-not (Test-Path -LiteralPath $patternsPath -PathType Leaf)) {
+    throw "Falta la fuente común de patrones de seguridad: $patternsPath"
+}
+. $patternsPath
+
 $reviewedFiles = @(git -C $repoRoot ls-files --cached --others --exclude-standard)
 $violations = [System.Collections.Generic.List[string]]::new()
 
@@ -27,22 +33,9 @@ foreach ($path in $reviewedFiles) {
 
 $windowsUserPath = 'C:' + '\\Users\\'
 $portableUserPath = 'C:' + '/Users/'
-$sensitiveContentPattern = (
-    [regex]::Escape($windowsUserPath) + '|' +
+$sensitiveContentPattern = [regex]::Escape($windowsUserPath) + '|' +
     [regex]::Escape($portableUserPath) + '|' +
-    'BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY|' +
-    'gh[oprsu]_[A-Za-z0-9]{20,}|' +
-    'sk-(proj-)?[A-Za-z0-9_-]{20,}|' +
-    'AKIA[0-9A-Z]{16}|' +
-    'glpat-[A-Za-z0-9_-]{20,}|' +
-    'xox[baprs]-[A-Za-z0-9-]{10,}|' +
-    'npm_[A-Za-z0-9]{30,}|' +
-    'AIza[0-9A-Za-z_-]{30,}|' +
-    'mfa\.[A-Za-z0-9_-]{20,}|' +
-    '(sk|rk)_live_[A-Za-z0-9]{16,}|' +
-    '[0-9]{8,12}:[A-Za-z0-9_-]{35}|' +
-    '(?<![A-Za-z0-9_-])(password|secret|api[_-]?key|token)\s*[:=]\s*"'
-)
+    (Get-PipaWorkingTreeSecretPattern)
 foreach ($path in $reviewedFiles) {
     $absolutePath = Join-Path $repoRoot $path
     if (-not (Test-Path -LiteralPath $absolutePath -PathType Leaf) -or
