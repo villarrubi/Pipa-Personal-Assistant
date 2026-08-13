@@ -57,6 +57,19 @@ final class PipaMobileProtocolTests: XCTestCase {
         XCTAssertFalse(PipaMobileTextPolicy.isSafeMessageText("mensaje\u{0000}", maxBytes: 64))
     }
 
+    func testDestinationPolicyUsesCanonicalPhoneAndDiscordIDs() {
+        XCTAssertEqual(
+            PipaMobileDestinationPolicy.normalizePhone("+34 600-123-456"),
+            "34600123456"
+        )
+        XCTAssertNil(PipaMobileDestinationPolicy.normalizePhone("01234567"))
+        XCTAssertEqual(
+            PipaMobileDestinationPolicy.normalizeSnowflake("12345678901234567"),
+            "12345678901234567"
+        )
+        XCTAssertNil(PipaMobileDestinationPolicy.normalizeSnowflake("012345678901234567"))
+    }
+
     func testBase64URLRejectsPaddingAndInvalidCharacters() throws {
         XCTAssertThrowsError(try PipaMobileCodec.decodeBase64URL("a="))
         XCTAssertThrowsError(try PipaMobileCodec.decodeBase64URL("a+b"))

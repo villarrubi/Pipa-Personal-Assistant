@@ -307,6 +307,12 @@ final class PipaMobileUITests: XCTestCase {
                 "canal": "not-a-discord-id",
             ])
         )
+        XCTAssertNil(
+            command.toolArguments(with: [
+                "servidor": "098765432109876543",
+                "canal": "12345678901234567",
+            ])
+        )
     }
 
     func testStructuredWhatsAppRejectsInvalidPhoneBeforeTransport() throws {
@@ -327,6 +333,10 @@ final class PipaMobileUITests: XCTestCase {
 
         XCTAssertNil(command.toolArguments(with: [
             "teléfono": "123",
+            "mensaje": "Hola",
+        ]))
+        XCTAssertNil(command.toolArguments(with: [
+            "teléfono": "01234567",
             "mensaje": "Hola",
         ]))
     }
