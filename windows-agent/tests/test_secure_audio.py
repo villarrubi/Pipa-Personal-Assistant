@@ -141,6 +141,20 @@ class SecureAudioTests(unittest.TestCase):
         with self.assertRaises(AudioFrameError):
             sender.seal_chunk(b"\x00\x00", final=False)
 
+    def test_receiver_rejects_a_nonfinal_last_chunk_and_closes_session(self):
+        sender = SecureAudioSender(self._session("client"), "stream-last")
+        for _index in range(MAX_AUDIO_CHUNKS - 1):
+            sender.seal_chunk(b"\x00\x00", final=False)
+        frame = sender.seal_chunk(b"\x01\x02", final=True)
+        tampered = dict(frame)
+        tampered["final"] = False
+        receiver = SecureAudioReceiver(self._session("server"))
+
+        with self.assertRaises(AudioFrameError):
+            receiver.open_chunk(tampered)
+        with self.assertRaises(ClosedSessionError):
+            receiver.session.seal(b"\x00\x00")
+
     def test_cancel_discards_stream_state_without_logging_or_reusing_samples(self):
         sender = SecureAudioSender(self._session("client"), "stream-five")
         sender.seal_chunk(b"\x01\x02" * 8, final=False)

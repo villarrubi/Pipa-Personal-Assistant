@@ -192,6 +192,7 @@ public final class PipaSecureAudioReceiver {
               let chunkIndex = frame["chunk_index"] as? Int,
               (0..<PipaSecureAudioContract.maxChunks).contains(chunkIndex),
               let isFinal = frame["final"] as? Bool,
+              chunkIndex < PipaSecureAudioContract.maxChunks - 1 || isFinal,
               let streamID = frame["stream_id"] as? String,
               PipaSecureAudioContract.validStreamID(streamID) else {
             throw PipaMobileError.invalidAudioFrame

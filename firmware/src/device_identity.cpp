@@ -2,29 +2,39 @@
 
 #include <Ed25519.h>
 #include <esp_system.h>
+#include <string.h>
 
 namespace pipa {
 
 bool DeviceIdentity::begin() {
+  ready_ = false;
+  memset(private_key_, 0, sizeof(private_key_));
+  memset(public_key_, 0, sizeof(public_key_));
   if (!preferences_.begin("pipa", false)) return false;
 
   const size_t stored_length = preferences_.getBytesLength("private");
   if (stored_length == sizeof(private_key_)) {
     if (preferences_.getBytes("private", private_key_, sizeof(private_key_)) != sizeof(private_key_)) {
+      preferences_.end();
+      memset(private_key_, 0, sizeof(private_key_));
       return false;
     }
   } else if (stored_length == 0) {
     esp_fill_random(private_key_, sizeof(private_key_));
     if (preferences_.putBytes("private", private_key_, sizeof(private_key_)) != sizeof(private_key_)) {
+      preferences_.end();
       memset(private_key_, 0, sizeof(private_key_));
       return false;
     }
   } else {
     // Never replace a malformed identity silently: doing so would break the
     // administrator-approved device/key binding.
+    preferences_.end();
+    memset(private_key_, 0, sizeof(private_key_));
     return false;
   }
 
+  preferences_.end();
   Ed25519::derivePublicKey(public_key_, private_key_);
   ready_ = true;
   return true;

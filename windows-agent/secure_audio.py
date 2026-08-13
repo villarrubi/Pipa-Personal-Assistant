@@ -173,6 +173,8 @@ def _validate_metadata(metadata: Mapping[str, Any]) -> dict[str, Any]:
     chunk_index = _validate_chunk_index(metadata["chunk_index"])
     if not isinstance(metadata["final"], bool):
         raise AudioFrameError("audio final marker is invalid")
+    if chunk_index == MAX_AUDIO_CHUNKS - 1 and not metadata["final"]:
+        raise AudioFrameError("audio stream must finish before its chunk limit")
     if (
         metadata["sample_rate"] != AUDIO_SAMPLE_RATE
         or metadata["channels"] != AUDIO_CHANNELS

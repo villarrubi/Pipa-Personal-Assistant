@@ -42,7 +42,8 @@ foreach ($required in @(
     'begin_listening',
     'begin_draining',
     'finish_draining',
-    'gate.can_capture'
+    'gate.can_capture',
+    'chunk_index == MAX_AUDIO_CHUNKS - 1 and not metadata["final"]'
 )) {
     if ($python.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
         throw "El contrato Python no contiene el límite o la operación requerida: $required"
@@ -60,13 +61,17 @@ foreach ($required in @(
         throw "El header C++ no contiene el límite compartido: $required"
     }
 }
+if ($firmwareAudio.IndexOf('chunk_index == kMaxChunks - 1 && !final', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'El framing C++ debe rechazar un último chunk no final.'
+}
 
 foreach ($required in @(
     'protocolVersion = 2',
     'aadPrefix = Data("pipa/audio/v2\0".utf8)',
     'maxChunkBytes = 4_096',
     'maxChunks = 64',
-    'sealBinary('
+    'sealBinary(',
+    'chunkIndex < PipaSecureAudioContract.maxChunks - 1 || isFinal'
 )) {
     if ($swift.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
         throw "El contrato Swift no contiene el límite o la operación requerida: $required"

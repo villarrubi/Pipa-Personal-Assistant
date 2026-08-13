@@ -52,6 +52,7 @@ bool PipaSecureAudio::buildAdditionalData(
       output_length == nullptr) {
     return false;
   }
+  if (chunk_index == kMaxChunks - 1 && !final) return false;
 
   String json;
   json.reserve(160);

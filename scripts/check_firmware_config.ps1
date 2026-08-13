@@ -9,6 +9,7 @@ $trackedConfig = Join-Path $repoRoot 'firmware/include/pipa_device_config.h'
 $exampleConfig = Join-Path $repoRoot 'firmware/include/pipa_device_config.example.h'
 $localConfig = Join-Path $repoRoot 'firmware/include/pipa_device_config.local.h'
 $textPolicy = Join-Path $repoRoot 'firmware/src/pipa_text_policy.h'
+$identitySource = Join-Path $repoRoot 'firmware/src/device_identity.cpp'
 $configPath = if (Test-Path -LiteralPath $localConfig -PathType Leaf) {
     $localConfig
 } else {
@@ -23,6 +24,15 @@ if (-not (Test-Path -LiteralPath $exampleConfig -PathType Leaf)) {
 }
 if (-not (Test-Path -LiteralPath $textPolicy -PathType Leaf)) {
     throw 'Falta la politica de texto seguro del firmware.'
+}
+if (-not (Test-Path -LiteralPath $identitySource -PathType Leaf)) {
+    throw 'Falta la implementacion de identidad del firmware.'
+}
+$identityContent = Get-Content -LiteralPath $identitySource -Raw
+foreach ($marker in @('preferences_.end()', 'ready_ = false', 'memset(private_key_, 0, sizeof(private_key_))')) {
+    if ($identityContent.IndexOf($marker, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "La identidad del firmware no contiene el control de ciclo de vida requerido: $marker."
+    }
 }
 $textPolicyContent = Get-Content -LiteralPath $textPolicy -Raw
 foreach ($marker in @('isSafeDisplayText', 'malformed UTF-8', '0x202A', '0xFEFF')) {
