@@ -304,6 +304,11 @@ de inicio. Ejecuta el diagnóstico desde una PowerShell con permisos suficientes
 para consultar el Programador de tareas; no desactives la comprobación ni
 instales una tarea con privilegios elevados para ocultar ese aviso.
 
+Para ejecutar el resto del preflight mientras estás en una sesión sin acceso al
+Programador, puedes usar `./scripts/pipa_preflight.ps1 -SkipStartupCheck`.
+Ese modo deja un aviso explícito y no sustituye la verificación posterior del
+arranque.
+
 ## Cuando llegue el Waveshare
 
 La secuencia operativa detallada está en

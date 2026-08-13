@@ -2,7 +2,8 @@
 param(
     [switch]$SkipPythonTests,
     [switch]$CheckFirmware,
-    [switch]$RequireHardware
+    [switch]$RequireHardware,
+    [switch]$SkipStartupCheck
 )
 
 Set-StrictMode -Version Latest
@@ -112,36 +113,41 @@ Invoke-RepoScriptCheck -Name 'Trusted Unlock safety' -RelativePath 'scripts/chec
 Invoke-RepoScriptCheck -Name 'Secure audio contract isolation' -RelativePath 'scripts/check_secure_audio_contract.ps1'
 Invoke-RepoScriptCheck -Name 'Audio state machine isolation' -RelativePath 'scripts/check_audio_state_machine.ps1'
 
-$statusPath = Join-Path $repoRoot 'windows-agent/check_agent_status.ps1'
-if (Test-Path -LiteralPath $statusPath -PathType Leaf) {
-    try {
-        $statusOutput = @(& powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $statusPath 2>&1)
-        $statusCode = $LASTEXITCODE
-        $statusText = $statusOutput -join "`n"
-        $statusSafe =
-            $statusCode -eq 0 -and
-            $statusText -match 'Agente:\s+online' -and
-            $statusText -match 'Perfil inicio oculto/limitado:\s+OK' -and
-            ($statusText -match 'Fallback de inicio:\s+ninguno' -or
-             $statusText -match 'Perfil inicio oculto/limitado:\s+OK \(fallback (HKCU|Startup)\)')
-        $statusDetail = ''
-        if ($statusCode -ne 0) {
-            $statusDetail = ' (el diagnostico no pudo ejecutarse)'
-        } elseif ($statusText -notmatch 'Agente:\s+online') {
-            $statusDetail = ' (agente local offline)'
-        } elseif ($statusText -match 'NO VERIFICADO') {
-            $statusDetail = ' (Programador de tareas inaccesible; no se pudo verificar un inicio seguro)'
-        } elseif ($statusText -match 'NO INSTALADO') {
-            $statusDetail = ' (no hay tarea ni fallback de inicio instalado)'
-        } elseif ($statusText -match 'Fallback de inicio duplicado') {
-            $statusDetail = ' (hay mas de un mecanismo de inicio)'
-        }
-        Write-CheckResult -Name 'Hidden startup and local agent' -Success $statusSafe -Detail $statusDetail
-    } catch {
-        Write-CheckResult -Name 'Hidden startup and local agent' -Success $false
-    }
+if ($SkipStartupCheck) {
+    Write-Host '[INFO] Hidden startup and local agent check skipped explicitly.' -ForegroundColor Yellow
+    $warnings.Add('Hidden startup and local agent check was skipped.')
 } else {
-    Write-CheckResult -Name 'Hidden startup and local agent' -Success $false -Detail ' (script missing)'
+    $statusPath = Join-Path $repoRoot 'windows-agent/check_agent_status.ps1'
+    if (Test-Path -LiteralPath $statusPath -PathType Leaf) {
+        try {
+            $statusOutput = @(& powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $statusPath 2>&1)
+            $statusCode = $LASTEXITCODE
+            $statusText = $statusOutput -join "`n"
+            $statusSafe =
+                $statusCode -eq 0 -and
+                $statusText -match 'Agente:\s+online' -and
+                $statusText -match 'Perfil inicio oculto/limitado:\s+OK' -and
+                ($statusText -match 'Fallback de inicio:\s+ninguno' -or
+                 $statusText -match 'Perfil inicio oculto/limitado:\s+OK \(fallback (HKCU|Startup)\)')
+            $statusDetail = ''
+            if ($statusCode -ne 0) {
+                $statusDetail = ' (el diagnostico no pudo ejecutarse)'
+            } elseif ($statusText -notmatch 'Agente:\s+online') {
+                $statusDetail = ' (agente local offline)'
+            } elseif ($statusText -match 'NO VERIFICADO') {
+                $statusDetail = ' (Programador de tareas inaccesible; no se pudo verificar un inicio seguro)'
+            } elseif ($statusText -match 'NO INSTALADO') {
+                $statusDetail = ' (no hay tarea ni fallback de inicio instalado)'
+            } elseif ($statusText -match 'Fallback de inicio duplicado') {
+                $statusDetail = ' (hay mas de un mecanismo de inicio)'
+            }
+            Write-CheckResult -Name 'Hidden startup and local agent' -Success $statusSafe -Detail $statusDetail
+        } catch {
+            Write-CheckResult -Name 'Hidden startup and local agent' -Success $false
+        }
+    } else {
+        Write-CheckResult -Name 'Hidden startup and local agent' -Success $false -Detail ' (script missing)'
+    }
 }
 
 $listenerAddresses = [System.Collections.Generic.List[string]]::new()
