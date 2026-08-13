@@ -42,6 +42,16 @@ from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter
 
 _MOBILE_INTEGRATION_CASES = (
     (
+        "open_app",
+        {"app": "calculator"},
+        "Abrir una aplicación configurada.",
+    ),
+    (
+        "open_codex",
+        {},
+        "Abrir Codex.",
+    ),
+    (
         "web_search",
         {"query": "documentación de diagnóstico"},
         "Buscar en Internet.",
@@ -57,6 +67,11 @@ _MOBILE_INTEGRATION_CASES = (
         "Abrir Apple Music.",
     ),
     (
+        "league_open",
+        {},
+        "Abrir League of Legends.",
+    ),
+    (
         "whatsapp_open",
         {},
         "Abrir WhatsApp Web.",
@@ -67,9 +82,34 @@ _MOBILE_INTEGRATION_CASES = (
         "Preparar un mensaje de WhatsApp; el envío será manual.",
     ),
     (
+        "whatsapp_contact",
+        {"contact": "contacto-diagnostico", "message": "mensaje de diagnóstico"},
+        "Preparar un mensaje de WhatsApp; el envío será manual.",
+    ),
+    (
+        "whatsapp_contact_open",
+        {"contact": "contacto-diagnostico"},
+        "Abrir un chat de WhatsApp.",
+    ),
+    (
+        "whatsapp_phone_open",
+        {"phone": "+34600000000"},
+        "Abrir un chat de WhatsApp.",
+    ),
+    (
         "discord_open_app",
         {},
         "Abrir Discord.",
+    ),
+    (
+        "discord_open",
+        {"channel_id": "12345678901234567", "guild_id": "98765432109876543"},
+        "Abrir un canal de Discord.",
+    ),
+    (
+        "discord_contact",
+        {"contact": "contacto-diagnostico"},
+        "Abrir un contacto de Discord.",
     ),
     (
         "discord_call",
@@ -86,7 +126,65 @@ _MOBILE_INTEGRATION_CASES = (
         {"queue": "ranked_solo"},
         "Buscar una partida en League.",
     ),
+    (
+        "league_cancel",
+        {},
+        "Cancelar la búsqueda de League.",
+    ),
+    (
+        "system_lock",
+        {},
+        "Bloquear el ordenador.",
+    ),
+    (
+        "open_url",
+        {"url": "https://example.com/pipa-diagnostic"},
+        "Abrir una URL validada.",
+    ),
 )
+
+
+def _validate_mobile_diagnostic_matrix() -> None:
+    """Keep the inert mobile matrix complete with the real unsafe catalog."""
+
+    # Import lazily so the diagnostic module remains cheap for the serial-only
+    # path and never loads contact data or launches an outward adapter.
+    from tools.agent_catalog import build_agent_catalog
+    from tools.timers import TimerManager
+
+    real_catalog = build_agent_catalog(TimerManager())
+    real_unsafe = {name for name in real_catalog.names() if real_catalog.get(name).safety == "unsafe"}
+    diagnostic_names = {tool_name for tool_name, _arguments, _summary in _MOBILE_INTEGRATION_CASES}
+    if diagnostic_names != real_unsafe:
+        raise ValueError("mobile diagnostic matrix is out of sync with unsafe tool catalog")
+    if any(
+        PipaCore._device_confirmation_summary(name) == "Confirmar acción externa."
+        for name in diagnostic_names
+    ):
+        raise ValueError("mobile diagnostic matrix contains an unmapped device confirmation")
+
+
+_DEVICE_PRIVATE_RESULT_FIELDS = frozenset(
+    {
+        "result",
+        "url",
+        "message",
+        "query",
+        "phone",
+        "contact",
+        "channel_id",
+        "guild_id",
+        "queue",
+        "app",
+        "path",
+    }
+)
+
+
+def _device_result_has_private_fields(responses: list[dict[str, object]]) -> bool:
+    """Reject private result fields while allowing safe captions such as URL."""
+
+    return any(_DEVICE_PRIVATE_RESULT_FIELDS.intersection(response) for response in responses)
 
 
 def _diagnostic_catalog(executed: list[tuple[str, dict[str, object]]]) -> ToolCatalog:
@@ -412,6 +510,7 @@ def run_device_protocol_self_test() -> dict[str, object]:
 def run_mobile_protocol_self_test() -> dict[str, object]:
     """Exercise the future mobile profile without sockets or external tools."""
 
+    _validate_mobile_diagnostic_matrix()
     mobile_identity = SecureIdentity("mobile-diagnostic", Ed25519PrivateKey.generate())
     server_identity = SecureIdentity("server-diagnostic", Ed25519PrivateKey.generate())
     executed: list[tuple[str, dict[str, object]]] = []
@@ -462,7 +561,9 @@ def run_mobile_protocol_self_test() -> dict[str, object]:
             completed = client.confirm(str(pending[0]["confirmation_id"]), True)
             if len(completed) != 2 or completed[0].get("type") != "tool_result":
                 raise ValueError("mobile confirmation did not complete")
-            if "result" in completed[0] or "url" in str(completed) or "message" in str(completed):
+            if _device_result_has_private_fields(completed) or any(
+                str(value) in str(completed) for value in arguments.values()
+            ):
                 raise ValueError("mobile result crossed the safe boundary")
         if len(executed) != len(_MOBILE_INTEGRATION_CASES):
             raise ValueError("mobile diagnostic actions were not completed after confirmation")
@@ -482,6 +583,8 @@ def run_mobile_protocol_self_test() -> dict[str, object]:
 
 def run_mobile_tcp_self_test() -> dict[str, object]:
     """Exercise the real loopback TCP adapter without persistent state."""
+
+    _validate_mobile_diagnostic_matrix()
 
     async def exercise() -> dict[str, object]:
         mobile_identity = SecureIdentity("mobile-tcp-diagnostic", Ed25519PrivateKey.generate())
@@ -539,7 +642,9 @@ def run_mobile_tcp_self_test() -> dict[str, object]:
                 completed = await client.confirm(str(pending[0]["confirmation_id"]), True)
                 if len(completed) != 2 or completed[0].get("type") != "tool_result":
                     raise ValueError("TCP mobile confirmation did not complete")
-                if "result" in completed[0] or "url" in str(completed) or "message" in str(completed):
+                if _device_result_has_private_fields(completed) or any(
+                    str(value) in str(completed) for value in arguments.values()
+                ):
                     raise ValueError("TCP mobile result crossed the safe boundary")
             if len(executed) != len(_MOBILE_INTEGRATION_CASES):
                 raise ValueError("TCP mobile diagnostic actions were not completed after confirmation")

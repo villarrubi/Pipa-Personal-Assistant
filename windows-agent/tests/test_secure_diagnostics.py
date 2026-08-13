@@ -76,7 +76,7 @@ class SecureDiagnosticsTests(unittest.TestCase):
         self.assertTrue(result["handshake"])
         self.assertTrue(result["confirmation_gated"])
         self.assertTrue(result["result_redacted"])
-        self.assertEqual(result["integration_tools_checked"], 9)
+        self.assertEqual(result["integration_tools_checked"], 20)
         self.assertFalse(result["external_actions_executed"])
         self.assertFalse(result["persistent_keys_touched"])
 
@@ -87,7 +87,7 @@ class SecureDiagnosticsTests(unittest.TestCase):
         self.assertTrue(result["network_round_trip"])
         self.assertTrue(result["confirmation_gated"])
         self.assertTrue(result["result_redacted"])
-        self.assertEqual(result["integration_tools_checked"], 9)
+        self.assertEqual(result["integration_tools_checked"], 20)
         self.assertFalse(result["external_actions_executed"])
         self.assertFalse(result["persistent_keys_touched"])
 
