@@ -216,13 +216,6 @@ bool PipaSecureSession::vectorSelfTest() {
       0x8E, 0x8F, 0xDC, 0xC7, 0xFA, 0x5A, 0x12, 0x77,
       0x09, 0xB2, 0xB4, 0x5A, 0x0A, 0xA2, 0xDF, 0xBC,
       0x60, 0xA3, 0x51, 0x56, 0x08, 0x6E};
-  static constexpr uint8_t expected_audio_ciphertext_and_tag[] = {
-      0xD6, 0x53, 0xE5, 0x78, 0xE2, 0xB6, 0x3A, 0x43,
-      0xE7, 0xFF, 0xBA, 0xA3, 0x97, 0x33, 0x82, 0xB7,
-      0x3E, 0x29, 0x4F, 0x00, 0x80, 0x25, 0x9B, 0x53,
-      0xB3, 0x53, 0x62, 0x94, 0xFC, 0x91, 0x10, 0xF1,
-      0xC2, 0xFF, 0x6E, 0x11, 0xC2, 0x3F, 0x20, 0x60,
-      0x56, 0x5D, 0x04, 0x6E, 0x16, 0x6B, 0x67, 0xDA};
   static constexpr uint8_t plaintext[] = {
       'v', 'e', 'c', 't', 'o', 'r', ' ', 'p', 'a', 'y', 'l', 'o', 'a', 'd'};
   static constexpr uint8_t additional_data[] = {'r', 'o', 'u', 't', 'e', ':', 'u', 's', 'b'};
@@ -271,56 +264,7 @@ bool PipaSecureSession::vectorSelfTest() {
     return false;
   }
 
-  // The audio profile uses the same binary record layer with its exact AAD
-  // contract.  This remains a deterministic compile/boot self-test only;
-  // no microphone, I2S buffer, codec or production route calls it.
-  static constexpr uint8_t audio_samples[] = {
-      0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-      0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-      0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
-      0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F};
-  static constexpr uint8_t audio_additional_data[] =
-      "pipa/audio/v2\0{\"audio_protocol_version\":2,\"bits_per_sample\":16,"
-      "\"channels\":1,\"chunk_index\":0,\"final\":true,\"sample_rate\":16000,"
-      "\"stream_id\":\"audio-test\"}";
-  PipaSecureSession audio_client;
-  PipaSecureSession audio_server;
-  if (!audio_client.beginFromSharedSecret(
-          "audio-vector", shared_secret, transcript_hash, true) ||
-      !audio_server.beginFromSharedSecret(
-          "audio-vector", shared_secret, transcript_hash, false)) {
-    return false;
-  }
-  uint8_t audio_sealed[sizeof(expected_audio_ciphertext_and_tag)] = {};
-  size_t audio_sealed_length = 0;
-  if (!audio_client.seal(
-          audio_samples,
-          sizeof(audio_samples),
-          audio_additional_data,
-          sizeof(audio_additional_data) - 1,
-          audio_sealed,
-          sizeof(audio_sealed),
-          &audio_sealed_length) ||
-      audio_sealed_length != sizeof(expected_audio_ciphertext_and_tag) ||
-      memcmp(
-          audio_sealed,
-          expected_audio_ciphertext_and_tag,
-          sizeof(expected_audio_ciphertext_and_tag)) != 0) {
-    return false;
-  }
-  uint8_t audio_opened[sizeof(audio_samples)] = {};
-  size_t audio_opened_length = 0;
-  return audio_server.open(
-             0,
-             audio_sealed,
-             audio_sealed_length,
-             audio_additional_data,
-             sizeof(audio_additional_data) - 1,
-             audio_opened,
-             sizeof(audio_opened),
-             &audio_opened_length) &&
-      audio_opened_length == sizeof(audio_samples) &&
-      memcmp(audio_opened, audio_samples, sizeof(audio_samples)) == 0;
+  return true;
 }
 
 }  // namespace pipa

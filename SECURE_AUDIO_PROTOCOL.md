@@ -57,13 +57,18 @@ nuevo.
 
 - Windows: `windows-agent/secure_audio.py`.
 - iPhone: `mobile-ios/Sources/PipaMobileCore/PipaSecureAudio.swift`.
-- Firmware: vector aislado en `firmware/src/pipa_secure_session.cpp`, ejecutado
-  únicamente por `secure-session-vector`; no forma parte de la captura.
+- Firmware: `firmware/src/pipa_secure_audio.h/.cpp` contiene un primitive
+  acotado de framing, cifrado y apertura, ejecutado únicamente por el vector
+  `secure-session-vector`; no forma parte de la captura ni del transporte
+  normal.
 - Vector compartido: `mobile-ios/Tests/Fixtures/secure_audio_v2.json`.
 - Tests Python y Swift: verifican ciphertext idéntico, ausencia de un campo
   `samples`, orden, límites, manipulación de metadatos y cierre fail-closed.
 
-El módulo no se importa desde el agente residente ni desde el firmware normal.
-No escribe muestras en logs, archivos, NVS o pantalla y no tiene ninguna ruta
-de captura conectada. La integración del firmware queda deliberadamente para
-después de probar codec, I²S, buffers, cancelación e indicador en la placa.
+El módulo no se importa desde el agente residente. En firmware se compila como
+una librería de transporte aislada, pero solo se invoca desde la prueba
+protegida por `PIPA_SECURE_SESSION_VECTOR_TEST`; no tiene dependencias de I²S,
+codec, Wi‑Fi, serie ni pantalla. No escribe muestras en logs, archivos, NVS o
+pantalla y no tiene ninguna ruta de captura conectada. La integración real del
+firmware queda deliberadamente para después de probar codec, I²S, buffers,
+cancelación e indicador en la placa.

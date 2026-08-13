@@ -10,9 +10,11 @@ $pythonTestPath = Join-Path $repoRoot 'windows-agent/tests/test_secure_audio.py'
 $swiftPath = Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileCore/PipaSecureAudio.swift'
 $fixturePath = Join-Path $repoRoot 'mobile-ios/Tests/Fixtures/secure_audio_v2.json'
 $firmwareSessionPath = Join-Path $repoRoot 'firmware/src/pipa_secure_session.cpp'
+$firmwareAudioHeaderPath = Join-Path $repoRoot 'firmware/src/pipa_secure_audio.h'
+$firmwareAudioPath = Join-Path $repoRoot 'firmware/src/pipa_secure_audio.cpp'
 $firmwareMainPath = Join-Path $repoRoot 'firmware/src/main.cpp'
 
-foreach ($path in @($pythonPath, $pythonTestPath, $swiftPath, $fixturePath, $firmwareSessionPath, $firmwareMainPath)) {
+foreach ($path in @($pythonPath, $pythonTestPath, $swiftPath, $fixturePath, $firmwareSessionPath, $firmwareAudioHeaderPath, $firmwareAudioPath, $firmwareMainPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Falta un artefacto del contrato de audio seguro: $path"
     }
@@ -22,6 +24,8 @@ $python = Get-Content -LiteralPath $pythonPath -Raw
 $swift = Get-Content -LiteralPath $swiftPath -Raw
 $fixture = Get-Content -LiteralPath $fixturePath -Raw
 $firmwareSession = Get-Content -LiteralPath $firmwareSessionPath -Raw
+$firmwareAudioHeader = Get-Content -LiteralPath $firmwareAudioHeaderPath -Raw
+$firmwareAudio = Get-Content -LiteralPath $firmwareAudioPath -Raw
 $firmwareMain = Get-Content -LiteralPath $firmwareMainPath -Raw
 
 foreach ($required in @(
@@ -58,11 +62,20 @@ if ($python -match '(?i)["'']samples["'']\s*:') {
 if ($swift -match '(?i)["'']samples["'']\s*:') {
     throw 'Las muestras no pueden aparecer como un campo JSON en el módulo Swift.'
 }
-if ($firmwareSession.IndexOf('pipa/audio/v2', [System.StringComparison]::Ordinal) -lt 0) {
+if ($firmwareAudio.IndexOf('pipa/audio/v2', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'El vector de firmware no contiene el AAD de audio v2 compartido.'
 }
-if ($firmwareMain -match '(?i)pipa/audio/v2|audio_additional_data|PipaSecureAudio') {
-    throw 'El firmware normal no puede conectar todavía el contrato de audio.'
+if ($firmwareAudio.IndexOf('pipa/audio/v2', [System.StringComparison]::Ordinal) -lt 0 -or
+    $firmwareAudioHeader.IndexOf('PipaSecureAudioSender', [System.StringComparison]::Ordinal) -lt 0 -or
+    $firmwareAudioHeader.IndexOf('PipaSecureAudioReceiver', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'El primitive de framing del firmware no contiene el contrato esperado.'
+}
+if ($firmwareAudio -match '(?im)#include\s*[<"](?:driver/i2s|I2S|Wire|WiFi|Bluetooth|esp_audio)[>"]|\b(?:Wire|Serial|WiFi)\s*[.(]|\b(?:ES8311|ES7210)\b') {
+    throw 'El framing de audio del firmware no puede depender de hardware, red ni puertos.'
+}
+$vectorGuard = '(?s)#if\s+defined\(PIPA_SECURE_SESSION_VECTOR_TEST\).*?PipaSecureAudio::vectorSelfTest\(\).*?#endif'
+if ($firmwareMain -notmatch $vectorGuard) {
+    throw 'La prueba de audio del firmware debe quedar protegida por PIPA_SECURE_SESSION_VECTOR_TEST.'
 }
 if ($fixture -notmatch '"ciphertext"\s*:\s*"[^"\r\n]+"' -or
     $fixture -match '(?s)"frame"\s*:\s*\{[^}]*"samples"\s*:') {
@@ -82,11 +95,18 @@ foreach ($path in $productionPython) {
     }
 }
 
-$productionFirmware = @(Get-ChildItem -Path (Join-Path $repoRoot 'firmware/src') -Include '*.cpp', '*.h' -File -Recurse)
+$productionFirmware = @(Get-ChildItem -Path (Join-Path $repoRoot 'firmware/src') -Include '*.cpp', '*.h' -File -Recurse | Where-Object {
+    $_.FullName -ne $firmwareAudioHeaderPath -and
+    $_.FullName -ne $firmwareAudioPath
+})
 foreach ($path in $productionFirmware) {
     $source = Get-Content -LiteralPath $path.FullName -Raw
-    if ($source -match '(?i)PipaSecureAudio|secure_audio') {
-        throw "El audio seguro no puede conectarse aún al firmware: $($path.FullName)"
+    if ($path.FullName -eq $firmwareMainPath) {
+        $source = [regex]::Replace($source, $vectorGuard, '')
+        $source = $source -replace '(?m)^\s*#include\s*[<"]pipa_secure_audio\.h[>"]\s*$', ''
+    }
+    if ($source -match '(?i)PipaSecureAudio|secure_audio|pipa/audio/v2') {
+        throw "El audio seguro no puede conectarse aún al firmware de producción: $($path.FullName)"
     }
 }
 

@@ -54,8 +54,10 @@ CDC. La referencia física está en la
   no permite confirmar acciones externas. La configuración rastreada lo deja
   desactivado hasta provisionar la clave pública del agente.
 - El entorno `secure-session-vector` compila un vector determinista compartido
-  con Python para el record layer; su ejecución en una placa real sigue
-  pendiente y no forma parte del firmware normal.
+  con Python para el record layer y el framing de audio v2. El nuevo primitive
+  `pipa_secure_audio.h/.cpp` valida límites, secuencias, AAD y cierre
+  fail-closed, pero solo se invoca desde ese entorno; su ejecución en una placa
+  real sigue pendiente y no forma parte del firmware normal.
 
 La compilación verificada ocupa aproximadamente un 8,0 % de la partición de
 aplicación y un 10,2 % de la RAM interna. Es una validación de software; no
@@ -161,7 +163,9 @@ Para compilar la sonda I²S experimental sin habilitarla en el firmware normal:
 
 Este entorno no prueba el micrófono ni el altavoz y no debe flashearse como
 firmware de uso diario. La inicialización real de codec, captura y reproducción
-sigue bloqueada hasta la validación física.
+sigue bloqueada hasta la validación física. El framing seguro se compila en el
+firmware para detectar incompatibilidades, pero no tiene una ruta hacia I²S,
+codec, red, serie, pantalla ni almacenamiento.
 
 Para compilar también el camino seguro sin cambiar la configuración local:
 
