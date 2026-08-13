@@ -68,6 +68,11 @@ El contrato de entradas también tiene una prueba host independiente
 (`tests/pipa_text_policy_host_test.cpp`) que verifica las allowlists de gestos
 y fuentes, UTF-8 malformado y controles invisibles. La CI la ejecuta junto al
 vector de estados de audio; no sustituye la validación del firmware en la placa.
+La transformación de resúmenes visibles está aislada en
+`src/pipa_display_text.cpp` y tiene una prueba host propia: convierte los
+acentos esperados a ASCII, limita el tamaño y evita pasar bytes Unicode
+desconocidos al driver de glifos. Tampoco sustituye la validación física de la
+fuente, orientación o legibilidad de la pantalla.
 
 La compilación verificada ocupa aproximadamente un 8,0 % de la partición de
 aplicación y un 10,2 % de la RAM interna. Es una validación de software; no

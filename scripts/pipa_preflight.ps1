@@ -114,6 +114,7 @@ Invoke-RepoScriptCheck -Name 'Firmware eFuse security gate' -RelativePath 'scrip
 Invoke-RepoScriptCheck -Name 'Trusted Unlock safety' -RelativePath 'scripts/check_trusted_unlock_safety.ps1'
 Invoke-RepoScriptCheck -Name 'Secure audio contract isolation' -RelativePath 'scripts/check_secure_audio_contract.ps1'
 Invoke-RepoScriptCheck -Name 'Audio state machine isolation' -RelativePath 'scripts/check_audio_state_machine.ps1'
+Invoke-RepoScriptCheck -Name 'Display text isolation' -RelativePath 'scripts/check_display_text.ps1'
 
 if ($SkipStartupCheck) {
     Write-Host '[INFO] Hidden startup and local agent check skipped explicitly.' -ForegroundColor Yellow

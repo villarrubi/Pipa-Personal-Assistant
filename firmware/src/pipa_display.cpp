@@ -1,5 +1,7 @@
 #include "pipa_display.h"
 
+#include "pipa_display_text.h"
+
 #include <driver/spi_master.h>
 #include <esp_check.h>
 #include <esp_lcd_io_spi.h>
@@ -449,43 +451,16 @@ void PipaDisplay::drawTextAt(
 }
 
 String PipaDisplay::displaySummary(const String& summary) {
-  String result = summary;
-  // The tiny built-in font is ASCII-only. Keep the visible confirmation
-  // readable without leaking raw UTF-8 bytes into glyph lookup.
-  result.replace("á", "a");
-  result.replace("é", "e");
-  result.replace("í", "i");
-  result.replace("ó", "o");
-  result.replace("ú", "u");
-  result.replace("Á", "A");
-  result.replace("É", "E");
-  result.replace("Í", "I");
-  result.replace("Ó", "O");
-  result.replace("Ú", "U");
-  result.replace("ñ", "n");
-  result.replace("Ñ", "N");
-  result.replace("ü", "u");
-  result.replace("Ü", "U");
-  result.replace("\r", " ");
-  result.replace("\n", " ");
-  result.toUpperCase();
-  result.trim();
-  return result.substring(0, 96);
+  const std::string normalized = display_text::normalizeSummary(summary.c_str());
+  return String(normalized.c_str());
 }
 
 void PipaDisplay::splitSummary(const String& summary, String& first, String& second) {
-  constexpr size_t kMaxCharsPerLine = 23;
-  if (summary.length() <= kMaxCharsPerLine) {
-    first = summary;
-    return;
-  }
-
-  size_t split = summary.lastIndexOf(' ', kMaxCharsPerLine);
-  if (split == static_cast<size_t>(-1) || split == 0) split = kMaxCharsPerLine;
-  first = summary.substring(0, split);
-  second = summary.substring(split);
-  second.trim();
-  if (second.length() > kMaxCharsPerLine) second = second.substring(0, kMaxCharsPerLine);
+  std::string first_text;
+  std::string second_text;
+  display_text::splitSummary(summary.c_str(), first_text, second_text);
+  first = first_text.c_str();
+  second = second_text.c_str();
 }
 
 uint16_t PipaDisplay::colorForState(const String& state) {
