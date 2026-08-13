@@ -51,7 +51,9 @@ que las solicitó y caducan si no se confirman.
 - Abrir Codex o una aplicación configurada mediante una frase confirmable, sin
   escribir nada en chats.
 - Buscar en Internet, abrir Apple Music y abrir búsquedas musicales; después
-  de elegir una pista, controlar reproducción/pausa con el reproductor activo.
+  de elegir una pista, controlar reproducción/pausa, anterior, siguiente o
+  parada con el reproductor activo (`music-play`, `music-next`,
+  `music-previous`, `music-stop`).
 - Controlar volumen y teclas multimedia.
 - Crear y consultar temporizadores en memoria.
 - Abrir una URL validada desde una frase, siempre con confirmación.
@@ -209,6 +211,9 @@ una canción de Daft Punk en Apple Music`, `pon una canción de Daft Punk en App
 después de elegirla, `reproduce la canción seleccionada`, además de preparar un
 mensaje de WhatsApp sin enviarlo —por ejemplo `abre WhatsApp con mama y escribe
 Hola`—, consultar el estado de League y cancelar una búsqueda con confirmación.
+También entiende variantes naturales como `cancela la búsqueda del LoL` y
+`llama por Discord a amigo`; ambas conservan la confirmación y el último paso
+manual correspondiente.
 Desde una sesión autenticada, las acciones externas requieren confirmación y las
 interfaces que puedan enviar o llamar siguen requiriendo la acción final del
 usuario. Tras seleccionar una canción, el catálogo móvil ofrece reproducir/pausar

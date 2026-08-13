@@ -130,10 +130,19 @@ python .\windows-agent\pipa_cli.py audio-volume 40
 python .\windows-agent\pipa_cli.py power-status
 python .\windows-agent\pipa_cli.py network-status
 python .\windows-agent\pipa_cli.py media-action play_pause
+python .\windows-agent\pipa_cli.py music-play
+python .\windows-agent\pipa_cli.py music-next
+python .\windows-agent\pipa_cli.py music-previous
+python .\windows-agent\pipa_cli.py music-stop
 python .\windows-agent\pipa_cli.py timer-create 60 descanso
 python .\windows-agent\pipa_cli.py timer-list
 python .\windows-agent\pipa_cli.py timer-cancel <timer_id>
 ```
+
+Los cuatro comandos `music-*` son atajos seguros para el reproductor activo:
+úsalos después de elegir manualmente una pista en Apple Music. No buscan,
+seleccionan ni compran contenido, y tampoco requieren `--confirm`; equivalen
+a `media-action play_pause|next|previous|stop`.
 
 Para instalar o actualizar el inicio de sesión, abre PowerShell normal. Se
 registra para tu usuario y con nivel limitado; no necesita elevarse:

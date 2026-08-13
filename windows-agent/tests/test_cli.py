@@ -127,6 +127,20 @@ class CliTests(unittest.TestCase):
         arguments = pipa_cli._parser().parse_args(["league-search", "solo"])
         self.assertEqual(pipa_cli._route(arguments), ("POST", "/league/search", {"queue": "solo"}))
 
+        expected_music_actions = {
+            "music-play": "play_pause",
+            "music-next": "next",
+            "music-previous": "previous",
+            "music-stop": "stop",
+        }
+        for command, action in expected_music_actions.items():
+            with self.subTest(command=command):
+                arguments = pipa_cli._parser().parse_args([command])
+                self.assertEqual(
+                    pipa_cli._route(arguments),
+                    ("POST", "/media/action", {"action": action}),
+                )
+
         arguments = pipa_cli._parser().parse_args(["whatsapp-phone-open", "+34600123456"])
         self.assertEqual(
             pipa_cli._route(arguments),
@@ -307,6 +321,12 @@ class CliTests(unittest.TestCase):
             ["discord-call-channel", "12345678901234567", "--confirm"]
         )
         self.assertTrue(discord_call_channel.confirm)
+
+    def test_music_shortcuts_are_safe_commands_without_confirmation(self):
+        for command in ("music-play", "music-next", "music-previous", "music-stop"):
+            with self.subTest(command=command):
+                arguments = pipa_cli._parser().parse_args([command])
+                self.assertFalse(getattr(arguments, "confirm", False))
 
     @patch("pipa_cli._request")
     def test_main_does_not_execute_external_command_without_confirmation(self, request):

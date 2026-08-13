@@ -249,6 +249,17 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     if discord_call_contact:
         return ParsedIntent("discord_call", {"contact": discord_call_contact.group(1).strip()})
 
+    discord_call_contact_prefix = re.fullmatch(
+        r"(?:llama(?:r)?|haz una llamada) (?:por|en) discord (?:a|al) (.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if discord_call_contact_prefix:
+        return ParsedIntent(
+            "discord_call",
+            {"contact": discord_call_contact_prefix.group(1).strip()},
+        )
+
     discord_call_server_channel_suffix = re.fullmatch(
         r"(?:llama(?:r)?|haz una llamada) (?:al|a(?:l)? )?(?:canal )?([0-9]{17,20}) "
         r"(?:del|de|en el) (?:servidor|guild) ([0-9]{17,20}) (?:por|en) discord",
@@ -357,7 +368,10 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     if discord_channel:
         return ParsedIntent("discord_open", {"channel_id": discord_channel.group(1)})
 
-    if re.fullmatch(r"cancela(?: la)? busqueda(?: de (?:league|lol))?", normalized):
+    if re.fullmatch(
+        r"cancela(?: la)? busqueda(?:(?: de(?:l)?| en el) (?:league|lol))?",
+        normalized,
+    ):
         return ParsedIntent("league_cancel", {})
 
     if normalized in {

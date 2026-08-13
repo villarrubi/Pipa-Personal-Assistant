@@ -65,6 +65,11 @@ class IntegrationIntentTests(unittest.TestCase):
             {"contact": "amigo"},
         )
         self.assert_intent(
+            "llama por Discord a amigo",
+            "discord_call",
+            {"contact": "amigo"},
+        )
+        self.assert_intent(
             "llama a Discord canal 12345678901234567",
             "discord_call_channel",
             {"channel_id": "12345678901234567"},
@@ -106,6 +111,15 @@ class IntegrationIntentTests(unittest.TestCase):
             "league_search",
             {"queue": "aram"},
         )
+
+    def test_league_cancel_accepts_natural_game_context(self):
+        for phrase in (
+            "cancela la búsqueda del LoL",
+            "cancela la búsqueda en el League",
+            "cancela la búsqueda de lol",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assert_intent(phrase, "league_cancel", {})
 
     def test_media_controls_do_not_select_or_send_external_content(self):
         self.assert_intent(

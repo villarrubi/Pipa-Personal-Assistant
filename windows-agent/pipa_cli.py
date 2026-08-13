@@ -204,6 +204,13 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser("network-status", help="Consulta el estado de las interfaces de red.")
     media_action = commands.add_parser("media-action", help="Envía una acción multimedia allowlisted.")
     media_action.add_argument("action")
+    commands.add_parser(
+        "music-play",
+        help="Reproduce o pausa la pista que ya hayas seleccionado en el reproductor activo.",
+    )
+    commands.add_parser("music-next", help="Pasa a la siguiente pista del reproductor activo.")
+    commands.add_parser("music-previous", help="Vuelve a la pista anterior del reproductor activo.")
+    commands.add_parser("music-stop", help="Detiene el reproductor multimedia activo.")
     commands.add_parser("timer-list", help="Lista temporizadores activos.")
     timer_create = commands.add_parser("timer-create", help="Crea un temporizador local.")
     timer_create.add_argument("seconds", type=int)
@@ -329,6 +336,14 @@ def _route(arguments: argparse.Namespace) -> tuple[str, str, dict[str, object] |
         return "GET", "/system/network", None
     if command == "media-action":
         return "POST", "/media/action", {"action": arguments.action}
+    if command in {"music-play", "music-next", "music-previous", "music-stop"}:
+        action = {
+            "music-play": "play_pause",
+            "music-next": "next",
+            "music-previous": "previous",
+            "music-stop": "stop",
+        }[command]
+        return "POST", "/media/action", {"action": action}
     if command == "timer-list":
         return "GET", "/timers", None
     if command == "timer-create":
