@@ -11,6 +11,7 @@ from secure_audio import (  # noqa: E402
     AudioCaptureGate,
     AudioCaptureState,
     AudioFrameError,
+    SecureAudioCommandBridge,
     SecureAudioConsumer,
     SecureAudioReceiver,
     SecureAudioSender,
@@ -275,6 +276,82 @@ class SecureAudioTests(unittest.TestCase):
             self.assertTrue(transcriber.closed)
         finally:
             transcriber.close()
+
+    def test_command_bridge_dispatches_only_a_final_transcript_and_closes(self):
+        sender = SecureAudioSender(self._session("client"), "stream-bridge")
+        first = sender.seal_chunk(b"\x01\x02" * 4, final=False)
+        final = sender.seal_chunk(b"\x03\x04" * 4, final=True)
+        dispatched: list[str] = []
+
+        transcriber = SecureAudioTranscriber(
+            SecureAudioReceiver(self._session("server")),
+            lambda _view, is_final: "estado de integraciones" if is_final else None,
+            AudioCaptureGate(),
+        )
+        bridge = SecureAudioCommandBridge(transcriber, dispatched.append)
+        self.assertTrue(transcriber.consumer.gate.mark_codec_ready(True))
+        bridge.begin_capture(display_ready=True, consented=True, secure_transport_ready=True)
+
+        self.assertFalse(bridge.consume_frame(first))
+        self.assertTrue(bridge.consume_frame(final))
+        self.assertEqual(dispatched, [])
+
+        summary, result = bridge.finalize()
+
+        self.assertEqual(summary.stream_bytes, 16)
+        self.assertIsNone(result)
+        self.assertEqual(dispatched, ["estado de integraciones"])
+        self.assertTrue(bridge.closed)
+        with self.assertRaises(AudioFrameError):
+            bridge.finalize()
+
+    def test_command_bridge_closes_when_dispatch_fails(self):
+        sender = SecureAudioSender(self._session("client"), "stream-bridge-failure")
+        frame = sender.seal_chunk(b"\x01\x02" * 4, final=True)
+
+        def fail(_transcript: str) -> None:
+            raise RuntimeError("private dispatcher detail")
+
+        transcriber = SecureAudioTranscriber(
+            SecureAudioReceiver(self._session("server")),
+            lambda _view, _is_final: "estado del ordenador",
+            self._listening_gate(),
+        )
+        bridge = SecureAudioCommandBridge(transcriber, fail)
+        try:
+            self.assertTrue(bridge.consume_frame(frame))
+            with self.assertRaises(AudioFrameError):
+                bridge.finalize()
+            self.assertTrue(bridge.closed)
+            self.assertNotIn("private dispatcher detail", str(bridge))
+        finally:
+            bridge.close()
+
+    def test_command_bridge_cancel_clears_transcript_and_allows_a_new_capture(self):
+        sender = SecureAudioSender(self._session("client"), "stream-bridge-cancel")
+        partial = sender.seal_chunk(b"\x01\x02" * 4, final=False)
+        dispatched: list[str] = []
+        transcriber = SecureAudioTranscriber(
+            SecureAudioReceiver(self._session("server")),
+            lambda _view, is_final: "estado de integraciones" if is_final else None,
+            AudioCaptureGate(),
+        )
+        bridge = SecureAudioCommandBridge(transcriber, dispatched.append)
+        try:
+            self.assertTrue(transcriber.consumer.gate.mark_codec_ready(True))
+            bridge.begin_capture(display_ready=True, consented=True, secure_transport_ready=True)
+            self.assertFalse(bridge.consume_frame(partial))
+            bridge.cancel()
+            self.assertFalse(bridge.closed)
+
+            second_sender = SecureAudioSender(sender.session, "stream-bridge-cancel-new")
+            second = second_sender.seal_chunk(b"\x05\x06" * 4, final=True)
+            bridge.begin_capture(display_ready=True, consented=True, secure_transport_ready=True)
+            self.assertTrue(bridge.consume_frame(second))
+            bridge.finalize()
+            self.assertEqual(dispatched, ["estado de integraciones"])
+        finally:
+            bridge.close()
 
     def test_consumer_finalize_rejects_truncated_stream_and_closes_session(self):
         sender = SecureAudioSender(self._session("client"), "stream-truncated")

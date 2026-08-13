@@ -15,6 +15,7 @@ from typing import Any
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from secure_audio import (
     AudioCaptureGate,
+    SecureAudioCommandBridge,
     SecureAudioReceiver,
     SecureAudioSender,
     SecureAudioTranscriber,
@@ -36,7 +37,6 @@ from secure_session_server import SecureSessionServer
 from secure_tcp_gateway import SecureTcpGateway
 
 from backend.pipa_core.core import PipaCore
-from backend.pipa_core.intents import parse_text_intent
 from backend.pipa_core.simulator import create_simulator
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter
 
@@ -227,7 +227,26 @@ def run_secure_audio_self_test() -> dict[str, object]:
         transcript_hash,
         role="server",
     )
-    transcriber: SecureAudioTranscriber | None = None
+    bridge: SecureAudioCommandBridge | None = None
+    core = PipaCore(
+        verifier=object(),
+        router=ToolRouter(
+            ToolCatalog(
+                [
+                    ToolDefinition(
+                        "integration_status",
+                        lambda _arguments: {"success": True, "simulated": True},
+                    )
+                ]
+            )
+        ),
+    )
+    session = core.sessions.create(
+        "audio-diagnostic-device",
+        capabilities=("display", "touch"),
+        capabilities_initialized=True,
+    )
+    routed_transcripts: list[str] = []
     try:
         sender = SecureAudioSender(sender_session, "diagnostic-stream")
         first = sender.seal_chunk(b"\x01\x02" * 8, final=False)
@@ -248,31 +267,40 @@ def run_secure_audio_self_test() -> dict[str, object]:
             transcribe,
             gate,
         )
-        transcriber.begin_capture(
+
+        def dispatch(transcript: str) -> list[dict[str, object]]:
+            routed_transcripts.append(transcript)
+            return core.handle_transcript(session.session_id, transcript)
+
+        bridge = SecureAudioCommandBridge(transcriber, dispatch)
+        bridge.begin_capture(
             display_ready=True,
             consented=True,
             secure_transport_ready=True,
         )
-        if transcriber.consume_frame(first):
+        if bridge.consume_frame(first):
             raise ValueError("secure audio diagnostic marked a non-final chunk as final")
-        if not transcriber.consume_frame(final):
+        if not bridge.consume_frame(final):
             raise ValueError("secure audio diagnostic did not finish the stream")
-        summary = transcriber.finalize()
-        transcript = transcriber.transcript
-        parsed = parse_text_intent(transcript or "")
+        summary, routed = bridge.finalize()
+        routed_result = next(
+            (item for item in routed if item.get("type") == "tool_result"),
+            None,
+        )
         if (
             received_bytes != 32
             or summary.stream_bytes != 32
             or summary.stream_duration_ms != 1
             or gate.can_capture
-            or transcript != "estado de integraciones"
-            or parsed is None
-            or parsed.tool_name != "integration_status"
+            or routed_transcripts != ["estado de integraciones"]
+            or routed_result is None
+            or routed_result.get("tool_name") != "integration_status"
         ):
             raise ValueError("secure audio diagnostic returned an invalid transcript path")
     finally:
-        if transcriber is not None:
-            transcriber.close()
+        if bridge is not None:
+            bridge.close()
+        core.close(session.session_id)
         sender_session.close()
         receiver_session.close()
 

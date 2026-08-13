@@ -64,6 +64,11 @@ nuevo.
   que entrega esos chunks al futuro proveedor STT y acepta únicamente una
   transcripción final validada por la política de texto; no elige proveedor,
   abre micrófono, guarda audio ni conecta el agente residente.
+- `SecureAudioCommandBridge` encapsula el paso siguiente: solo después de
+  finalizar el stream entrega una única transcripción al dispatcher del Core y
+  cierra el transcriptor tanto si el dispatcher termina correctamente como si
+  falla. Cancelar conserva únicamente la sesión de control para una captura
+  posterior; no conserva el transcript.
 - iPhone: `mobile-ios/Sources/PipaMobileCore/PipaSecureAudio.swift`.
 - Firmware: `firmware/src/pipa_secure_audio.h/.cpp` contiene un primitive
   acotado de framing, cifrado y apertura, ejecutado únicamente por el vector

@@ -62,6 +62,7 @@ class AudioStreamSummary:
 
 AudioChunkConsumer = Callable[[memoryview, bool], None]
 AudioTranscriptProvider = Callable[[memoryview, bool], object]
+AudioTranscriptDispatcher = Callable[[str], object]
 
 
 class AudioCaptureState(StrEnum):
@@ -569,3 +570,90 @@ class SecureAudioTranscriber:
             self._transcript = validate_bounded_text(result, "La transcripción", 4000).strip()
         except ValueError as error:
             raise AudioFrameError("audio provider returned an invalid transcript") from error
+
+
+class SecureAudioCommandBridge:
+    """Dispatch one finalized transcript and then destroy the audio session.
+
+    The bridge is the narrow seam between the secure audio lifecycle and the
+    Core. It never exposes PCM to the dispatcher, never dispatches partial
+    results and closes the transcriber after a successful or failed dispatch.
+    A cancelled capture may be started again through the same bridge, but a
+    finalized stream can never be dispatched twice.
+    """
+
+    def __init__(
+        self,
+        transcriber: SecureAudioTranscriber,
+        dispatch: AudioTranscriptDispatcher,
+    ) -> None:
+        if not isinstance(transcriber, SecureAudioTranscriber):
+            raise TypeError("transcriber must be SecureAudioTranscriber")
+        if not callable(dispatch):
+            raise TypeError("dispatch must be callable")
+        self._transcriber: SecureAudioTranscriber | None = transcriber
+        self._dispatch: AudioTranscriptDispatcher | None = dispatch
+        self._dispatched = False
+
+    @property
+    def closed(self) -> bool:
+        return self._transcriber is None or self._transcriber.closed
+
+    def begin_capture(
+        self,
+        *,
+        display_ready: bool,
+        consented: bool,
+        secure_transport_ready: bool,
+    ) -> None:
+        transcriber = self._require_transcriber()
+        transcriber.begin_capture(
+            display_ready=display_ready,
+            consented=consented,
+            secure_transport_ready=secure_transport_ready,
+        )
+
+    def consume_frame(self, frame: Mapping[str, object]) -> bool:
+        return self._require_transcriber().consume_frame(frame)
+
+    def finalize(self) -> tuple[AudioStreamSummary, object]:
+        """Finalize audio, dispatch its text once and return bounded metadata."""
+
+        if self._dispatched:
+            raise AudioFrameError("audio transcript was already dispatched")
+        transcriber = self._require_transcriber()
+        summary = transcriber.finalize()
+        transcript = transcriber.transcript
+        dispatch = self._dispatch
+        if transcript is None or dispatch is None:
+            self.close()
+            raise AudioFrameError("audio transcript dispatch is unavailable")
+        try:
+            result = dispatch(transcript)
+        except Exception as error:
+            self.close()
+            raise AudioFrameError("audio transcript dispatch failed") from error
+        self._dispatched = True
+        self.close()
+        return summary, result
+
+    def cancel(self) -> None:
+        transcriber = self._transcriber
+        if transcriber is None:
+            return
+        transcriber.cancel()
+        self._dispatched = False
+
+    def close(self) -> None:
+        transcriber = self._transcriber
+        self._transcriber = None
+        self._dispatch = None
+        if transcriber is not None:
+            transcriber.close()
+
+    def _require_transcriber(self) -> SecureAudioTranscriber:
+        transcriber = self._transcriber
+        if transcriber is None or transcriber.closed:
+            self.close()
+            raise AudioFrameError("audio command bridge is closed")
+        return transcriber
