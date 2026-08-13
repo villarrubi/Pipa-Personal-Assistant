@@ -282,6 +282,7 @@ public final class PipaMobileViewModel: ObservableObject {
         "whatsapp_compose": "Preparar un mensaje de WhatsApp; el envío será manual.",
         "whatsapp_contact": "Preparar un mensaje de WhatsApp; el envío será manual.",
         "whatsapp_contact_open": "Abrir un chat de WhatsApp.",
+        "whatsapp_phone_open": "Abrir un chat de WhatsApp.",
         "whatsapp_open": "Abrir WhatsApp Web.",
         "league_search": "Buscar una partida en League.",
         "league_cancel": "Cancelar la búsqueda de League.",

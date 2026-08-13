@@ -151,6 +151,12 @@ final class PipaMobileUITests: XCTestCase {
                 summary: "Preparar una llamada de Discord; el inicio será manual."
             )
         )
+        XCTAssertTrue(
+            PipaMobileViewModel.isSafeConfirmationSummary(
+                toolName: "whatsapp_phone_open",
+                summary: "Abrir un chat de WhatsApp."
+            )
+        )
         XCTAssertFalse(
             PipaMobileViewModel.isSafeConfirmationSummary(
                 toolName: "whatsapp_compose",
