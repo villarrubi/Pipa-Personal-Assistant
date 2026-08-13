@@ -297,6 +297,11 @@ class LeagueClientApi:
                 raise LeagueClientError("League Client devolvió una cola de lobby inválida.") from error
             if current_queue_id != queue_id:
                 raise LeagueClientError("Ya existe un lobby de League con otra cola.")
+        else:
+            # Do not treat an undocumented LCU response as an empty lobby.
+            # Creating matchmaking from an unknown shape could act on a
+            # client state that this adapter has not explicitly understood.
+            raise LeagueClientError("League Client devolvió un lobby inválido.")
         self._request("POST", "/lol-lobby/v2/lobby/matchmaking/search", {})
         verification = self.search_status()
         if verification["supported"] is not True or verification["searching"] is not True:

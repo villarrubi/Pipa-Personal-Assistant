@@ -1130,6 +1130,21 @@ class IntegrationTests(unittest.TestCase):
 
         self.assertEqual(request.call_count, 2)
 
+    def test_league_search_fails_closed_when_lobby_response_has_unknown_shape(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+        with patch.object(
+            api,
+            "_request",
+            side_effect=[["unexpected"], {"searchState": "None"}],
+        ) as request:
+            with self.assertRaises(LeagueClientError):
+                api.start_search("normal")
+
+        # The adapter must not try to create a lobby or start matchmaking
+        # after receiving an undocumented response shape.
+        self.assertEqual(request.call_count, 2)
+
     def test_league_status_redacts_raw_lobby_details(self):
         connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
         api = LeagueClientApi(connection)
