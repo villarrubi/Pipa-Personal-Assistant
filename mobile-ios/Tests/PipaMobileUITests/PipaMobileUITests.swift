@@ -219,6 +219,43 @@ final class PipaMobileUITests: XCTestCase {
         )
     }
 
+    func testLocalConfirmationPreviewIsBoundedAndRejectsInvisibleControls() {
+        XCTAssertEqual(
+            PipaMobileViewModel.safeLocalPreview("prepara WhatsApp y dile Hola\nMundo"),
+            "prepara WhatsApp y dile Hola\nMundo"
+        )
+        XCTAssertNil(PipaMobileViewModel.safeLocalPreview("comando\u{202E}oculto"))
+        XCTAssertNil(PipaMobileViewModel.safeLocalPreview(String(repeating: "a", count: 4001)))
+    }
+
+    func testLocalConfirmationPreviewDetectsAChangedServerAction() {
+        let matching = PipaMobileConfirmation(
+            confirmationID: "confirmation-1",
+            toolName: "whatsapp_compose",
+            summary: "Preparar un mensaje de WhatsApp; el envío será manual.",
+            localPreview: "prepara WhatsApp para +34 600 123 456 y dile Hola",
+            localPreviewToolName: "whatsapp_compose"
+        )
+        let mismatch = PipaMobileConfirmation(
+            confirmationID: "confirmation-2",
+            toolName: "discord_call_channel",
+            summary: "Preparar una llamada de Discord; el inicio será manual.",
+            localPreview: "prepara WhatsApp para +34 600 123 456 y dile Hola",
+            localPreviewToolName: "whatsapp_compose"
+        )
+        let freeText = PipaMobileConfirmation(
+            confirmationID: "confirmation-3",
+            toolName: "music_search",
+            summary: "Buscar en Apple Music.",
+            localPreview: "busca Daft Punk en Apple Music",
+            localPreviewToolName: nil
+        )
+
+        XCTAssertTrue(matching.localPreviewMatchesServerAction)
+        XCTAssertFalse(mismatch.localPreviewMatchesServerAction)
+        XCTAssertTrue(freeText.localPreviewMatchesServerAction)
+    }
+
     func testCatalogCommandOnlyPrefillsTheEditor() throws {
         let model = PipaMobileViewModel()
         let command = try XCTUnwrap(

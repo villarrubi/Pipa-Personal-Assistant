@@ -86,6 +86,10 @@ que las solicitó y caducan si no se confirman.
 - Desde el iPhone, abrir un chat de WhatsApp con un mensaje preparado o un
   canal de Discord mediante enlaces HTTPS; el envío y la llamada siguen siendo
   manuales y esos datos no se guardan.
+- En las confirmaciones del iPhone se puede revisar también una copia efímera
+  del comando recién preparado; no viaja en `confirm_request`, no se persiste y
+  una discrepancia entre la herramienta elegida y la solicitada bloquea la
+  aceptación.
 - Desde el iPhone, abrir una búsqueda web local en Safari tras una confirmación
   visible; la consulta no pasa por el agente ni se almacena.
 - Desde el iPhone, despertar el PC con Wake-on-LAN tras una confirmación visible:

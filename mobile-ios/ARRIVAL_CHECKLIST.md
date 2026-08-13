@@ -81,6 +81,9 @@ Configurar en Windows una IP privada concreta y un puerto explícito:
 - Probar un mensaje de WhatsApp con un salto de línea: debe viajar solo como
   argumento cifrado, no aparecer en `confirm_request` y seguir requiriendo
   pulsar `Enviar` en WhatsApp.
+- En una confirmación móvil, comprobar que el texto `Comando preparado en este
+  iPhone` es una vista local sensible, que desaparece al resolverla y que una
+  discrepancia de herramienta deja `Aceptar` bloqueado.
 - Ejecutar primero `system_status` o `league_status`.
 - Comprobar que un `tool_call` externo solo produce `confirm_request`.
 - Rechazar una confirmación y comprobar que no se abre ninguna aplicación.

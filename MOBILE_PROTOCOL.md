@@ -159,6 +159,14 @@ no publica `parameters`, la UI conserva el camino compatible de frase libre.
 El Core vuelve a validar ese contrato —incluidos campos extra, tipos, límites y
 allowlists— antes de crear una confirmación y al consumirla.
 
+Para ayudar a la revisión humana, la UI Swift puede mostrar además una copia
+efímera del comando que el usuario acaba de preparar en el propio teléfono.
+Esa vista local nunca forma parte de `confirm_request`, no se persiste y se
+borra al resolver la confirmación, cerrar la sesión o fallar la operación. En
+comandos estructurados, si la herramienta solicitada por el agente no coincide
+con la seleccionada localmente, la UI bloquea `Aceptar` y solo permite
+rechazarla.
+
 Una acción directa que no muestra marcadores pero necesita argumentos fijos puede
 publicar además `default_arguments`, un objeto pequeño de textos acotados. Solo
 se acepta junto a `parameters: []`; la UI valida esos valores y los envía sin

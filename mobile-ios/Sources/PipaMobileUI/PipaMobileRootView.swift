@@ -512,6 +512,25 @@ public struct PipaMobileRootView: View {
                         .font(.headline)
                     Text(pending.summary)
                         .fixedSize(horizontal: false, vertical: true)
+                    if let localPreview = pending.localPreview {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Comando preparado en este iPhone")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(localPreview)
+                                .font(.caption.monospaced())
+                                .fixedSize(horizontal: false, vertical: true)
+                                .privacySensitive()
+                        }
+                    }
+                    if !pending.localPreviewMatchesServerAction {
+                        Label(
+                            "El agente solicita una acción distinta al comando seleccionado.",
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    }
                     HStack {
                         Button("Rechazar", role: .cancel) {
                             model.resolveConfirmation(accepted: false)
@@ -520,6 +539,7 @@ public struct PipaMobileRootView: View {
                             model.resolveConfirmation(accepted: true)
                         }
                         .buttonStyle(.borderedProminent)
+                        .disabled(!pending.localPreviewMatchesServerAction)
                     }
                 }
                 .accessibilityElement(children: .contain)

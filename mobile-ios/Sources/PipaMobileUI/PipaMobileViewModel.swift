@@ -264,6 +264,18 @@ public struct PipaMobileConfirmation {
     public let confirmationID: String
     public let toolName: String
     public let summary: String
+    /// Optional preview retained only in the iPhone process. It is derived
+    /// from the text/typed fields the user just submitted and is never sent
+    /// back in the confirmation protocol.
+    public let localPreview: String?
+    /// Structured commands know the tool the user selected locally. A
+    /// mismatch must never be silently accepted.
+    public let localPreviewToolName: String?
+
+    public var localPreviewMatchesServerAction: Bool {
+        guard let localPreviewToolName else { return true }
+        return localPreviewToolName == toolName
+    }
 }
 
 @available(iOS 16.0, macOS 13.0, *)
@@ -318,6 +330,8 @@ public final class PipaMobileViewModel: ObservableObject {
     private var requestTask: Task<Void, Never>?
     private var connectInProgress = false
     private var sessionGeneration = 0
+    private var pendingLocalPreview: String?
+    private var pendingLocalPreviewToolName: String?
 
     public init(
         identityStore: PipaKeychainIdentityStore = PipaKeychainIdentityStore(),
@@ -523,6 +537,7 @@ public final class PipaMobileViewModel: ObservableObject {
         commands = []
         integrationCapabilities = []
         pendingConfirmation = nil
+        clearLocalPreview()
         connectionState = .disconnected
         statusMessage = "Desconectado."
         Task {
@@ -537,6 +552,8 @@ public final class PipaMobileViewModel: ObservableObject {
               pendingConfirmation == nil,
               client != nil else { return }
         textCommand = ""
+        pendingLocalPreview = Self.safeLocalPreview(text)
+        pendingLocalPreviewToolName = nil
         startRequest(failureMessage: "No se pudo enviar el comando.") { activeClient in
             try await activeClient.sendText(text)
         }
@@ -556,6 +573,8 @@ public final class PipaMobileViewModel: ObservableObject {
         }
         guard !requestInProgress, pendingConfirmation == nil, client != nil else { return }
         textCommand = ""
+        pendingLocalPreview = command.rendered(with: values)
+        pendingLocalPreviewToolName = command.toolName
         startRequest(failureMessage: "No se pudo enviar la acción estructurada.") { activeClient in
             try await activeClient.callTool(name: command.toolName, arguments: arguments)
         }
@@ -566,6 +585,7 @@ public final class PipaMobileViewModel: ObservableObject {
               let pending = pendingConfirmation,
               client != nil else { return }
         pendingConfirmation = nil
+        clearLocalPreview()
         startRequest(failureMessage: "No se pudo resolver la confirmación.") { activeClient in
             try await activeClient.confirm(
                 confirmationID: pending.confirmationID,
@@ -579,6 +599,15 @@ public final class PipaMobileViewModel: ObservableObject {
             return false
         }
         return summary == expected
+    }
+
+    /// Keep the exact local command useful for review without allowing it to
+    /// become an unbounded or visually deceptive UI string.
+    static func safeLocalPreview(_ text: String) -> String? {
+        guard PipaMobileTextPolicy.isSafeMessageText(text, maxBytes: 4000) else {
+            return nil
+        }
+        return text
     }
 
     static func parseCatalogCommands(_ rawCommands: [[String: Any]]) throws -> [PipaMobileCommand] {
@@ -648,8 +677,11 @@ public final class PipaMobileViewModel: ObservableObject {
                 pendingConfirmation = PipaMobileConfirmation(
                     confirmationID: confirmationID,
                     toolName: toolName,
-                    summary: summary
+                    summary: summary,
+                    localPreview: pendingLocalPreview,
+                    localPreviewToolName: pendingLocalPreviewToolName
                 )
+                clearLocalPreview()
                 connectionState = .awaitingConfirmation
             case "tool_result":
                 guard let toolName = response["tool_name"] as? String,
@@ -671,6 +703,7 @@ public final class PipaMobileViewModel: ObservableObject {
                         return false
                     }
                 }
+                clearLocalPreview()
             case "ui_state":
                 guard let state = response["state"] as? String,
                       ["idle", "listening", "thinking", "confirm", "speaking", "focus", "dashboard"].contains(state)
@@ -702,6 +735,7 @@ public final class PipaMobileViewModel: ObservableObject {
                 }
                 errorMessage = "El agente rechazó la operación."
                 statusMessage = nil
+                clearLocalPreview()
                 if client != nil {
                     connectionState = .connected
                 }
@@ -719,6 +753,7 @@ public final class PipaMobileViewModel: ObservableObject {
         guard client != nil else { return }
         client = nil
         pendingConfirmation = nil
+        clearLocalPreview()
         requestInProgress = false
         connectionState = .disconnected
         errorMessage = message
@@ -731,6 +766,11 @@ public final class PipaMobileViewModel: ObservableObject {
     private func clearMessages() {
         statusMessage = nil
         errorMessage = nil
+    }
+
+    private func clearLocalPreview() {
+        pendingLocalPreview = nil
+        pendingLocalPreviewToolName = nil
     }
 
     private func saveSettings() {
