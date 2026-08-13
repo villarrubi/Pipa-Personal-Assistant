@@ -70,6 +70,7 @@ class IntegrationTests(unittest.TestCase):
                 "whatsapp_contact_open",
                 "discord_open_app",
                 "discord_open",
+                "discord_call_channel",
                 "discord_server_channel",
                 "discord_call",
                 "league_open",
@@ -99,6 +100,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn("envío", commands["whatsapp_contact"]["description"])
         self.assertIn("llamada", commands["discord_contact"]["description"])
         self.assertIn("manualmente", commands["discord_call"]["description"])
+        self.assertIn("manualmente", commands["discord_call_channel"]["description"])
         self.assertEqual(
             commands["discord_server_channel"]["parameters"],
             [

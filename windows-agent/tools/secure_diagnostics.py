@@ -69,6 +69,11 @@ _MOBILE_INTEGRATION_CASES = (
         "Preparar una llamada de Discord; el inicio será manual.",
     ),
     (
+        "discord_call_channel",
+        {"channel_id": "12345678901234567"},
+        "Preparar una llamada de Discord; el inicio será manual.",
+    ),
+    (
         "league_search",
         {"queue": "ranked_solo"},
         "Buscar una partida en League.",

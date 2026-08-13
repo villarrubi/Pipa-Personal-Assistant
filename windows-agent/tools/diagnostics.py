@@ -100,6 +100,16 @@ _COMMAND_ROUTE_CASES = (
     ("abre el canal de amigo en Discord", "discord_contact", {"contact": "amigo"}),
     ("abre el chat de amigo en Discord", "discord_contact", {"contact": "amigo"}),
     ("llama a amigo por Discord", "discord_call", {"contact": "amigo"}),
+    (
+        "llama a Discord canal 12345678901234567",
+        "discord_call_channel",
+        {"channel_id": "12345678901234567"},
+    ),
+    (
+        "llama a Discord servidor 98765432109876543 canal 12345678901234567",
+        "discord_call_channel",
+        {"guild_id": "98765432109876543", "channel_id": "12345678901234567"},
+    ),
     ("abre LoL", "league_open", {}),
     ("busca partida solo", "league_search", {"queue": "ranked_solo"}),
     ("inicia búsqueda ranked", "league_search", {"queue": "ranked_solo"}),

@@ -68,6 +68,7 @@ python .\windows-agent\pipa_cli.py music-search "Daft Punk" --confirm
 python .\windows-agent\pipa_cli.py whatsapp-contact mama "Ya estoy en casa" --confirm
 python .\windows-agent\pipa_cli.py whatsapp-contact-open mama --confirm
 python .\windows-agent\pipa_cli.py discord-contact amigo --confirm
+python .\windows-agent\pipa_cli.py discord-call-channel 12345678901234567 --confirm
 python .\windows-agent\pipa_cli.py league-status
 python .\windows-agent\pipa_cli.py league-search-status
 python .\windows-agent\pipa_cli.py league-search solo --confirm
@@ -167,7 +168,7 @@ valida por ser simplemente “oculta”.
 | GET/POST | `/audio/*`, `/media/action` | Volumen y teclas multimedia |
 | GET/POST/DELETE | `/timers` | Temporizadores en memoria |
 | POST | `/whatsapp/open`, `/whatsapp/compose`, `/whatsapp/contact/compose`, `/whatsapp/contact/open` | Abrir WhatsApp o preparar/abrir chat, sin enviar |
-| POST | `/discord/open`, `/discord/channel/open`, `/discord/contact/open` | Abrir Discord o un canal, sin iniciar llamada |
+| POST | `/discord/open`, `/discord/channel/open`, `/discord/channel/call`, `/discord/contact/open` | Abrir Discord o preparar un canal, sin iniciar llamada |
 | POST | `/discord/contact/call` | Abrir el destino de una llamada; el usuario pulsa Llamar |
 | GET | `/pipa/protocol` | Estado del Core y gateway USB |
 | POST | `/pipa/challenge` | Desafío Ed25519 local |
@@ -265,6 +266,8 @@ abre Discord canal 12345678901234567
 abre Discord servidor 98765432109876543 canal 12345678901234567
 abre el chat de amigo en Discord
 llama a amigo por Discord
+llama a Discord canal 12345678901234567
+llama a Discord servidor 98765432109876543 canal 12345678901234567
 llama a Discord
 cancela la búsqueda
 estado de League
@@ -278,6 +281,9 @@ reproducción/pausa al reproductor activo. No garantiza que Apple Music sea el
 reproductor activo. La de Discord `llama a amigo por Discord`
 abre el canal del alias y deja el botón `Llamar` para la persona; no inicia una
 llamada. La de WhatsApp abre WhatsApp Web; no pulsa `Enviar`.
+
+Las llamadas de Discord también pueden dirigirse a un ID de canal validado;
+Pipα abre el destino y deja el botón `Llamar` para la persona.
 
 `GET /self-test` y los comandos `self-test` y `secure-test` son de solo lectura:
 validan la configuración local, las rutas de voz y los constructores de URLs sin abrir

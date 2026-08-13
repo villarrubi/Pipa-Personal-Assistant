@@ -71,6 +71,8 @@ que las solicitó y caducan si no se confirman.
 - Usar alias locales de Discord para abrir un canal sin iniciar la llamada.
 - Pedir una llamada de Discord para un alias: abre el destino y deja el botón
   `Llamar` para la persona.
+- Pedir una llamada de Discord por ID de canal validado: abre el destino y
+  deja el botón `Llamar` para la persona.
 - Consultar el estado de matchmaking de League y evitar duplicar una búsqueda.
 - Consultar por separado el estado de búsqueda de League, la batería/red del
   PC y listar o cancelar temporizadores locales.

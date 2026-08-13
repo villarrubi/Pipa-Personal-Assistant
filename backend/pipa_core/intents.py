@@ -207,6 +207,27 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     if discord_chat_contact:
         return ParsedIntent("discord_contact", {"contact": discord_chat_contact.group(1).strip()})
 
+    discord_call_server_channel = re.fullmatch(
+        r"llama(?:r)? (?:a |al )?(?:canal )?discord (?:servidor|guild) ([0-9]{17,20}) "
+        r"(?:canal )?([0-9]{17,20})",
+        normalized,
+    )
+    if discord_call_server_channel:
+        return ParsedIntent(
+            "discord_call_channel",
+            {
+                "guild_id": discord_call_server_channel.group(1),
+                "channel_id": discord_call_server_channel.group(2),
+            },
+        )
+
+    discord_call_channel = re.fullmatch(
+        r"llama(?:r)? (?:a |al )?(?:canal )?discord (?:canal )?([0-9]{17,20})",
+        normalized,
+    )
+    if discord_call_channel:
+        return ParsedIntent("discord_call_channel", {"channel_id": discord_call_channel.group(1)})
+
     discord_contact = re.fullmatch(
         r"abre (?:el )?(.+?) (?:por|en) discord",
         original,

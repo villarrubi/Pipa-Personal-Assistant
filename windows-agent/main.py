@@ -614,6 +614,14 @@ def api_discord_channel_open(request: DiscordChannelRequest):
         raise HTTPException(status_code=400, detail="El canal de Discord no es válido.") from error
 
 
+@app.post("/discord/channel/call")
+def api_discord_channel_call(request: DiscordChannelRequest):
+    try:
+        return without_destination(open_discord_call(request.channel_id, request.guild_id))
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail="El canal de Discord no es válido.") from error
+
+
 @app.post("/discord/contact/open")
 def api_discord_contact_open(request: ContactRequest):
     try:

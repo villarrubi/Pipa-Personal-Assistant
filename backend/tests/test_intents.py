@@ -54,6 +54,16 @@ class IntegrationIntentTests(unittest.TestCase):
             "discord_call",
             {"contact": "amigo"},
         )
+        self.assert_intent(
+            "llama a Discord canal 12345678901234567",
+            "discord_call_channel",
+            {"channel_id": "12345678901234567"},
+        )
+        self.assert_intent(
+            "llama a Discord servidor 98765432109876543 canal 12345678901234567",
+            "discord_call_channel",
+            {"guild_id": "98765432109876543", "channel_id": "12345678901234567"},
+        )
 
     def test_league_search_accepts_game_and_queue_context(self):
         self.assert_intent(

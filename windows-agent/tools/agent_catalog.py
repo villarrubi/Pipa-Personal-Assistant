@@ -21,7 +21,12 @@ from tools.commands import (
     open_web_search,
 )
 from tools.contacts import resolve_discord_contact, resolve_whatsapp_contact
-from tools.discord import build_discord_channel_url, open_discord_app, open_discord_call, open_discord_channel
+from tools.discord import (
+    build_discord_channel_url,
+    open_discord_app,
+    open_discord_call,
+    open_discord_channel,
+)
 from tools.league import resolve_queue_id, with_client, with_client_or_launch
 from tools.media import send_media_action
 from tools.system import get_network_status, get_power_status, get_system_status, lock_pc
@@ -169,6 +174,13 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
         if guild_id is not None and not isinstance(guild_id, str):
             raise ValueError("guild_id debe ser texto")
         return open_discord_channel(channel_id, guild_id)
+
+    def discord_call_channel(arguments):
+        channel_id = _text(arguments, "channel_id")
+        guild_id = arguments.get("guild_id")
+        if guild_id is not None and not isinstance(guild_id, str):
+            raise ValueError("guild_id debe ser texto")
+        return open_discord_call(channel_id, guild_id)
 
     def whatsapp_compose(arguments):
         phone = _text(arguments, "phone")
@@ -319,6 +331,16 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                 discord_open,
                 safety="unsafe",
                 confirm_summary=_discord_summary,
+                argument_validator=discord_open_arguments,
+            ),
+            ToolDefinition(
+                "discord_call_channel",
+                discord_call_channel,
+                safety="unsafe",
+                confirm_summary=lambda args: (
+                    f"Preparar llamada de Discord para canal {_text(args, 'channel_id')}; "
+                    "la llamada se inicia manualmente"
+                ),
                 argument_validator=discord_open_arguments,
             ),
             ToolDefinition(

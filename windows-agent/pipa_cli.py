@@ -151,6 +151,12 @@ def _parser() -> argparse.ArgumentParser:
     discord.add_argument("channel_id")
     discord.add_argument("--guild-id")
     add_confirmation_flag(discord)
+    discord_call_channel = commands.add_parser(
+        "discord-call-channel", help="Abre el destino de llamada; no pulsa Llamar."
+    )
+    discord_call_channel.add_argument("channel_id")
+    discord_call_channel.add_argument("--guild-id")
+    add_confirmation_flag(discord_call_channel)
     discord_contact = commands.add_parser(
         "discord-contact", help="Abre Discord usando un alias local; no inicia llamadas."
     )
@@ -268,6 +274,11 @@ def _route(arguments: argparse.Namespace) -> tuple[str, str, dict[str, object] |
         if arguments.guild_id is not None:
             payload["guild_id"] = arguments.guild_id
         return "POST", "/discord/channel/open", payload
+    if command == "discord-call-channel":
+        payload = {"channel_id": arguments.channel_id}
+        if arguments.guild_id is not None:
+            payload["guild_id"] = arguments.guild_id
+        return "POST", "/discord/channel/call", payload
     if command == "discord-contact":
         return "POST", "/discord/contact/open", {"contact": arguments.contact}
     if command == "discord-call":

@@ -53,6 +53,7 @@ class IntegrationContractTests(unittest.TestCase):
             "whatsapp_contact",
             "discord_contact",
             "discord_call",
+            "discord_call_channel",
             "league_search",
             "open_codex",
         }

@@ -244,6 +244,10 @@ class CliTests(unittest.TestCase):
         self.assertTrue(discord_contact.confirm)
         discord_call = pipa_cli._parser().parse_args(["discord-call", "mama", "--confirm"])
         self.assertTrue(discord_call.confirm)
+        discord_call_channel = pipa_cli._parser().parse_args(
+            ["discord-call-channel", "12345678901234567", "--confirm"]
+        )
+        self.assertTrue(discord_call_channel.confirm)
 
     @patch("pipa_cli._request")
     def test_main_does_not_execute_external_command_without_confirmation(self, request):

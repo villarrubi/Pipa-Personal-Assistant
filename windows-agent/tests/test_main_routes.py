@@ -169,6 +169,26 @@ class MainRouteTests(unittest.TestCase):
         resolve_contact.assert_called_once_with("amigo")
         open_call.assert_called_once_with("12345678901234567", None)
 
+    @patch(
+        "main.open_discord_call",
+        return_value={
+            "success": True,
+            "call_started": False,
+            "requires_manual_call": True,
+        },
+    )
+    def test_discord_channel_call_route_never_starts_the_call(self, open_call):
+        response = main.api_discord_channel_call(
+            main.DiscordChannelRequest(
+                channel_id="12345678901234567",
+                guild_id="98765432109876543",
+            )
+        )
+
+        self.assertFalse(response["call_started"])
+        self.assertTrue(response["requires_manual_call"])
+        open_call.assert_called_once_with("12345678901234567", "98765432109876543")
+
     @patch("main.open_league", return_value={"success": True, "target": "allowlisted_app"})
     @patch("main.with_client_or_launch")
     def test_league_search_route_can_launch_the_allowlisted_client(self, with_client_or_launch, open_league):
@@ -280,6 +300,7 @@ class MainRouteTests(unittest.TestCase):
                 "/whatsapp/contact/open",
                 "/discord/open",
                 "/discord/channel/open",
+                "/discord/channel/call",
                 "/discord/contact/open",
                 "/discord/contact/call",
                 "/codex/open",

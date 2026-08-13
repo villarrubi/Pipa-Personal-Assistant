@@ -241,6 +241,27 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "parameters": [_parameter("contact", "Contacto", "contact", 80)],
     },
     {
+        "id": "discord_call_channel",
+        "tool_name": "discord_call_channel",
+        "phrase": "llama a Discord canal <id>",
+        "description": "Abre el destino de llamada; pulsa Llamar manualmente.",
+        "safety": "unsafe",
+        "requires_confirmation": True,
+        "parameters": [_parameter("channel_id", "ID del canal", "channel_id", 20)],
+    },
+    {
+        "id": "discord_call_server_channel",
+        "tool_name": "discord_call_channel",
+        "phrase": "llama a Discord servidor <servidor> canal <canal>",
+        "description": "Abre el destino de llamada; pulsa Llamar manualmente.",
+        "safety": "unsafe",
+        "requires_confirmation": True,
+        "parameters": [
+            _parameter("guild_id", "ID del servidor", "guild_id", 20),
+            _parameter("channel_id", "ID del canal", "channel_id", 20),
+        ],
+    },
+    {
         "id": "discord_call",
         "tool_name": "discord_call",
         "phrase": "llama a <contacto> en Discord",
