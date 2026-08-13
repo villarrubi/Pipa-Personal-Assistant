@@ -943,6 +943,29 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(result.responses[1]["caption"], "Estado de integraciones consultado.")
         get_capabilities.assert_called_once_with()
 
+    def test_structured_whatsapp_call_stops_at_confirmation_without_side_effects(self):
+        protocol = self._authenticated_protocol()
+        result = protocol.process(
+            parse_client_message(
+                {
+                    "protocol_version": 1,
+                    "type": "tool_call",
+                    "name": "whatsapp_compose",
+                    "arguments": {
+                        "phone": "+34 600 123 456",
+                        "message": "Hola\nMamá",
+                    },
+                }
+            )
+        )
+
+        confirmation = result.responses[0]
+        self.assertEqual(confirmation["type"], "confirm_request")
+        self.assertEqual(confirmation["tool_name"], "whatsapp_compose")
+        self.assertNotIn("600 123 456", str(confirmation))
+        self.assertNotIn("Mamá", str(confirmation))
+        self.assertEqual(result.responses[1]["state"], "confirm")
+
     def _authenticated_protocol(self):
         device = InMemoryTrustedDevice.generate("integration-device")
         store = InMemoryDeviceStore()

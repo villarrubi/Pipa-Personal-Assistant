@@ -27,6 +27,7 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertFalse(result["checks"]["url_builders"]["external_actions_executed"])
         self.assertEqual(result["checks"]["command_routes"]["recognized_commands"], 46)
         self.assertEqual(result["checks"]["command_routes"]["confirmation_gated_commands"], 29)
+        self.assertEqual(result["checks"]["command_routes"]["structured_commands"], 15)
         self.assertEqual(result["checks"]["command_routes"]["unpublished_tools"], 0)
         self.assertTrue(result["checks"]["secure_session"]["ok"])
         self.assertTrue(result["checks"]["mobile_protocol"]["ok"])
@@ -120,6 +121,25 @@ class DiagnosticsTests(unittest.TestCase):
     )
     @patch("tools.diagnostics.find_client_connection", side_effect=LeagueClientError("not ready"))
     def test_command_catalog_safety_drift_is_reported(self, _find_client, _get_catalog):
+        result = get_self_test(serial_gateway_configured=False, serial_gateway_running=False)
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["checks"]["command_routes"], {"ok": False, "code": "command_routes_invalid"})
+
+    @patch(
+        "tools.diagnostics.get_command_catalog",
+        return_value=[
+            {
+                "id": "web_search",
+                "tool_name": "web_search",
+                "phrase": "busca <consulta>",
+                "safety": "unsafe",
+                "requires_confirmation": True,
+            }
+        ],
+    )
+    @patch("tools.diagnostics.find_client_connection", side_effect=LeagueClientError("not ready"))
+    def test_structured_catalog_placeholder_drift_is_reported(self, _find_client, _get_catalog):
         result = get_self_test(serial_gateway_configured=False, serial_gateway_running=False)
 
         self.assertFalse(result["success"])

@@ -7,6 +7,7 @@ intended for installation checks and for a future device dashboard.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -125,6 +126,7 @@ _SAFE_COMMANDS = frozenset(
         "timer_cancel",
     }
 )
+_PLACEHOLDER_PATTERN = re.compile(r"<([^<>]+)>")
 
 
 def _check(name: str, callback: Callable[[], dict[str, Any] | None]) -> dict[str, Any]:
@@ -233,6 +235,7 @@ def _check_command_routes() -> dict[str, Any]:
     public_commands = get_command_catalog()
     public_ids: set[str] = set()
     public_tool_names: set[str] = set()
+    structured_commands = 0
     for command in public_commands:
         if not isinstance(command, dict):
             raise ValueError("public command catalog contains a non-object")
@@ -242,6 +245,17 @@ def _check_command_routes() -> dict[str, Any]:
             raise ValueError("public command catalog contains invalid or duplicate IDs")
         if not isinstance(tool_name, str) or not tool_name.strip():
             raise ValueError("public command catalog contains an invalid tool name")
+        phrase = command.get("phrase")
+        if not isinstance(phrase, str) or not phrase.strip():
+            raise ValueError("public command catalog contains an invalid phrase")
+        placeholders = _PLACEHOLDER_PATTERN.findall(phrase)
+        parameters = command.get("parameters")
+        if placeholders:
+            if not isinstance(parameters, list) or len(parameters) != len(placeholders):
+                raise ValueError("structured catalog parameters do not match phrase placeholders")
+            structured_commands += 1
+        elif parameters is not None:
+            raise ValueError("catalog exposes parameters without phrase placeholders")
         public_ids.add(command_id)
         public_tool_names.add(tool_name)
         try:
@@ -272,6 +286,7 @@ def _check_command_routes() -> dict[str, Any]:
         "recognized_commands": len(_COMMAND_ROUTE_CASES),
         "confirmation_gated_commands": confirmation_count,
         "catalog_commands": len(public_commands),
+        "structured_commands": structured_commands,
         "unpublished_tools": 0,
         "external_actions_executed": False,
     }
