@@ -622,7 +622,14 @@ class SecureAudioCommandBridge:
         if self._dispatched:
             raise AudioFrameError("audio transcript was already dispatched")
         transcriber = self._require_transcriber()
-        summary = transcriber.finalize()
+        try:
+            summary = transcriber.finalize()
+        except AudioFrameError:
+            self.close()
+            raise
+        except Exception as error:
+            self.close()
+            raise AudioFrameError("audio transcript finalization failed") from error
         transcript = transcriber.transcript
         dispatch = self._dispatch
         if transcript is None or dispatch is None:

@@ -327,6 +327,25 @@ class SecureAudioTests(unittest.TestCase):
         finally:
             bridge.close()
 
+    def test_command_bridge_closes_when_audio_finalization_fails(self):
+        sender = SecureAudioSender(self._session("client"), "stream-bridge-truncated")
+        frame = sender.seal_chunk(b"\x01\x02" * 4, final=False)
+        dispatched: list[str] = []
+        transcriber = SecureAudioTranscriber(
+            SecureAudioReceiver(self._session("server")),
+            lambda _view, is_final: "no debe enviarse" if is_final else None,
+            self._listening_gate(),
+        )
+        bridge = SecureAudioCommandBridge(transcriber, dispatched.append)
+        try:
+            self.assertFalse(bridge.consume_frame(frame))
+            with self.assertRaises(AudioFrameError):
+                bridge.finalize()
+            self.assertTrue(bridge.closed)
+            self.assertEqual(dispatched, [])
+        finally:
+            bridge.close()
+
     def test_command_bridge_cancel_clears_transcript_and_allows_a_new_capture(self):
         sender = SecureAudioSender(self._session("client"), "stream-bridge-cancel")
         partial = sender.seal_chunk(b"\x01\x02" * 4, final=False)
