@@ -83,6 +83,14 @@ jobs:
             firmware/tests/pipa_audio_state_host_test.cpp \
             -o /tmp/pipa_audio_state_host_test
           /tmp/pipa_audio_state_host_test
+      - name: Run firmware input policy host test
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -Wall -Wextra -Werror -Ifirmware/src \
+            firmware/tests/pipa_text_policy_host_test.cpp \
+            -o /tmp/pipa_text_policy_host_test
+          /tmp/pipa_text_policy_host_test
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"

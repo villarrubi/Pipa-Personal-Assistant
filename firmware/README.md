@@ -64,6 +64,11 @@ CDC. La referencia física está en la
   fail-closed, pero solo se invoca desde ese entorno; su ejecución en una placa
   real sigue pendiente y no forma parte del firmware normal.
 
+El contrato de entradas también tiene una prueba host independiente
+(`tests/pipa_text_policy_host_test.cpp`) que verifica las allowlists de gestos
+y fuentes, UTF-8 malformado y controles invisibles. La CI la ejecuta junto al
+vector de estados de audio; no sustituye la validación del firmware en la placa.
+
 La compilación verificada ocupa aproximadamente un 8,0 % de la partición de
 aplicación y un 10,2 % de la RAM interna. Es una validación de software; no
 demuestra todavía que el pinout, touch, red o periféricos funcionen en la
