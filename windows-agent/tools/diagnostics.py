@@ -92,6 +92,11 @@ _COMMAND_ROUTE_CASES = (
         {"contact": "mama", "message": "Hola"},
     ),
     (
+        "manda un mensaje por WhatsApp a mama diciendo Hola",
+        "whatsapp_contact",
+        {"contact": "mama", "message": "Hola"},
+    ),
+    (
         "abre WhatsApp con mama y escribe Hola",
         "whatsapp_contact",
         {"contact": "mama", "message": "Hola"},
@@ -124,6 +129,8 @@ _COMMAND_ROUTE_CASES = (
     ("abre el chat de amigo en Discord", "discord_contact", {"contact": "amigo"}),
     ("llama a amigo por Discord", "discord_call", {"contact": "amigo"}),
     ("haz una llamada a amigo por Discord", "discord_call", {"contact": "amigo"}),
+    ("inicia una llamada con amigo en Discord", "discord_call", {"contact": "amigo"}),
+    ("empieza una llamada por Discord con amigo", "discord_call", {"contact": "amigo"}),
     (
         "llama a Discord canal 12345678901234567",
         "discord_call_channel",

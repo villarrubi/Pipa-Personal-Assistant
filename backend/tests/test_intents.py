@@ -94,6 +94,26 @@ class IntegrationIntentTests(unittest.TestCase):
             "whatsapp_contact",
             {"contact": "mamá", "message": "llego en diez minutos"},
         )
+        self.assert_intent(
+            "manda un mensaje por WhatsApp a mamá diciendo llego en diez minutos",
+            "whatsapp_contact",
+            {"contact": "mamá", "message": "llego en diez minutos"},
+        )
+        self.assert_intent(
+            "manda un mensaje por WhatsApp a +34 600 123 456 diciendo llego en diez minutos",
+            "whatsapp_compose",
+            {"phone": "+34 600 123 456", "message": "llego en diez minutos"},
+        )
+        self.assert_intent(
+            "inicia una llamada con amigo en Discord",
+            "discord_call",
+            {"contact": "amigo"},
+        )
+        self.assert_intent(
+            "empieza una llamada por Discord con amigo",
+            "discord_call",
+            {"contact": "amigo"},
+        )
 
     def test_league_search_accepts_game_and_queue_context(self):
         self.assert_intent(

@@ -175,6 +175,22 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
             {"phone": whatsapp_message.group(1).strip(), "message": whatsapp_message.group(2).strip()},
         )
 
+    whatsapp_message_prefix = re.fullmatch(
+        r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:por|en) whatsapp "
+        r"(?:para|a) ([+\d][\d\s().-]{6,24}) "
+        r"(?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if whatsapp_message_prefix:
+        return ParsedIntent(
+            "whatsapp_compose",
+            {
+                "phone": whatsapp_message_prefix.group(1).strip(),
+                "message": whatsapp_message_prefix.group(2).strip(),
+            },
+        )
+
     whatsapp_contact_alternative = re.fullmatch(
         r"(?:prepara|abre|escribe(?:le)?|manda|env[ií]a) (?:para|a) (.+?) "
         r"(?:por|en) whatsapp (?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
@@ -202,6 +218,21 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
             {
                 "contact": whatsapp_contact_message.group(1).strip(),
                 "message": whatsapp_contact_message.group(2).strip(),
+            },
+        )
+
+    whatsapp_contact_message_prefix = re.fullmatch(
+        r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:por|en) whatsapp "
+        r"(?:para|a) (.+?) (?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if whatsapp_contact_message_prefix:
+        return ParsedIntent(
+            "whatsapp_contact",
+            {
+                "contact": whatsapp_contact_message_prefix.group(1).strip(),
+                "message": whatsapp_contact_message_prefix.group(2).strip(),
             },
         )
 
@@ -242,7 +273,8 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent("whatsapp_contact_open", {"contact": whatsapp_contact_open.group(1).strip()})
 
     discord_call_contact = re.fullmatch(
-        r"(?:llama(?:r)?|haz una llamada) a (?:el )?(.+?) (?:por|en) discord",
+        r"(?:llama(?:r)?|haz una llamada|inicia(?:r)? una llamada|empieza(?:r)? una llamada) "
+        r"(?:a|con) (?:el )?(.+?) (?:por|en) discord",
         original,
         flags=re.IGNORECASE,
     )
@@ -250,7 +282,8 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent("discord_call", {"contact": discord_call_contact.group(1).strip()})
 
     discord_call_contact_prefix = re.fullmatch(
-        r"(?:llama(?:r)?|haz una llamada) (?:por|en) discord (?:a|al) (.+)",
+        r"(?:llama(?:r)?|haz una llamada|inicia(?:r)? una llamada|empieza(?:r)? una llamada) "
+        r"(?:por|en) discord (?:a|al|con) (.+)",
         original,
         flags=re.IGNORECASE,
     )
