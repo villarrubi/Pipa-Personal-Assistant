@@ -8,9 +8,10 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $providerPath = Join-Path $repoRoot 'trusted-unlock/src/PipaCredential.cpp'
 $credentialProviderPath = Join-Path $repoRoot 'trusted-unlock/src/CredentialProvider.cpp'
 $brokerPath = Join-Path $repoRoot 'windows-agent/trusted_unlock_broker.py'
+$brokerClientPath = Join-Path $repoRoot 'windows-agent/trusted_unlock_broker_client.py'
 $brokerTestsPath = Join-Path $repoRoot 'windows-agent/tests/test_trusted_unlock_broker.py'
 
-foreach ($path in @($providerPath, $credentialProviderPath, $brokerPath, $brokerTestsPath)) {
+foreach ($path in @($providerPath, $credentialProviderPath, $brokerPath, $brokerClientPath, $brokerTestsPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Falta el archivo de seguridad Trusted Unlock: $path"
     }
@@ -19,6 +20,7 @@ foreach ($path in @($providerPath, $credentialProviderPath, $brokerPath, $broker
 $provider = Get-Content -LiteralPath $providerPath -Raw
 $credentialProvider = Get-Content -LiteralPath $credentialProviderPath -Raw
 $broker = Get-Content -LiteralPath $brokerPath -Raw
+$brokerClient = Get-Content -LiteralPath $brokerClientPath -Raw
 $brokerTests = Get-Content -LiteralPath $brokerTestsPath -Raw
 
 foreach ($marker in @(
@@ -46,6 +48,36 @@ if ($broker.IndexOf('unsupported broker command', [System.StringComparison]::Ord
 }
 if ($brokerTests.IndexOf('assertFalse(response["result"]["unlock_enabled"])', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'Las pruebas del broker no comprueban unlock_enabled=false.'
+}
+
+foreach ($marker in @(
+    'PIPE_NAME = r"\\.\pipe\PipaTrustedUnlock"',
+    'PIPE_REJECT_REMOTE_CLIENTS_FLAG =',
+    'FILE_FLAG_FIRST_PIPE_INSTANCE =',
+    'def _security_attributes',
+    'win32security.OpenProcessToken',
+    'GetTokenInformation',
+    'AddAccessAllowedAce',
+    'LookupAccountName(None, "SYSTEM")',
+    'CreateNamedPipe(',
+    'PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE',
+    'PIPE_REJECT_REMOTE_CLIENTS',
+    'MAX_MESSAGE_BYTES + 1'
+)) {
+    if ($broker.IndexOf($marker, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El broker no conserva el invariante IPC requerido: $marker"
+    }
+}
+if ($broker -match '(?i)Everyone|Authenticated Users|WorldSid|AF_INET|http\.server|socket\.socket') {
+    throw 'El broker no puede ampliar la ACL ni añadir un transporte de red.'
+}
+if ($brokerClient.IndexOf('if pipe_name != PIPE_NAME:', [System.StringComparison]::Ordinal) -lt 0 -or
+    $brokerTests.IndexOf('rejects_non_local_pipe_names', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'El cliente del broker no conserva la validación de pipe fijo/local.'
+}
+if ($brokerTests.IndexOf('16 * 1024 + 1', [System.StringComparison]::Ordinal) -lt 0 -or
+    $brokerTests.IndexOf('ticket_replay', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'Las pruebas del broker no cubren límites y anti-replay.'
 }
 
 Write-Host 'Trusted Unlock seguro: provider, broker y pruebas mantienen el desbloqueo inerte.' -ForegroundColor Green

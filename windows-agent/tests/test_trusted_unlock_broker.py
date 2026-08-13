@@ -1,3 +1,4 @@
+import base64
 import json
 import sys
 import unittest
@@ -136,6 +137,40 @@ class TrustedUnlockBrokerTests(unittest.TestCase):
         self.assertEqual(response["error"]["code"], "unknown_device")
         self.assertEqual(response["error"]["message"], "Autorización rechazada.")
         self.assertNotIn("unknown", response["error"]["message"])
+
+    def test_invalid_signature_does_not_echo_device_or_signature(self):
+        challenge_response = self.request(
+            "challenge.create",
+            {"device_id": "phone-main", "ttl_seconds": 30},
+        )
+        challenge = challenge_response["result"]["challenge"]
+        response = self.request(
+            "challenge.submit",
+            {
+                "response": {
+                    "challenge_id": challenge["challenge_id"],
+                    "device_id": "phone-main",
+                    "signature": base64.urlsafe_b64encode(b"invalid-signature".ljust(64, b"!"))
+                    .decode("ascii")
+                    .rstrip("="),
+                }
+            },
+        )
+
+        self.assertFalse(response["ok"])
+        self.assertEqual(response["error"]["code"], "invalid_response")
+        self.assertEqual(response["error"]["message"], "Autorización rechazada.")
+        self.assertNotIn("phone-main", json.dumps(response))
+        self.assertNotIn("A" * 32, json.dumps(response))
+
+    def test_unknown_ticket_does_not_echo_the_supplied_token(self):
+        candidate = "opaque-case-value-123"
+        response = self.request("ticket.consume", {"token": candidate})
+
+        self.assertFalse(response["ok"])
+        self.assertEqual(response["error"]["code"], "unknown_ticket")
+        self.assertEqual(response["error"]["message"], "Autorización rechazada.")
+        self.assertNotIn(candidate, json.dumps(response))
 
     def test_malformed_wire_request_is_bounded_and_safe(self):
         response = json.loads(self.broker.handle_bytes(b"not-json").decode("utf-8"))
