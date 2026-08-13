@@ -207,12 +207,10 @@ sigue bloqueada hasta la validación física. El framing seguro se compila en el
 firmware para detectar incompatibilidades, pero no tiene una ruta hacia I²S,
 codec, red, serie, pantalla ni almacenamiento.
 
-Para compilar también el camino seguro sin cambiar la configuración local:
+Para compilar también el entorno explícito del camino seguro:
 
 ```powershell
-$env:PLATFORMIO_BUILD_FLAGS = '-DPIPA_SECURE_SESSION_ENABLED=1'
-.\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c
-Remove-Item Env:PLATFORMIO_BUILD_FLAGS
+.\firmware\.venv\Scripts\pio.exe run -d firmware -e secure-session-v2
 ```
 
 Ese build solo comprueba el código. Para activarlo en una placa hay que definir

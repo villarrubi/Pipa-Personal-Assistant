@@ -290,7 +290,7 @@ python -m venv .\firmware\.venv
 .\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c
 ```
 
-El preflight no modifica configuraciones. Con `-CheckFirmware` añade las dos
+El preflight no modifica configuraciones. Con `-CheckFirmware` añade todas las
 compilaciones del firmware; con `-RequireHardware` convierte la ausencia de
 `PIPA_SERIAL_PORT` en un fallo, útil después de conectar el Waveshare.
 Para las comprobaciones Python usa primero `windows-agent/.venv` si existe y

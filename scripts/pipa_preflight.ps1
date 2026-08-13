@@ -243,20 +243,9 @@ if ($CheckFirmware) {
         Invoke-ExternalCheck -Name 'Firmware V1 compatibility build' -FilePath $pio -Arguments @('run', '-d', (Join-Path $repoRoot 'firmware'), '-e', 'waveshare-185c-v1')
         Invoke-ExternalCheck -Name 'Firmware secure-session vector build' -FilePath $pio -Arguments @('run', '-d', (Join-Path $repoRoot 'firmware'), '-e', 'secure-session-vector')
         Invoke-ExternalCheck -Name 'Firmware audio I2S lab build' -FilePath $pio -Arguments @('run', '-d', (Join-Path $repoRoot 'firmware'), '-e', 'audio-i2s-lab')
-        $previousBuildFlags = [Environment]::GetEnvironmentVariable('PLATFORMIO_BUILD_FLAGS', 'Process')
-        try {
-            # Reuse the already-installed dependencies while compiling the
-            # opt-in secure branch; this avoids a second PlatformIO environment
-            # and keeps the check usable offline after the normal build.
-            $env:PLATFORMIO_BUILD_FLAGS = '-DPIPA_SECURE_SESSION_ENABLED=1'
-            Invoke-ExternalCheck -Name 'Firmware secure-session build' -FilePath $pio -Arguments @('run', '-d', (Join-Path $repoRoot 'firmware'), '-e', 'waveshare-185c')
-        } finally {
-            if ($null -eq $previousBuildFlags) {
-                Remove-Item Env:PLATFORMIO_BUILD_FLAGS -ErrorAction SilentlyContinue
-            } else {
-                $env:PLATFORMIO_BUILD_FLAGS = $previousBuildFlags
-            }
-        }
+        # Keep the local preflight on the same explicit environment used by CI.
+        # This avoids leaking build flags into the caller's PowerShell session.
+        Invoke-ExternalCheck -Name 'Firmware secure-session build' -FilePath $pio -Arguments @('run', '-d', (Join-Path $repoRoot 'firmware'), '-e', 'secure-session-v2')
     }
 }
 
