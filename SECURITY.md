@@ -156,6 +156,9 @@ de recuperación y acceso.
 - El diagnóstico `self-test` recorre además el gateway serie v2 completo sobre
   un endpoint en memoria: verifica framing, handshake, catálogo, confirmación
   y redacción sin abrir un puerto, tocar DPAPI ni ejecutar integraciones reales.
+- El mismo diagnóstico recorre el lifecycle v1 con un dispositivo efímero:
+  autentica, procesa texto, exige confirmación para una acción externa y rechaza
+  esa acción si no se anuncia `touch`; todos los handlers son inertes.
 - El núcleo iOS `mobile-ios/PipaMobileCore` no expone la clave privada de la
   identidad como API pública; la identidad se genera/carga mediante Keychain
   con `ThisDeviceOnly`, y el cliente fija la clave pública y el `server_id` del

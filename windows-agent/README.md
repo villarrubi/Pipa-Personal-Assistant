@@ -255,7 +255,9 @@ llamada. La de WhatsApp abre WhatsApp Web; no pulsa `Enviar`.
 `GET /self-test` y los comandos `self-test` y `secure-test` son de solo lectura:
 validan la configuración local, las rutas de voz y los constructores de URLs sin abrir
 aplicaciones, enviar mensajes ni contactar con League Client. `self-test`
-incluye además el loopback serie cifrado y completamente inerte. `secure-test`
+incluye además un simulador v1 y el loopback serie cifrado, completamente inertes;
+comprueba también que una acción externa se rechaza sin capacidad `touch`.
+`secure-test`
 además ejecuta en memoria el handshake y el cifrado v2; no toca la identidad
 persistente de DPAPI.
 

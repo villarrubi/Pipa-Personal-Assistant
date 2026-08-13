@@ -29,6 +29,7 @@ from secure_session_server import SecureSessionServer
 from secure_tcp_gateway import SecureTcpGateway
 
 from backend.pipa_core.core import PipaCore
+from backend.pipa_core.simulator import create_simulator
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter
 
 _MOBILE_INTEGRATION_CASES = (
@@ -171,6 +172,99 @@ def run_secure_self_test() -> dict[str, object]:
         "handshake": True,
         "encrypted_round_trip": True,
         "tamper_rejected": tamper_rejected,
+        "external_actions_executed": False,
+        "persistent_keys_touched": False,
+    }
+
+
+def run_device_protocol_self_test() -> dict[str, object]:
+    """Exercise the v1 device lifecycle with inert handlers only.
+
+    This is the closest pre-hardware check for the ordinary Waveshare path:
+    an ephemeral device authenticates, sends text, receives a physical-style
+    confirmation and completes the action. A second device without touch is
+    also checked to ensure an external action is rejected before a pending
+    confirmation can be created.
+    """
+
+    executed: list[tuple[str, dict[str, object]]] = []
+
+    def safe_handler(_arguments: dict[str, object]) -> dict[str, object]:
+        return {"success": True, "simulated": True}
+
+    def external_handler(arguments: dict[str, object]) -> dict[str, object]:
+        executed.append(("web_search", dict(arguments)))
+        return {
+            "success": True,
+            "url": "https://private.invalid/diagnostic",
+            "query": arguments.get("query"),
+        }
+
+    catalog = ToolCatalog(
+        [
+            ToolDefinition("system_status", safe_handler),
+            ToolDefinition(
+                "web_search",
+                external_handler,
+                safety="unsafe",
+                confirm_summary=lambda _arguments: "Buscar en Internet.",
+            ),
+        ]
+    )
+    simulator = create_simulator(catalog, capabilities=("display", "touch"))
+    try:
+        safe_result = simulator.send(
+            "text_input",
+            text="estado del ordenador",
+            source="voice",
+        )
+        if not any(item.get("type") == "tool_result" for item in safe_result):
+            raise ValueError("v1 simulator did not execute a safe text command")
+
+        pending = simulator.send(
+            "text_input",
+            text="busca en internet diagnóstico de Pipa",
+            source="voice",
+        )
+        confirmation = next(
+            (item for item in pending if item.get("type") == "confirm_request"),
+            None,
+        )
+        if confirmation is None or confirmation.get("summary") != "Buscar en Internet.":
+            raise ValueError("v1 simulator did not create the fixed confirmation")
+        if executed:
+            raise ValueError("v1 simulator executed before confirmation")
+        completed = simulator.send(
+            "confirm",
+            confirmation_id=confirmation["confirmation_id"],
+            accepted=True,
+        )
+        result = next((item for item in completed if item.get("type") == "tool_result"), None)
+        if result is None or "result" in result or "url" in str(result) or "diagnóstico" in str(result):
+            raise ValueError("v1 simulator leaked an external result")
+    finally:
+        simulator.close()
+
+    no_touch = create_simulator(catalog, capabilities=("display",))
+    try:
+        unavailable = no_touch.send(
+            "tool_call",
+            name="web_search",
+            arguments={"query": "diagnóstico sin touch"},
+        )
+        if not any(item.get("code") == "confirmation_unavailable" for item in unavailable):
+            raise ValueError("v1 simulator allowed an unsafe action without touch")
+    finally:
+        no_touch.close()
+
+    if executed != [("web_search", {"query": "diagnóstico de Pipa"})]:
+        raise ValueError("v1 simulator executed an unexpected action")
+    return {
+        "authenticated": True,
+        "safe_text_command": True,
+        "confirmation_gated": True,
+        "missing_touch_rejected": True,
+        "result_redacted": True,
         "external_actions_executed": False,
         "persistent_keys_touched": False,
     }

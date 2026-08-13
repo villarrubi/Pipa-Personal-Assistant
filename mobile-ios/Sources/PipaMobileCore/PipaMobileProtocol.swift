@@ -173,7 +173,7 @@ public enum PipaMobileHandshake {
               serverID == expectedServerID,
               PipaMobileIdentity.isValidIdentifier(serverID),
               let serverEphemeralData = try? PipaMobileCodec.decodeBase64URL(serverEphemeral, expectedCount: 32),
-              let serverNonceData = try? PipaMobileCodec.decodeBase64URL(serverNonce, expectedCount: 32),
+              (try? PipaMobileCodec.decodeBase64URL(serverNonce, expectedCount: 32)) != nil,
               let signature = try? PipaMobileCodec.decodeBase64URL(signatureText, expectedCount: 64),
               serverPublicKeyData.count == 32 else {
             throw PipaMobileError.invalidHandshake
@@ -185,7 +185,8 @@ public enum PipaMobileHandshake {
         signedTranscript["role"] = "server"
         do {
             let publicKey = try Curve25519.Signing.PublicKey(rawRepresentation: serverPublicKeyData)
-            guard publicKey.isValidSignature(signature, for: PipaMobileCodec.canonicalJSON(signedTranscript)) else {
+            let signedTranscriptData = try PipaMobileCodec.canonicalJSON(signedTranscript)
+            guard publicKey.isValidSignature(signature, for: signedTranscriptData) else {
                 throw PipaMobileError.invalidHandshake
             }
         } catch let error as PipaMobileError {
@@ -194,7 +195,7 @@ public enum PipaMobileHandshake {
             throw PipaMobileError.invalidHandshake
         }
 
-        let transcriptHash = Data(SHA256.hash(data: PipaMobileCodec.canonicalJSON(transcript)))
+        let transcriptHash = Data(SHA256.hash(data: try PipaMobileCodec.canonicalJSON(transcript)))
         do {
             let serverKey = try Curve25519.KeyAgreement.PublicKey(rawRepresentation: serverEphemeralData)
             let sharedSecret = try context.ephemeralPrivateKey.sharedSecretFromKeyAgreement(with: serverKey)
@@ -243,13 +244,15 @@ public final class PipaSecureRecordLayer {
         }
         self.sessionID = sessionID
         let info = Data("pipa/secure-session/v2".utf8) + transcriptHash
-        let materialKey = SymmetricKey(data: sharedSecretData).hkdfDerivedSymmetricKey(
-            using: SHA256.self,
+        let materialKey = HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: SymmetricKey(data: sharedSecretData),
             salt: transcriptHash,
             sharedInfo: info,
             outputByteCount: 72
         )
-        let material = materialKey.withUnsafeBytes { Data($0) }
+        let material = materialKey.withUnsafeBytes { rawBuffer in
+            Data(bytes: rawBuffer.baseAddress!, count: rawBuffer.count)
+        }
         let clientKey = SymmetricKey(data: material.subdata(in: 0..<32))
         let serverKey = SymmetricKey(data: material.subdata(in: 32..<64))
         let clientPrefix = material.subdata(in: 64..<68)
@@ -353,7 +356,7 @@ public final class PipaSecureRecordLayer {
         let nonce = receiveNoncePrefix + PipaMobileCodec.bigEndian(sequence)
         let aad = try PipaMobileCodec.canonicalJSON(header) + Data("pipa/json/v2".utf8)
         do {
-            let box = ChaChaPoly.SealedBox(
+            let box = try ChaChaPoly.SealedBox(
                 nonce: try ChaChaPoly.Nonce(data: nonce),
                 ciphertext: Data(ciphertext.dropLast(16)),
                 tag: Data(ciphertext.suffix(16))

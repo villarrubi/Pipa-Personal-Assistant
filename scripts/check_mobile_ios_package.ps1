@@ -51,7 +51,7 @@ $ignore = Get-Content -Raw (Join-Path $repoRoot '.gitignore')
 
 $requiredPatterns = @(
     @($package, '.iOS(.v16)', '.macOS(.v13)', 'PipaMobileCore', 'PipaMobileUI', 'PipaMobileCoreTests', 'PipaMobileUITests'),
-    @($protocol, 'Curve25519.Signing', 'ChaChaPoly', 'hkdfDerivedSymmetricKey', 'sharedSecretData', 'maxFrameBytes', 'publicKeyDigest(forPublicKeyData', 'encodeBase64URL(data) == value', 'sequence < UInt64.max', 'closed = true', 'PipaMobileTextPolicy', 'containsDisplayControl'),
+    @($protocol, 'Curve25519.Signing', 'ChaChaPoly', 'HKDF<SHA256>.deriveKey', 'sharedSecretData', 'maxFrameBytes', 'publicKeyDigest(forPublicKeyData', 'encodeBase64URL(data) == value', 'sequence < UInt64.max', 'closed = true', 'PipaMobileTextPolicy', 'containsDisplayControl'),
     @($keychain, 'kSecAttrAccessibleWhenUnlockedThisDeviceOnly', 'kSecClassGenericPassword'),
     @($settingsStore, 'PipaMobileSettings', 'PipaMobileSettingsStoring', 'SecItemCopyMatching', 'SecItemUpdate', 'updateAttributes', 'kSecAttrSynchronizable', 'kSecAttrAccessibleWhenUnlockedThisDeviceOnly'),
     @($tcp, 'NWConnection', 'serverPublicKeyData', 'device_hello', 'catalog_request', 'PipaMobileCatalog', 'requestCatalogDetails', 'parseCapabilities', 'capabilityGroups', 'booleanCapabilityFields', 'isCapabilityValue', 'isAllowedHost', 'first == 192', 'containsProtocolControl', 'maxArgumentsBytes', 'requestInFlight', 'requestInProgress', 'asyncAfter', 'connectionTimeout', 'ioTimeout', 'receiveBuffer'),

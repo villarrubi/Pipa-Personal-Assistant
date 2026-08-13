@@ -24,6 +24,7 @@ from tools.discord import build_discord_app_url, build_discord_channel_url
 from tools.integration_catalog import get_command_catalog
 from tools.league import QUEUE_IDS, LeagueClientError, find_client_connection, resolve_queue_id
 from tools.secure_diagnostics import (
+    run_device_protocol_self_test,
     run_mobile_protocol_self_test,
     run_secure_self_test,
     run_secure_serial_self_test,
@@ -284,6 +285,7 @@ def get_self_test(
         "integration_policy": _check("integration_policy", _check_integration_policy),
         "command_routes": _check("command_routes", _check_command_routes),
         "secure_session": _check("secure_session", run_secure_self_test),
+        "device_protocol": _check("device_protocol", run_device_protocol_self_test),
         "mobile_protocol": _check("mobile_protocol", run_mobile_protocol_self_test),
         "secure_serial_loopback": _check("secure_serial_loopback", run_secure_serial_self_test),
         "serial_gateway": {

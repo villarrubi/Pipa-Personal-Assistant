@@ -221,7 +221,7 @@ public actor PipaMobileTCPClient {
     }
 
     private func start(_ connection: NWConnection) async throws {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let lock = NSLock()
             var finished = false
             let timeout = DispatchWorkItem {
@@ -390,7 +390,7 @@ public actor PipaMobileTCPClient {
         guard data.count <= PipaSecureRecordLayer.maxFrameBytes else {
             throw PipaMobileError.payloadTooLarge
         }
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let lock = NSLock()
             var finished = false
             connection.send(content: data, completion: .contentProcessed { error in
@@ -456,7 +456,7 @@ public actor PipaMobileTCPClient {
     }
 
     private func receiveChunk(_ connection: NWConnection, maximumLength: Int) async throws -> (Data?, Bool) {
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(Data?, Bool), Error>) in
             let lock = NSLock()
             var finished = false
             connection.receive(

@@ -78,7 +78,8 @@ que las solicitó y caducan si no se confirman.
 - Ejecutar `python .\windows-agent\pipa_cli.py self-test` para validar la
   configuración de aplicaciones, URLs, rutas de voz, colas de League y
   gateway sin abrir aplicaciones ni contactar con League Client; incluye un
-  loopback serie v2 inerte con handshake, catálogo, confirmación y redacción.
+  simulador v1 y un loopback serie v2 inertes con handshake, catálogo,
+  confirmación, rechazo sin touch y redacción.
 - Ejecutar `python .\windows-agent\pipa_cli.py secure-test` para comprobar en
   memoria el handshake autenticado, el cifrado y el rechazo de manipulación
   del protocolo v2, sin hardware, red ni claves persistentes.
