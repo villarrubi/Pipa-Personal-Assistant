@@ -12,6 +12,7 @@ from .protocol import server_message
 UI_STATES = frozenset({"idle", "listening", "thinking", "confirm", "speaking", "focus", "dashboard"})
 MAX_SESSIONS = 32
 MAX_SESSIONS_PER_DEVICE = 2
+MAX_SESSION_IDLE_SECONDS = 15 * 60
 
 
 class SessionLimitError(ValueError):
@@ -76,6 +77,7 @@ class SessionRegistry:
             last_seen_at=now,
         )
         with self._lock:
+            self._prune(now)
             if len(self._sessions) >= MAX_SESSIONS:
                 raise SessionLimitError("too many authenticated sessions")
             sessions_for_device = sum(existing.device_id == device_id for existing in self._sessions.values())
@@ -88,6 +90,20 @@ class SessionRegistry:
         with self._lock:
             return self._sessions.get(session_id)
 
+    def prune(self, *, now: int | None = None) -> tuple[str, ...]:
+        """Remove sessions that have stopped sending authenticated traffic.
+
+        Network transports normally enforce their own idle timeout.  Keeping
+        the bound here as a second line of defence prevents a future transport
+        or an integration test from retaining authenticated sessions forever.
+        The returned IDs let the Core cancel confirmations owned by those
+        sessions before their state disappears.
+        """
+
+        timestamp = int(time.time() if now is None else now)
+        with self._lock:
+            return self._prune(timestamp)
+
     def remove(self, session_id: str) -> None:
         with self._lock:
             self._sessions.pop(session_id, None)
@@ -95,3 +111,13 @@ class SessionRegistry:
     def count(self) -> int:
         with self._lock:
             return len(self._sessions)
+
+    def _prune(self, now: int) -> tuple[str, ...]:
+        expired = [
+            session_id
+            for session_id, session in self._sessions.items()
+            if session.last_seen_at is not None and now - session.last_seen_at >= MAX_SESSION_IDLE_SECONDS
+        ]
+        for session_id in expired:
+            del self._sessions[session_id]
+        return tuple(expired)

@@ -6,7 +6,11 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from backend.pipa_core.state import SessionLimitError, SessionRegistry  # noqa: E402
+from backend.pipa_core.state import (  # noqa: E402
+    MAX_SESSION_IDLE_SECONDS,
+    SessionLimitError,
+    SessionRegistry,
+)
 
 
 class SessionRegistryTests(unittest.TestCase):
@@ -24,6 +28,16 @@ class SessionRegistryTests(unittest.TestCase):
             registry.create("waveshare-01")
             with self.assertRaises(SessionLimitError):
                 registry.create("phone-main")
+
+    def test_stale_sessions_are_pruned_with_a_bounded_idle_window(self):
+        registry = SessionRegistry()
+        session = registry.create("waveshare-01")
+
+        self.assertEqual(registry.prune(now=session.last_seen_at + MAX_SESSION_IDLE_SECONDS - 1), ())
+        self.assertEqual(
+            registry.prune(now=session.last_seen_at + MAX_SESSION_IDLE_SECONDS), (session.session_id,)
+        )
+        self.assertIsNone(registry.get(session.session_id))
 
 
 if __name__ == "__main__":

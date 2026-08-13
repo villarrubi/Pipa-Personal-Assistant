@@ -17,6 +17,7 @@ from backend.pipa_core.confirmations import (
     ConfirmationManager,
 )  # noqa: E402
 from backend.pipa_core.core import PipaCore  # noqa: E402
+from backend.pipa_core.state import MAX_SESSION_IDLE_SECONDS  # noqa: E402
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter  # noqa: E402
 
 
@@ -122,6 +123,26 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(result["status"], "completed")
         self.assertTrue(result["success"])
         self.assertNotIn("result", result)
+
+    def test_stale_session_is_closed_and_cannot_consume_confirmation(self):
+        pending = self._send("tool_call", name="unsafe", arguments={"value": "private"})
+        confirmation_id = next(
+            item["confirmation_id"] for item in pending if item["type"] == "confirm_request"
+        )
+        session = self.core.sessions.get(self.session_id)
+        session.last_seen_at -= MAX_SESSION_IDLE_SECONDS
+
+        response = self._send(
+            "confirm",
+            confirmation_id=confirmation_id,
+            accepted=True,
+        )
+
+        self.assertEqual(response[0]["type"], "error")
+        self.assertEqual(response[0]["code"], "unknown_session")
+        self.assertEqual(self.calls, [])
+        with self.assertRaises(ConfirmationError):
+            self.core.router.resolve_confirmation(confirmation_id, True, owner_id=self.session_id)
 
     def test_device_tool_result_does_not_leak_handler_data(self):
         outputs = self._send("tool_call", name="safe", arguments={"value": "private-value"})

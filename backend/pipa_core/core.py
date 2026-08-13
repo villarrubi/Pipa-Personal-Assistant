@@ -299,6 +299,7 @@ class PipaCore:
         firmware_version: str | None = None,
         capabilities: list[str] | None = None,
     ):
+        self._prune_stale_sessions()
         authorization = self.verifier.verify_response(
             SignedChallenge(
                 challenge_id=challenge_id,
@@ -317,6 +318,7 @@ class PipaCore:
         self.sessions.remove(session_id)
 
     def handle(self, session_id: str, message: ClientMessage) -> list[dict[str, Any]]:
+        self._prune_stale_sessions()
         session = self.sessions.get(session_id)
         if session is None:
             return [server_message("error", code="unknown_session", message="Sesión desconocida.")]
@@ -434,6 +436,12 @@ class PipaCore:
             ]
 
         return [server_message("error", code="unsupported_message", message=message.type)]
+
+    def _prune_stale_sessions(self) -> None:
+        """Keep the Core safe even when a transport misses its close hook."""
+
+        for session_id in self.sessions.prune():
+            self.router.cancel_pending(session_id)
 
     def handle_transcript(self, session_id: str, transcript: str) -> list[dict[str, Any]]:
         """Route one final local transcript through the normal command path.

@@ -25,6 +25,9 @@ El protocolo v1 autentica e integra los mensajes, pero no cifra sus payloads;
 la futura voz o conexión móvil necesita un canal de sesión cifrado antes de
 transportar audio o datos privados.
 El registro limita a 32 sesiones autenticadas simultáneas y a 2 por dispositivo.
+Además, el propio registro elimina una sesión sin tráfico durante 15 minutos
+como segunda barrera, aunque un transporte futuro olvide ejecutar su cleanup;
+al hacerlo también se invalidan sus confirmaciones pendientes.
 
 ## Mensajes de protocolo v1
 
