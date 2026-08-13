@@ -108,6 +108,10 @@ public final class PipaMobileWakeOnLanController: ObservableObject {
         switch state {
         case .ready:
             guard !sendStarted, let packet else { return }
+            guard packet.count <= connection.maximumDatagramSize else {
+                finish(operationID: operationID, connection: connection, success: false)
+                return
+            }
             sendStarted = true
             connection.send(content: packet, completion: .contentProcessed { [weak self, weak connection] error in
                 DispatchQueue.main.async { [weak self, weak connection] in
