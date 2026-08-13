@@ -186,7 +186,7 @@ if (-not $SkipPythonTests) {
         '-B', '-m', 'unittest', 'discover', '-s', (Join-Path $repoRoot 'windows-agent/tests'), '-p', 'test_*.py'
     )
     Invoke-ExternalCheck -Name 'Python compilation' -FilePath $python -Arguments @(
-        '-m', 'compileall', '-q', (Join-Path $repoRoot 'backend'), (Join-Path $repoRoot 'windows-agent')
+        '-m', 'compileall', '-q', (Join-Path $repoRoot 'backend'), (Join-Path $repoRoot 'windows-agent'), (Join-Path $repoRoot 'scripts')
     )
 }
 
@@ -198,8 +198,8 @@ if ($null -ne $pythonApplication) {
     $ruffAvailable = $LASTEXITCODE -eq 0
 }
 if ($ruffAvailable) {
-    Invoke-ExternalCheck -Name 'Ruff lint' -FilePath $python -Arguments @('-m', 'ruff', 'check', (Join-Path $repoRoot 'backend'), (Join-Path $repoRoot 'windows-agent'))
-    Invoke-ExternalCheck -Name 'Ruff format' -FilePath $python -Arguments @('-m', 'ruff', 'format', '--check', (Join-Path $repoRoot 'backend'), (Join-Path $repoRoot 'windows-agent'))
+    Invoke-ExternalCheck -Name 'Ruff lint' -FilePath $python -Arguments @('-m', 'ruff', 'check', (Join-Path $repoRoot 'backend'), (Join-Path $repoRoot 'windows-agent'), (Join-Path $repoRoot 'scripts'))
+    Invoke-ExternalCheck -Name 'Ruff format' -FilePath $python -Arguments @('-m', 'ruff', 'format', '--check', (Join-Path $repoRoot 'backend'), (Join-Path $repoRoot 'windows-agent'), (Join-Path $repoRoot 'scripts'))
 } elseif ($null -ne $pythonApplication) {
     $warnings.Add('Ruff is not installed; CI still checks it.')
     Write-Host '[WARN] Ruff is not installed; CI still checks it.' -ForegroundColor Yellow

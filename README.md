@@ -265,7 +265,7 @@ a revisar tanto esos archivos como todo el historial alcanzable.
 ```powershell
 python -B -m unittest discover -s backend/tests -p "test_*.py"
 python -B -m unittest discover -s windows-agent/tests -p "test_*.py"
-python -m compileall -q backend windows-agent
+python -m compileall -q backend windows-agent scripts
 
 .\scripts\check_repo_hygiene.ps1
 .\scripts\check_git_history.ps1
