@@ -106,6 +106,15 @@ jobs:
             firmware/tests/pipa_display_text_host_test.cpp \
             -o /tmp/pipa_display_text_host_test
           /tmp/pipa_display_text_host_test
+      - name: Run Wake-on-LAN packet host test
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -Wall -Wextra -Werror -Ifirmware/src \
+            firmware/src/wake_on_lan_packet.cpp \
+            firmware/tests/wake_on_lan_packet_host_test.cpp \
+            -o /tmp/wake_on_lan_packet_host_test
+          /tmp/wake_on_lan_packet_host_test
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"

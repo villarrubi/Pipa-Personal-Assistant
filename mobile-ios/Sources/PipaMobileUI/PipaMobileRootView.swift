@@ -10,6 +10,7 @@ public struct PipaMobileRootView: View {
     @StateObject private var speechRecognizer = PipaMobileSpeechRecognizer()
 #endif
     @State private var commandToEdit: PipaMobileCommand?
+    @State private var localWebQuery = ""
     @State private var localMusicQuery = ""
     @State private var localWhatsAppPhone = ""
     @State private var localWhatsAppMessage = ""
@@ -21,6 +22,7 @@ public struct PipaMobileRootView: View {
     @Environment(\.openURL) private var openURL
 
     private enum LocalIntegrationAction: String, Identifiable, Equatable {
+        case webSearch
         case whatsappChat
         case whatsappMessage
         case discordChannel
@@ -30,6 +32,8 @@ public struct PipaMobileRootView: View {
 
         var title: String {
             switch self {
+            case .webSearch:
+                return "Buscar en Internet"
             case .whatsappChat:
                 return "Abrir chat de WhatsApp"
             case .whatsappMessage:
@@ -43,6 +47,8 @@ public struct PipaMobileRootView: View {
 
         var message: String {
             switch self {
+            case .webSearch:
+                return "Se abrirá una búsqueda web en Safari; no se ejecutará ninguna acción en el PC."
             case .whatsappChat:
                 return "Se abrirá el chat, sin preparar ni enviar ningún mensaje."
             case .whatsappMessage:
@@ -65,6 +71,7 @@ public struct PipaMobileRootView: View {
                 connectionSection
                 statusSection
                 integrationSection
+                localWebSearchSection
                 localAppleMusicSection
                 localMessagingSection
                 commandSection
@@ -295,6 +302,26 @@ public struct PipaMobileRootView: View {
         }
     }
 
+    private var localWebSearchSection: some View {
+        Section("Internet en este iPhone") {
+            Text("Abre una búsqueda acotada en Safari sin enviar el texto al PC.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("Qué quieres buscar", text: $localWebQuery, axis: .vertical)
+                .lineLimit(1...3)
+                .privacySensitive()
+            Button("Buscar en Internet") {
+                guard PipaMobileLocalIntegrationLinks.webSearchURL(query: localWebQuery) != nil else {
+                    localIntegrationStatus = "Escribe una búsqueda válida y acotada."
+                    return
+                }
+                pendingLocalIntegrationAction = .webSearch
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(localWebQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+    }
+
     private var localMessagingSection: some View {
         Section("WhatsApp y Discord en este iPhone") {
             Text("Estos botones abren el destino mediante un enlace HTTPS. No envían mensajes ni inician llamadas automáticamente.")
@@ -362,6 +389,13 @@ public struct PipaMobileRootView: View {
         guard let action = pendingLocalIntegrationAction else { return }
         pendingLocalIntegrationAction = nil
         switch action {
+        case .webSearch:
+            guard let url = PipaMobileLocalIntegrationLinks.webSearchURL(query: localWebQuery) else {
+                localIntegrationStatus = "Escribe una búsqueda válida y acotada."
+                return
+            }
+            openURL(url)
+            localIntegrationStatus = "Búsqueda abierta en Safari."
         case .whatsappChat:
             guard let url = PipaMobileLocalIntegrationLinks.whatsappChatURL(phone: localWhatsAppPhone) else {
                 localIntegrationStatus = "Introduce un teléfono internacional válido."

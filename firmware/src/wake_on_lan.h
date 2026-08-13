@@ -3,6 +3,8 @@
 #include <Arduino.h>
 #include <WiFiUdp.h>
 
+#include "wake_on_lan_packet.h"
+
 namespace pipa {
 
 class WakeOnLan {

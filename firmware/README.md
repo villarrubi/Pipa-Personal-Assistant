@@ -81,6 +81,12 @@ acentos esperados a ASCII, limita el tamaño y evita pasar bytes Unicode
 desconocidos al driver de glifos. Tampoco sustituye la validación física de la
 fuente, orientación o legibilidad de la pantalla.
 
+El constructor puro de paquetes Wake-on-LAN vive en
+`src/wake_on_lan_packet.cpp` y tiene un vector host independiente. Comprueba
+MAC unicast válida, genera exactamente el paquete mágico de 102 bytes y no
+abre sockets; el envío real sigue encapsulado en `WiFiUDP` y queda pendiente
+de la prueba física de red.
+
 La compilación verificada ocupa aproximadamente un 8,0 % de la partición de
 aplicación y un 10,2 % de la RAM interna. Es una validación de software; no
 demuestra todavía que el pinout, touch, red o periféricos funcionen en la

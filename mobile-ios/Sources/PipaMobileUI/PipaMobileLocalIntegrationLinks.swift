@@ -1,13 +1,27 @@
 import Foundation
 import PipaMobileCore
 
-/// Builds the small set of HTTPS links that the iPhone can hand to the
-/// installed WhatsApp or Discord app (or to Safari when the app is absent).
+/// Builds the small set of HTTPS links that the iPhone can hand to Safari or the
+/// installed WhatsApp or Discord app (or to Safari when an app is absent).
 ///
 /// This helper deliberately does not use private app APIs or UI automation.
 /// Opening a link prepares the destination only: WhatsApp still needs a human
 /// tap on Send and Discord still needs a human tap to start a call.
 public enum PipaMobileLocalIntegrationLinks {
+
+    public static func webSearchURL(query: String) -> URL? {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard PipaMobileTextPolicy.isSafeDisplayText(normalizedQuery, maxBytes: 200) else {
+            return nil
+        }
+
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "www.google.com"
+        components.path = "/search"
+        components.queryItems = [URLQueryItem(name: "q", value: normalizedQuery)]
+        return components.url
+    }
 
     public static func whatsappComposeURL(phone: String, message: String) -> URL? {
         guard let normalizedPhone = PipaMobileDestinationPolicy.normalizePhone(phone),

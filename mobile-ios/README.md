@@ -46,6 +46,10 @@ reproductor activo, WhatsApp requiere pulsar `Enviar` y Discord requiere
 iniciar la llamada. Esa matriz contiene solo flags y textos acotados, nunca
 configuración del PC.
 
+La pantalla incluye además una búsqueda web local: valida una consulta acotada,
+muestra una confirmación visible y abre el resultado en Safari. La consulta
+no se envía al agente ni se usa para ejecutar acciones en el PC.
+
 La pantalla incluye además una sección independiente de Apple Music local para
 el propio iPhone. Al pulsar `Autorizar Apple Music`, MusicKit solicita el
 permiso del sistema; después `Buscar canciones` muestra hasta cinco

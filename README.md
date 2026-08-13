@@ -21,7 +21,7 @@ recuperación segura.
 | Voz iPhone | Dictado local opcional que solo prepara el texto; requiere compilar y probar en Xcode |
 | Wake-on-LAN | Implementado en firmware; pendiente de prueba física y configuración de BIOS/red |
 | Trusted Unlock | **Desactivado**: la tile existe, pero no autentica ni entrega credenciales a Windows |
-| iPhone/remoto | Proyecto Xcode, núcleo Swift CryptoKit/Keychain, TCP v2 y UI SwiftUI preparados; falta probar el iPhone real |
+| iPhone/remoto | Proyecto Xcode, núcleo Swift CryptoKit/Keychain, TCP v2 y UI SwiftUI preparados; búsqueda web local y Apple Music local incluidos; falta probar el iPhone real |
 
 Pipα no sustituye ni desactiva contraseña, PIN, Windows Hello u otros
 Credential Providers. Hoy no permite entrar en Windows sin uno de esos métodos.
@@ -86,6 +86,8 @@ que las solicitó y caducan si no se confirman.
 - Desde el iPhone, abrir un chat de WhatsApp con un mensaje preparado o un
   canal de Discord mediante enlaces HTTPS; el envío y la llamada siguen siendo
   manuales y esos datos no se guardan.
+- Desde el iPhone, abrir una búsqueda web local en Safari tras una confirmación
+  visible; la consulta no pasa por el agente ni se almacena.
 - El parser también entiende frases naturales como `quiero buscar una partida
   en el LoL` y `manda un mensaje a ... por WhatsApp`; siguen pasando por la
   misma confirmación y nunca envían por sí solas.

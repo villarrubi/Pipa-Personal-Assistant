@@ -105,6 +105,25 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertEqual(queryItems.first?.value, "Hola\nMamá")
     }
 
+    func testLocalWebSearchLinkIsFixedAndEncodesTheQuery() throws {
+        let url = try XCTUnwrap(
+            PipaMobileLocalIntegrationLinks.webSearchURL(query: "documentación de Pipα")
+        )
+
+        XCTAssertEqual(url.scheme, "https")
+        XCTAssertEqual(url.host, "www.google.com")
+        XCTAssertEqual(url.path, "/search")
+        let queryItems = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        XCTAssertEqual(queryItems.first?.name, "q")
+        XCTAssertEqual(queryItems.first?.value, "documentación de Pipα")
+    }
+
+    func testLocalWebSearchLinkRejectsEmptyUnsafeOrOversizedQueries() {
+        XCTAssertNil(PipaMobileLocalIntegrationLinks.webSearchURL(query: "   "))
+        XCTAssertNil(PipaMobileLocalIntegrationLinks.webSearchURL(query: "Pipa\u{202E}codex"))
+        XCTAssertNil(PipaMobileLocalIntegrationLinks.webSearchURL(query: String(repeating: "a", count: 201)))
+    }
+
     func testLocalWhatsAppLinkRejectsInvalidOrUnsafeInput() {
         XCTAssertNil(
             PipaMobileLocalIntegrationLinks.whatsappComposeURL(
