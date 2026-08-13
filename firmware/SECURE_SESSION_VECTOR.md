@@ -5,9 +5,12 @@ El fixture determinista usado por Python y por el entorno PlatformIO
 una identidad del dispositivo ni una clave de producción.
 
 El entorno incluye también el cliente de handshake X25519/Ed25519, pero el
-vector determinista comprueba únicamente el record layer. La identidad del
-agente y la negociación completa se probarán con claves efímeras y una clave
-pública del agente provisionada específicamente para la unidad de pruebas.
+vector determinista comprueba únicamente el record layer. Incluye un payload
+de texto y el payload PCM/AAD del fixture
+`mobile-ios/Tests/Fixtures/secure_audio_v2.json`, para que Python, Swift y
+firmware calculen el mismo ciphertext. La identidad del agente y la
+negociación completa se probarán con claves efímeras y una clave pública del
+agente provisionada específicamente para la unidad de pruebas.
 
 Para compilar el firmware que ejecutaría el vector en `setup()`:
 

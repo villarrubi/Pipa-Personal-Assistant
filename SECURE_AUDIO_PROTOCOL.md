@@ -57,6 +57,8 @@ nuevo.
 
 - Windows: `windows-agent/secure_audio.py`.
 - iPhone: `mobile-ios/Sources/PipaMobileCore/PipaSecureAudio.swift`.
+- Firmware: vector aislado en `firmware/src/pipa_secure_session.cpp`, ejecutado
+  únicamente por `secure-session-vector`; no forma parte de la captura.
 - Vector compartido: `mobile-ios/Tests/Fixtures/secure_audio_v2.json`.
 - Tests Python y Swift: verifican ciphertext idéntico, ausencia de un campo
   `samples`, orden, límites, manipulación de metadatos y cierre fail-closed.

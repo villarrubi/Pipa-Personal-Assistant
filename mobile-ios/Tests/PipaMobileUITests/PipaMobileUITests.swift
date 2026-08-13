@@ -145,6 +145,12 @@ final class PipaMobileUITests: XCTestCase {
                 summary: "Preparar un mensaje de WhatsApp; el envío será manual."
             )
         )
+        XCTAssertTrue(
+            PipaMobileViewModel.isSafeConfirmationSummary(
+                toolName: "discord_call_channel",
+                summary: "Preparar una llamada de Discord; el inicio será manual."
+            )
+        )
         XCTAssertFalse(
             PipaMobileViewModel.isSafeConfirmationSummary(
                 toolName: "whatsapp_compose",
@@ -252,6 +258,34 @@ final class PipaMobileUITests: XCTestCase {
         ])
         XCTAssertEqual(arguments?["guild_id"] as? String, "98765432109876543")
         XCTAssertEqual(arguments?["channel_id"] as? String, "12345678901234567")
+        XCTAssertNil(
+            command.toolArguments(with: [
+                "servidor": "98765432109876543",
+                "canal": "not-a-discord-id",
+            ])
+        )
+    }
+
+    func testStructuredWhatsAppRejectsInvalidPhoneBeforeTransport() throws {
+        let command = try XCTUnwrap(
+            PipaMobileCommand(payload: [
+                "id": "whatsapp_compose",
+                "tool_name": "whatsapp_compose",
+                "phrase": "prepara WhatsApp para <teléfono> y dile <mensaje>",
+                "description": "Prepara el chat.",
+                "safety": "unsafe",
+                "requires_confirmation": true,
+                "parameters": [
+                    ["name": "phone", "label": "Teléfono", "kind": "phone", "max_length": 32],
+                    ["name": "message", "label": "Mensaje", "kind": "message", "max_length": 3800],
+                ],
+            ])
+        )
+
+        XCTAssertNil(command.toolArguments(with: [
+            "teléfono": "123",
+            "mensaje": "Hola",
+        ]))
     }
 
     func testNoArgumentCatalogCommandCanUseStructuredExecution() throws {

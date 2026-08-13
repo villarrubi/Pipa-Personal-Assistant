@@ -27,6 +27,7 @@ htmlcov/
 .platformio/
 .platformio-local/
 .platformio-preflight/
+.platformio-*/
 firmware/libdeps/
 
 # Environment files and local secrets

@@ -9,8 +9,10 @@ $pythonPath = Join-Path $repoRoot 'windows-agent/secure_audio.py'
 $pythonTestPath = Join-Path $repoRoot 'windows-agent/tests/test_secure_audio.py'
 $swiftPath = Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileCore/PipaSecureAudio.swift'
 $fixturePath = Join-Path $repoRoot 'mobile-ios/Tests/Fixtures/secure_audio_v2.json'
+$firmwareSessionPath = Join-Path $repoRoot 'firmware/src/pipa_secure_session.cpp'
+$firmwareMainPath = Join-Path $repoRoot 'firmware/src/main.cpp'
 
-foreach ($path in @($pythonPath, $pythonTestPath, $swiftPath, $fixturePath)) {
+foreach ($path in @($pythonPath, $pythonTestPath, $swiftPath, $fixturePath, $firmwareSessionPath, $firmwareMainPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Falta un artefacto del contrato de audio seguro: $path"
     }
@@ -19,6 +21,8 @@ foreach ($path in @($pythonPath, $pythonTestPath, $swiftPath, $fixturePath)) {
 $python = Get-Content -LiteralPath $pythonPath -Raw
 $swift = Get-Content -LiteralPath $swiftPath -Raw
 $fixture = Get-Content -LiteralPath $fixturePath -Raw
+$firmwareSession = Get-Content -LiteralPath $firmwareSessionPath -Raw
+$firmwareMain = Get-Content -LiteralPath $firmwareMainPath -Raw
 
 foreach ($required in @(
     'AUDIO_PROTOCOL_VERSION = 2',
@@ -53,6 +57,12 @@ if ($python -match '(?i)["'']samples["'']\s*:') {
 }
 if ($swift -match '(?i)["'']samples["'']\s*:') {
     throw 'Las muestras no pueden aparecer como un campo JSON en el módulo Swift.'
+}
+if ($firmwareSession.IndexOf('pipa/audio/v2', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'El vector de firmware no contiene el AAD de audio v2 compartido.'
+}
+if ($firmwareMain -match '(?i)pipa/audio/v2|audio_additional_data|PipaSecureAudio') {
+    throw 'El firmware normal no puede conectar todavía el contrato de audio.'
 }
 if ($fixture -notmatch '"ciphertext"\s*:\s*"[^"\r\n]+"' -or
     $fixture -match '(?s)"frame"\s*:\s*\{[^}]*"samples"\s*:') {

@@ -63,6 +63,7 @@ public extension PipaMobileCommand {
                 ? PipaMobileTextPolicy.isSafeMessageText(value, maxBytes: parameter.maxLength)
                 : PipaMobileTextPolicy.isSafeDisplayText(value, maxBytes: parameter.maxLength)
             guard safe,
+                  Self.isValidStructuredValue(value, for: parameter),
                   parameter.options.isEmpty || parameter.options.contains(value) else {
                 return nil
             }
@@ -76,6 +77,26 @@ public extension PipaMobileCommand {
             }
         }
         return arguments
+    }
+
+    private static func isValidStructuredValue(
+        _ value: String,
+        for parameter: PipaMobileCommandParameter
+    ) -> Bool {
+        switch parameter.kind {
+        case "phone":
+            let allowed = CharacterSet(charactersIn: "0123456789+ ().-")
+            guard value.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return false }
+            let compact = value.filter { !" ().-".contains($0) }
+            let digits = compact.first == "+" ? String(compact.dropFirst()) : compact
+            return (7...15).contains(digits.utf8.count) &&
+                digits.utf8.allSatisfy { (0x30...0x39).contains($0) }
+        case "channel_id", "guild_id":
+            return (17...20).contains(value.utf8.count) &&
+                value.utf8.allSatisfy { (0x30...0x39).contains($0) }
+        default:
+            return true
+        }
     }
 }
 

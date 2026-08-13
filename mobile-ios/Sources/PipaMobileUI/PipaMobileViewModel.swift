@@ -235,6 +235,7 @@ public final class PipaMobileViewModel: ObservableObject {
         "league_open": "Abrir League of Legends.",
         "discord_open_app": "Abrir Discord.",
         "discord_open": "Abrir un canal de Discord.",
+        "discord_call_channel": "Preparar una llamada de Discord; el inicio será manual.",
         "discord_contact": "Abrir un contacto de Discord.",
         "discord_call": "Preparar una llamada de Discord; el inicio será manual.",
         "whatsapp_compose": "Preparar un mensaje de WhatsApp; el envío será manual.",
