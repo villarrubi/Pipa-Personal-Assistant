@@ -60,6 +60,10 @@ nuevo.
   autenticado a un callback local mediante un `memoryview` efímero, borra el
   buffer al devolverlo y solo devuelve contadores acotados al finalizar. No
   acumula una grabación ni está conectado al agente residente.
+- Windows también incluye `SecureAudioTranscriber`, un adaptador inyectable
+  que entrega esos chunks al futuro proveedor STT y acepta únicamente una
+  transcripción final validada por la política de texto; no elige proveedor,
+  abre micrófono, guarda audio ni conecta el agente residente.
 - iPhone: `mobile-ios/Sources/PipaMobileCore/PipaSecureAudio.swift`.
 - Firmware: `firmware/src/pipa_secure_audio.h/.cpp` contiene un primitive
   acotado de framing, cifrado y apertura, ejecutado únicamente por el vector
@@ -79,7 +83,7 @@ cancelación e indicador en la placa.
 
 ## Entrega al futuro STT
 
-El consumidor de Windows es la única pieza preparada para recibir audio antes
+El consumidor/transcriptor de Windows es la única pieza preparada para recibir audio antes
 de la integración física. Antes de usarlo, el futuro driver debe marcar el
 codec como listo y llamar a `begin_capture(display_ready=True,
 consented=True, secure_transport_ready=True)`. El `AudioCaptureGate` rechaza

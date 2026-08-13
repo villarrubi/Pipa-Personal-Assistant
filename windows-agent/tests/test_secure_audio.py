@@ -14,6 +14,7 @@ from secure_audio import (  # noqa: E402
     SecureAudioConsumer,
     SecureAudioReceiver,
     SecureAudioSender,
+    SecureAudioTranscriber,
 )
 from secure_session import ClosedSessionError, secure_session_from_shared_secret  # noqa: E402
 
@@ -201,13 +202,79 @@ class SecureAudioTests(unittest.TestCase):
         consumer = SecureAudioConsumer(receiver, fail, self._listening_gate())
         with self.assertRaises(AudioFrameError):
             consumer.consume_frame(frame)
-
         self.assertTrue(consumer.closed)
         self.assertEqual(consumer.gate.state, AudioCaptureState.ERROR)
         with self.assertRaises(ClosedSessionError):
             receiver.session.seal(b"\x00\x00")
         with self.assertRaises(AudioFrameError):
             consumer.consume_frame(frame)
+
+    def test_transcriber_returns_only_a_validated_final_transcript(self):
+        sender = SecureAudioSender(self._session("client"), "stream-transcript")
+        first = sender.seal_chunk(b"\x01\x02" * 4, final=False)
+        final = sender.seal_chunk(b"\x03\x04" * 4, final=True)
+        receiver = SecureAudioReceiver(self._session("server"))
+        retained_views: list[memoryview] = []
+
+        def provider(view: memoryview, is_final: bool) -> str | None:
+            retained_views.append(view)
+            return "estado de integraciones" if is_final else None
+
+        transcriber = SecureAudioTranscriber(receiver, provider, self._listening_gate())
+        try:
+            self.assertFalse(transcriber.consume_frame(first))
+            self.assertTrue(transcriber.consume_frame(final))
+            self.assertIsNone(transcriber.transcript)
+            summary = transcriber.finalize()
+
+            self.assertEqual(transcriber.transcript, "estado de integraciones")
+            self.assertEqual(summary.stream_bytes, 16)
+            with self.assertRaises(ValueError):
+                len(retained_views[0])
+        finally:
+            transcriber.close()
+
+    def test_transcriber_rejects_partial_or_unsafe_transcripts(self):
+        sender = SecureAudioSender(self._session("client"), "stream-transcript-policy")
+        first = sender.seal_chunk(b"\x01\x02" * 4, final=False)
+        receiver = SecureAudioReceiver(self._session("server"))
+
+        partial = SecureAudioTranscriber(
+            receiver,
+            lambda _view, is_final: "parcial" if not is_final else "final",
+            self._listening_gate(),
+        )
+        with self.assertRaises(AudioFrameError):
+            partial.consume_frame(first)
+        self.assertTrue(partial.closed)
+
+        unsafe_sender = SecureAudioSender(self._session("client"), "stream-transcript-unsafe")
+        unsafe_frame = unsafe_sender.seal_chunk(b"\x01\x02" * 4, final=True)
+        unsafe_receiver = SecureAudioReceiver(self._session("server"))
+        unsafe = SecureAudioTranscriber(
+            unsafe_receiver,
+            lambda _view, _is_final: "texto\u202eoculto",
+            self._listening_gate(),
+        )
+        with self.assertRaises(AudioFrameError):
+            unsafe.consume_frame(unsafe_frame)
+        self.assertTrue(unsafe.closed)
+
+    def test_transcriber_rejects_a_final_frame_without_a_transcript(self):
+        sender = SecureAudioSender(self._session("client"), "stream-no-transcript")
+        frame = sender.seal_chunk(b"\x01\x02" * 4, final=True)
+        transcriber = SecureAudioTranscriber(
+            SecureAudioReceiver(self._session("server")),
+            lambda _view, _is_final: None,
+            self._listening_gate(),
+        )
+        try:
+            self.assertTrue(transcriber.consume_frame(frame))
+            with self.assertRaises(AudioFrameError):
+                transcriber.finalize()
+            self.assertTrue(transcriber.closed)
+        finally:
+            transcriber.close()
 
     def test_consumer_finalize_rejects_truncated_stream_and_closes_session(self):
         sender = SecureAudioSender(self._session("client"), "stream-truncated")

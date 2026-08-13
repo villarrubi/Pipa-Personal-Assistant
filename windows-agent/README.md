@@ -325,7 +325,7 @@ además ejecuta en memoria el handshake y el cifrado v2; no toca la identidad
 persistente de DPAPI.
 `secure-audio-test` ejecuta el contrato de audio con muestras PCM sintéticas:
 comprueba la compuerta de codec, pantalla, consentimiento y transporte seguro,
-el orden cifrado de los chunks y el resumen acotado. No abre micrófono,
+el orden cifrado de los chunks, el puente de transcript final y el resumen acotado. No abre micrófono,
 puertos, navegador ni aplicaciones, y no guarda las muestras.
 
 `mobile-test` prueba además el cliente móvil de referencia, su anuncio de

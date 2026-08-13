@@ -175,8 +175,9 @@ de recuperación y acceso.
   esa acción si no se anuncia `touch`; todos los handlers son inertes.
 - El diagnóstico `secure-audio-test`, incluido también en `self-test`, recorre
   el framing PCM cifrado con muestras sintéticas, exige la compuerta de codec,
-  pantalla, consentimiento y transporte seguro, y solo expone contadores
-  booleanos/acotados; no abre micrófono, red, serie ni guarda muestras.
+  pantalla, consentimiento y transporte seguro, valida un transcript final y
+  su intención segura, y solo expone contadores booleanos/acotados; no abre
+  micrófono, red, serie ni guarda muestras.
 - El diagnóstico `integration-test`, incluido también en `self-test`, comprueba
   los destinos HTTPS allowlisted, las colas de League y que Apple Music,
   WhatsApp, Discord, League y Codex mantengan sus pasos manuales; usa valores

@@ -16,6 +16,7 @@ from enum import StrEnum
 from typing import Any
 
 from secure_session import RecordError, SecureSession
+from tools.text_policy import validate_bounded_text
 
 AUDIO_PROTOCOL_VERSION = 2
 AUDIO_AAD_PREFIX = b"pipa/audio/v2\x00"
@@ -60,6 +61,7 @@ class AudioStreamSummary:
 
 
 AudioChunkConsumer = Callable[[memoryview, bool], None]
+AudioTranscriptProvider = Callable[[memoryview, bool], object]
 
 
 class AudioCaptureState(StrEnum):
@@ -462,3 +464,108 @@ class SecureAudioConsumer:
         self._closed = True
         self._finished = False
         self._on_chunk = None
+
+
+class SecureAudioTranscriber:
+    """Adapt ephemeral authenticated PCM chunks to a bounded transcript.
+
+    The provider is deliberately injected: this class does not select an STT
+    engine, open a microphone, persist samples, or make network requests. A
+    future local provider receives each short-lived ``memoryview`` and may
+    return a transcript only for the final chunk. The transcript is validated
+    before it can be handed to the command parser.
+    """
+
+    def __init__(
+        self,
+        receiver: SecureAudioReceiver,
+        provider: AudioTranscriptProvider,
+        gate: AudioCaptureGate,
+    ) -> None:
+        if not isinstance(receiver, SecureAudioReceiver):
+            raise TypeError("receiver must be SecureAudioReceiver")
+        if not callable(provider):
+            raise TypeError("provider must be callable")
+        if not isinstance(gate, AudioCaptureGate):
+            raise TypeError("gate must be AudioCaptureGate")
+        self._transcript: str | None = None
+        self._provider: AudioTranscriptProvider | None = provider
+        self._provider_closed = False
+        self._finalized = False
+        self._consumer = SecureAudioConsumer(receiver, self._consume_chunk, gate)
+
+    @property
+    def consumer(self) -> SecureAudioConsumer:
+        """Expose only the bounded consumer lifecycle to integration code."""
+
+        return self._consumer
+
+    @property
+    def transcript(self) -> str | None:
+        """Return the validated final transcript, if one was produced."""
+
+        return self._transcript if self._finalized else None
+
+    @property
+    def closed(self) -> bool:
+        return self._provider_closed or self._consumer.closed
+
+    def begin_capture(
+        self,
+        *,
+        display_ready: bool,
+        consented: bool,
+        secure_transport_ready: bool,
+    ) -> None:
+        self._consumer.begin_capture(
+            display_ready=display_ready,
+            consented=consented,
+            secure_transport_ready=secure_transport_ready,
+        )
+
+    def consume_frame(self, frame: Mapping[str, object]) -> bool:
+        if self.closed:
+            raise AudioFrameError("audio transcriber is closed")
+        return self._consumer.consume_frame(frame)
+
+    def finalize(self) -> AudioStreamSummary:
+        summary = self._consumer.finalize()
+        if self._transcript is None:
+            self.close()
+            raise AudioFrameError("audio provider returned no final transcript")
+        self._finalized = True
+        return summary
+
+    def cancel(self) -> None:
+        if self.closed:
+            return
+        self._consumer.cancel()
+        self._transcript = None
+        self._finalized = False
+
+    def close(self) -> None:
+        if self._provider_closed:
+            return
+        self._provider_closed = True
+        self._provider = None
+        self._transcript = None
+        self._finalized = False
+        self._consumer.close()
+
+    def _consume_chunk(self, view: memoryview, final: bool) -> None:
+        if self._transcript is not None:
+            raise AudioFrameError("audio provider returned more than one transcript")
+        provider = self._provider
+        if provider is None:
+            raise AudioFrameError("audio provider is unavailable")
+        result = provider(view, final)
+        if not final:
+            if result is not None:
+                raise AudioFrameError("audio provider returned a partial transcript")
+            return
+        if result is None:
+            return
+        try:
+            self._transcript = validate_bounded_text(result, "La transcripción", 4000).strip()
+        except ValueError as error:
+            raise AudioFrameError("audio provider returned an invalid transcript") from error

@@ -15,9 +15,9 @@ from typing import Any
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from secure_audio import (
     AudioCaptureGate,
-    SecureAudioConsumer,
     SecureAudioReceiver,
     SecureAudioSender,
+    SecureAudioTranscriber,
 )
 from secure_core_connection import SecureCoreConnection
 from secure_json_channel import SecureJsonChannel
@@ -36,6 +36,7 @@ from secure_session_server import SecureSessionServer
 from secure_tcp_gateway import SecureTcpGateway
 
 from backend.pipa_core.core import PipaCore
+from backend.pipa_core.intents import parse_text_intent
 from backend.pipa_core.simulator import create_simulator
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter
 
@@ -226,50 +227,62 @@ def run_secure_audio_self_test() -> dict[str, object]:
         transcript_hash,
         role="server",
     )
-    sender = SecureAudioSender(sender_session, "diagnostic-stream")
-    first = sender.seal_chunk(b"\x01\x02" * 8, final=False)
-    final = sender.seal_chunk(b"\x03\x04" * 8, final=True)
-    gate = AudioCaptureGate()
-    if not gate.mark_codec_ready(True):
-        raise ValueError("secure audio diagnostic could not enter codec-ready state")
-    if not gate.begin_listening(
-        display_ready=True,
-        consented=True,
-        secure_transport_ready=True,
-    ):
-        raise ValueError("secure audio diagnostic bypassed the capture consent gate")
+    transcriber: SecureAudioTranscriber | None = None
+    try:
+        sender = SecureAudioSender(sender_session, "diagnostic-stream")
+        first = sender.seal_chunk(b"\x01\x02" * 8, final=False)
+        final = sender.seal_chunk(b"\x03\x04" * 8, final=True)
+        gate = AudioCaptureGate()
+        if not gate.mark_codec_ready(True):
+            raise ValueError("secure audio diagnostic could not enter codec-ready state")
 
-    received_bytes = 0
+        received_bytes = 0
 
-    def consume(chunk: memoryview, _is_final: bool) -> None:
-        nonlocal received_bytes
-        received_bytes += len(chunk)
+        def transcribe(chunk: memoryview, is_final: bool) -> str | None:
+            nonlocal received_bytes
+            received_bytes += len(chunk)
+            return "estado de integraciones" if is_final else None
 
-    consumer = SecureAudioConsumer(
-        SecureAudioReceiver(receiver_session),
-        consume,
-        gate,
-    )
-    if consumer.consume_frame(first):
-        raise ValueError("secure audio diagnostic marked a non-final chunk as final")
-    if not consumer.consume_frame(final):
-        raise ValueError("secure audio diagnostic did not finish the stream")
-    summary = consumer.finalize()
-    if (
-        received_bytes != 32
-        or summary.stream_bytes != 32
-        or summary.stream_duration_ms != 1
-        or gate.can_capture
-    ):
-        raise ValueError("secure audio diagnostic returned an invalid bounded summary")
+        transcriber = SecureAudioTranscriber(
+            SecureAudioReceiver(receiver_session),
+            transcribe,
+            gate,
+        )
+        transcriber.begin_capture(
+            display_ready=True,
+            consented=True,
+            secure_transport_ready=True,
+        )
+        if transcriber.consume_frame(first):
+            raise ValueError("secure audio diagnostic marked a non-final chunk as final")
+        if not transcriber.consume_frame(final):
+            raise ValueError("secure audio diagnostic did not finish the stream")
+        summary = transcriber.finalize()
+        transcript = transcriber.transcript
+        parsed = parse_text_intent(transcript or "")
+        if (
+            received_bytes != 32
+            or summary.stream_bytes != 32
+            or summary.stream_duration_ms != 1
+            or gate.can_capture
+            or transcript != "estado de integraciones"
+            or parsed is None
+            or parsed.tool_name != "integration_status"
+        ):
+            raise ValueError("secure audio diagnostic returned an invalid transcript path")
+    finally:
+        if transcriber is not None:
+            transcriber.close()
+        sender_session.close()
+        receiver_session.close()
 
-    sender_session.close()
-    receiver_session.close()
     return {
         "encrypted_round_trip": True,
         "capture_gate": True,
         "ordered_stream": True,
         "bounded_summary": True,
+        "transcript_bridge": True,
+        "intent_routed": True,
         "external_actions_executed": False,
         "persistent_keys_touched": False,
     }

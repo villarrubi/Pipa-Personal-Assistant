@@ -156,7 +156,9 @@ que las solicitó y caducan si no se confirman.
 - El contrato de audio cifrado ya tiene un consumidor por chunks en Windows:
   exige codec listo, indicador visible, consentimiento y transporte seguro;
   entrega memoria efímera a un futuro STT local, borra el buffer y cierra la
-  sesión ante errores o streams truncados. Todavía no captura ni anuncia voz.
+  sesión ante errores o streams truncados. `SecureAudioTranscriber` valida el
+  transcript final antes de pasarlo al parser; el diagnóstico usa un proveedor
+  sintético y todavía no captura ni anuncia voz real.
 - Compilar el firmware exacto sin tener la placa.
 - La app iPhone recuerda la configuración pública de conexión en Keychain y
   permite completar en un formulario local los parámetros de búsquedas,
