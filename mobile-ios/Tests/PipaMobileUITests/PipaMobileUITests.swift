@@ -57,6 +57,20 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertNil(PipaMobileIntegration(id: "unknown", payload: ["available": true]))
     }
 
+    func testLocalAppleMusicControllerStartsWithoutAuthorizationOrTransport() {
+        let controller = PipaMobileAppleMusicController()
+
+        XCTAssertFalse(controller.isAuthorized)
+        XCTAssertFalse(controller.isPlaying)
+        XCTAssertFalse(controller.requestInProgress)
+        XCTAssertTrue(controller.currentTrack.isEmpty)
+#if os(iOS)
+        XCTAssertTrue(controller.isNativePlaybackAvailable)
+#else
+        XCTAssertFalse(controller.isNativePlaybackAvailable)
+#endif
+    }
+
     func testConfirmationSummaryRejectsArgumentsAndAllowsFixedLabels() {
         XCTAssertTrue(
             PipaMobileViewModel.isSafeConfirmationSummary(

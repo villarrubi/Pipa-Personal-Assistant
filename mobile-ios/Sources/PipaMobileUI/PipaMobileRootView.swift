@@ -5,10 +5,12 @@ import SwiftUI
 @MainActor
 public struct PipaMobileRootView: View {
     @StateObject private var model: PipaMobileViewModel
+    @StateObject private var localAppleMusic = PipaMobileAppleMusicController()
 #if os(iOS)
     @StateObject private var speechRecognizer = PipaMobileSpeechRecognizer()
 #endif
     @State private var commandToEdit: PipaMobileCommand?
+    @State private var localMusicQuery = ""
     @Environment(\.scenePhase) private var scenePhase
 
     public init(model: PipaMobileViewModel? = nil) {
@@ -21,6 +23,7 @@ public struct PipaMobileRootView: View {
                 connectionSection
                 statusSection
                 integrationSection
+                localAppleMusicSection
                 commandSection
                 catalogSection
             }
@@ -160,6 +163,62 @@ public struct PipaMobileRootView: View {
                     }
                 }
             }
+        }
+    }
+
+    private var localAppleMusicSection: some View {
+        Section("Apple Music en este iPhone") {
+            Text("Busca y reproduce una canción localmente con MusicKit. Esta función no envía nada al PC.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("Artista o canción", text: $localMusicQuery)
+            Button("Autorizar Apple Music") {
+                localAppleMusic.authorize()
+            }
+            .disabled(localAppleMusic.requestInProgress)
+            Button("Buscar canciones") {
+                localAppleMusic.search(term: localMusicQuery)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(
+                localAppleMusic.requestInProgress ||
+                    localMusicQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            )
+            if !localAppleMusic.searchResults.isEmpty {
+                Text("Elige una coincidencia")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ForEach(localAppleMusic.searchResults) { result in
+                    Button {
+                        localAppleMusic.play(result: result)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(result.title)
+                            Text(result.artist)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .disabled(localAppleMusic.requestInProgress)
+                }
+            }
+            HStack {
+                Button(localAppleMusic.isPlaying ? "Pausar" : "Reproducir") {
+                    localAppleMusic.togglePlayback()
+                }
+                Button("Siguiente") {
+                    localAppleMusic.nextTrack()
+                }
+            }
+            .disabled(localAppleMusic.requestInProgress)
+            if !localAppleMusic.currentTrack.isEmpty {
+                Text(localAppleMusic.currentTrack)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Text(localAppleMusic.statusMessage)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 

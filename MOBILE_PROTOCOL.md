@@ -199,7 +199,10 @@ recibir además un caption breve y allowlisted en `ui_state` —por ejemplo,
 porcentaje de batería, si League está buscando o el número de temporizadores—
 pero nunca recibe nombres de interfaces, IDs, etiquetas, contactos o mensajes.
 WhatsApp sigue requiriendo pulsar `Enviar`, Discord sigue requiriendo iniciar
-la llamada y Apple Music sigue requiriendo elegir la pista.
+la llamada y el Apple Music remoto sigue requiriendo elegir la pista. La app
+iOS también puede ofrecer una ruta local independiente basada en MusicKit: esa
+ruta solicita permiso del sistema y reproduce en el iPhone, sin enviar la
+búsqueda por este transporte ni cambiar las confirmaciones del agente.
 
 ## Transporte TCP v2 opt-in
 

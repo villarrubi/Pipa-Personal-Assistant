@@ -13,6 +13,7 @@ $requiredFiles = @(
     'mobile-ios/Sources/PipaMobileCore/PipaMobileTCPClient.swift',
     'mobile-ios/Sources/PipaMobileUI/PipaMobileViewModel.swift',
     'mobile-ios/Sources/PipaMobileUI/PipaMobileCommandEditor.swift',
+    'mobile-ios/Sources/PipaMobileUI/PipaMobileAppleMusicController.swift',
     'mobile-ios/Sources/PipaMobileUI/PipaMobileSpeechRecognizer.swift',
     'mobile-ios/Sources/PipaMobileUI/PipaMobileRootView.swift',
     'mobile-ios/App/PipaMobileApp.swift',
@@ -41,6 +42,7 @@ $settingsStore = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaM
 $tcp = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileCore/PipaMobileTCPClient.swift')
 $viewModel = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileViewModel.swift')
 $commandEditor = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileCommandEditor.swift')
+$appleMusic = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileAppleMusicController.swift')
 $speech = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileSpeechRecognizer.swift')
 $view = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileRootView.swift')
 $app = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/App/PipaMobileApp.swift')
@@ -63,15 +65,16 @@ $requiredPatterns = @(
     @($tcp, 'NWConnection', 'serverPublicKeyData', 'device_hello', 'catalog_request', 'PipaMobileCatalog', 'requestCatalogDetails', 'parseCapabilities', 'capabilityGroups', 'booleanCapabilityFields', 'isCapabilityValue', 'isAllowedHost', 'first == 192', 'containsProtocolControl', 'maxArgumentsBytes', 'requestInFlight', 'requestInProgress', 'asyncAfter', 'connectionTimeout', 'ioTimeout', 'receiveBuffer'),
     @($viewModel, 'PipaMobileTCPClient', 'PipaKeychainIdentityStore', 'PipaMobileSettingsStoring', 'PipaMobileSettingsStore', 'PipaMobileIntegration', 'PipaMobileCommandParameter', 'guild_id', 'parameters', 'integrationCapabilities', 'requestCatalogDetails', 'pendingConfirmation', 'resolveConfirmation', 'prepareIdentity', 'identityFingerprint', 'serverFingerprint', 'serverFingerprintVerified', 'markServerFingerprintVerified', 'invalidateServerFingerprintVerification', 'useCommand', 'useCommandText', 'updateVoiceDraft', 'forgetConnectionSettings', 'sendStructuredCommand', 'operationTask', 'requestTask', 'requestInProgress', 'sessionGeneration', 'connectInProgress', 'Task.isCancelled', 'await newClient.disconnect()', 'closeAfterOperationFailure', 'requiresConfirmation == (safety == "unsafe")', 'parsedCatalog.count == catalog.commands.count', 'isSafeConfirmationSummary', 'La respuesta del agente no es válida.'),
     @($commandEditor, 'placeholders', 'rendered(with values:', 'toolArguments(with values:', 'isSafeMessageText', '4000', 'Control', 'Preparar en el editor', 'Enviar acción estructurada', 'without executing it'),
+    @($appleMusic, 'MusicCatalogSearchRequest', 'MusicAuthorization', 'SystemMusicPlayer', 'search(term:', 'play(result:', 'skipToNextEntry', 'PipaMobileTextPolicy'),
     @($speech, '#if os(iOS)', 'AVAudioEngine', 'SFSpeechRecognizer', 'requestRecordPermission', 'supportsOnDeviceRecognition', 'requiresOnDeviceRecognition', 'PipaMobileSpeechRecognizer', 'operationGeneration', 'generation:', 'invalidate: true', 'bounded(text)'),
-    @($view, 'PipaMobileRootView', 'scenePhase', 'onChange', 'commandToEdit', '.sheet(item:', 'command.placeholders', 'integrationSection', 'integrationCapabilities', 'Disponible', 'No disponible', 'Preparar identidad', 'Fingerprint:', 'Fingerprint del agente:', 'He comparado el fingerprint', 'Fingerprint verificado', 'Confirmar acción', 'Rechazar', 'Aceptar', 'Usar', 'PipaMobileSpeechRecognizer', 'Dictar comando', 'Parar dictado', 'updateVoiceDraft', 'speechRecognizer.cancel()', 'speechRecognizer.isListening', 'Borrar configuración guardada'),
+    @($view, 'PipaMobileRootView', 'scenePhase', 'onChange', 'commandToEdit', '.sheet(item:', 'command.placeholders', 'integrationSection', 'integrationCapabilities', 'localAppleMusic', 'Apple Music en este iPhone', 'Disponible', 'No disponible', 'Preparar identidad', 'Fingerprint:', 'Fingerprint del agente:', 'He comparado el fingerprint', 'Fingerprint verificado', 'Confirmar acción', 'Rechazar', 'Aceptar', 'Usar', 'PipaMobileSpeechRecognizer', 'Dictar comando', 'Parar dictado', 'updateVoiceDraft', 'speechRecognizer.cancel()', 'speechRecognizer.isListening', 'Borrar configuración guardada'),
     @($app, '@main', 'PipaMobileRootView', 'WindowGroup'),
-    @($appInfo, 'CFBundleDisplayName', 'LSRequiresIPhoneOS', 'NSLocalNetworkUsageDescription', 'NSMicrophoneUsageDescription', 'NSSpeechRecognitionUsageDescription'),
+    @($appInfo, 'CFBundleDisplayName', 'LSRequiresIPhoneOS', 'NSAppleMusicUsageDescription', 'NSLocalNetworkUsageDescription', 'NSMicrophoneUsageDescription', 'NSSpeechRecognitionUsageDescription'),
     @($xcodeProject, 'PBXProject', 'PBXNativeTarget', 'PipaMobileApp.swift', 'PipaMobileUI', 'XCLocalSwiftPackageReference', 'relativePath = ..', 'INFOPLIST_FILE = ../App/Info.plist', 'IPHONEOS_DEPLOYMENT_TARGET = 16.0'),
     @($xcodeScheme, 'BlueprintName = "PipaMobile"', 'BuildableName = "PipaMobile.app"', 'container:PipaMobile.xcodeproj'),
-    @($infoPlist, 'CFBundleDisplayName', 'LSRequiresIPhoneOS', 'NSLocalNetworkUsageDescription', 'NSMicrophoneUsageDescription', 'NSSpeechRecognitionUsageDescription', 'red local'),
+    @($infoPlist, 'CFBundleDisplayName', 'LSRequiresIPhoneOS', 'NSAppleMusicUsageDescription', 'NSLocalNetworkUsageDescription', 'NSMicrophoneUsageDescription', 'NSSpeechRecognitionUsageDescription', 'red local'),
     @($coreTests, 'testRecordLayerEncryptsAuthenticatesAndRejectsReplay', 'testRecordLayerMatchesTheSharedPythonVector', 'testTCPClientRejectsInvalidTextAndOversizedArgumentsBeforeTransport', 'testMobileTextPolicyRejectsProtocolAndBidirectionalControls'),
-    @($uiTests, 'testConnectionRequiresEphemeralFingerprintAcknowledgement', 'testSavedSettingsNeverCountAsFingerprintAcknowledgement', 'testCatalogCommandEditorRendersBoundedArgumentsWithoutSending', 'testStructuredCatalogCommandAcceptsMessageLineFeedsAndTypedArguments', 'testStructuredCatalogCommandRejectsMalformedParameterMetadata', 'testVoiceDraftOnlyUpdatesTheEditorWithoutSending', 'testVoiceDraftRejectsControlCharactersAndOversizedInput', 'testCatalogRejectsBidirectionalFormattingControls', 'testIntegrationCapabilitiesShowOnlyCoarseManualActionStatus'),
+    @($uiTests, 'testConnectionRequiresEphemeralFingerprintAcknowledgement', 'testSavedSettingsNeverCountAsFingerprintAcknowledgement', 'testCatalogCommandEditorRendersBoundedArgumentsWithoutSending', 'testStructuredCatalogCommandAcceptsMessageLineFeedsAndTypedArguments', 'testStructuredCatalogCommandRejectsMalformedParameterMetadata', 'testVoiceDraftOnlyUpdatesTheEditorWithoutSending', 'testVoiceDraftRejectsControlCharactersAndOversizedInput', 'testCatalogRejectsBidirectionalFormattingControls', 'testIntegrationCapabilitiesShowOnlyCoarseManualActionStatus', 'testLocalAppleMusicControllerStartsWithoutAuthorizationOrTransport'),
     @($arrivalChecklist, 'python .\windows-agent\trusted_unlock_admin.py pair-mobile', 'FINGERPRINT_COMPARADO'),
     @($mobileProtocol, 'python .\windows-agent\trusted_unlock_admin.py pair-mobile', 'python .\windows-agent\trusted_unlock_admin.py list-mobile', 'python .\windows-agent\trusted_unlock_admin.py revoke-mobile'),
     @($vector, 'vector-mobile', 'shared_secret', 'ciphertext_and_tag'),
@@ -104,7 +107,7 @@ $forbiddenPatterns = @(
 foreach ($pattern in $forbiddenPatterns) {
     if ($protocol.Contains($pattern) -or $keychain.Contains($pattern) -or $tcp.Contains($pattern) -or
         $settingsStore.Contains($pattern) -or $viewModel.Contains($pattern) -or
-        $speech.Contains($pattern) -or $view.Contains($pattern) -or $app.Contains($pattern) -or
+        $appleMusic.Contains($pattern) -or $speech.Contains($pattern) -or $view.Contains($pattern) -or $app.Contains($pattern) -or
         $appInfo.Contains($pattern) -or $xcodeProject.Contains($pattern) -or $xcodeScheme.Contains($pattern) -or
         $arrivalChecklist.Contains($pattern) -or $mobileProtocol.Contains($pattern)) {
         throw "El paquete iOS contiene un patrón no permitido: $pattern"

@@ -173,11 +173,13 @@ En Discord, el catálogo móvil también permite rellenar un servidor y un canal
 por separado con `abre Discord servidor <servidor> canal <canal>`; el agente
 valida ambos IDs antes de abrir el destino y no inicia la llamada.
 
-En Apple Music la búsqueda no selecciona ni inicia una pista automáticamente.
-Después de elegirla, `reproduce la canción seleccionada`, `reanuda la pista` y
-`pausa la canción` controlan el reproductor multimedia activo mediante una
-tecla de Windows; si otra aplicación es el reproductor activo, esa aplicación
-recibirá la orden.
+En Apple Music remoto la búsqueda no selecciona ni inicia una pista
+automáticamente. Después de elegirla, `reproduce la canción seleccionada`,
+`reanuda la pista` y `pausa la canción` controlan el reproductor multimedia
+activo mediante una tecla de Windows; si otra aplicación es el reproductor
+activo, esa aplicación recibirá la orden. La app iOS ofrece además una sección
+local opcional con MusicKit para buscar y reproducir directamente en el iPhone,
+con permiso explícito del sistema y sin enviar la consulta al agente.
 
 ## Instalación del agente
 

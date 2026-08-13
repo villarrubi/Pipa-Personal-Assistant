@@ -10,9 +10,9 @@ de recuperación.
 - Confirmar que el esquema compartido `PipaMobile` aparece disponible y que
   enlaza el paquete local del repositorio.
 - Confirmar que el target usa `mobile-ios/App/Info.plist`, conserva
-  `NSLocalNetworkUsageDescription`, `NSMicrophoneUsageDescription` y
-  `NSSpeechRecognitionUsageDescription`, y no añade dominios públicos ni
-  excepciones ATS genéricas.
+  `NSAppleMusicUsageDescription`, `NSLocalNetworkUsageDescription`,
+  `NSMicrophoneUsageDescription` y `NSSpeechRecognitionUsageDescription`, y no
+  añade dominios públicos ni excepciones ATS genéricas.
 - Ejecutar las pruebas del paquete en un simulador iOS 16 o posterior.
 - Confirmar que no hay warnings de concurrencia, Keychain, Network o CryptoKit
   que se estén ignorando.
@@ -92,12 +92,23 @@ Configurar en Windows una IP privada concreta y un puerto explícito:
 Validar una por una, siempre con confirmación visible:
 
 - web: abre una búsqueda acotada;
-- Apple Music: abre resultados, pero la pista se selecciona manualmente;
+- Apple Music remoto: abre resultados, pero la pista se selecciona manualmente;
 - WhatsApp: prepara el chat, pero el usuario pulsa `Enviar`;
 - Discord: abre el canal, pero el usuario inicia la llamada;
 - League: una búsqueda confirmada puede abrir el cliente si está cerrado y
   espera un tiempo acotado; la cola sigue allowlisted y cancelar requiere que
   el cliente ya esté listo.
+
+En el mismo iPhone, probar también la ruta local de Apple Music:
+
+- pulsar `Autorizar Apple Music` y comprobar que el permiso se solicita con el
+  texto esperado;
+- buscar una canción conocida, elegir una coincidencia y comprobar que solo se
+  reproduce después de pulsarla;
+- comprobar que se reproduce en el reproductor del sistema, que `Pausar` y
+  `Siguiente` funcionan y que la app no envía esos datos al PC;
+- probar sin suscripción, sin red y con permiso denegado: la app debe mostrar
+  un error acotado sin guardar tokens ni quedarse en estado de carga.
 
 ## 6. Dictado local del iPhone
 

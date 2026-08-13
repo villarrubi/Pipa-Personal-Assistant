@@ -8,6 +8,8 @@
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Pipα necesita conectar con tu PC en la red local para ejecutar comandos que tú confirmes.</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Pipα necesita acceder a Apple Music para buscar y reproducir canciones que tú elijas en este iPhone.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Pipα usa el micrófono solo para preparar localmente un comando dictado.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

@@ -40,10 +40,20 @@ xcodebuild -project mobile-ios/PipaMobileApp/PipaMobile.xcodeproj \
 ```
 
 Tras conectar, la app muestra también una matriz resumida de integraciones
-(`Disponible`/`No disponible`) y sus pasos manuales: Apple Music requiere
-seleccionar la pista y permite controlar reproducción/pausa del reproductor
-activo, WhatsApp requiere pulsar `Enviar` y Discord requiere iniciar la llamada.
-Esa matriz contiene solo flags y textos acotados, nunca configuración del PC.
+(`Disponible`/`No disponible`) y sus pasos manuales para el PC: Apple Music
+requiere seleccionar la pista y permite controlar reproducción/pausa del
+reproductor activo, WhatsApp requiere pulsar `Enviar` y Discord requiere
+iniciar la llamada. Esa matriz contiene solo flags y textos acotados, nunca
+configuración del PC.
+
+La pantalla incluye además una sección independiente de Apple Music local para
+el propio iPhone. Al pulsar `Autorizar Apple Music`, MusicKit solicita el
+permiso del sistema; después `Buscar canciones` muestra hasta cinco
+coincidencias y solo reproduce la que pulses en la lista. Los botones de pausa
+y siguiente actúan solo sobre ese reproductor. Esta ruta no
+envía la búsqueda al PC, no guarda tokens y no cambia las confirmaciones del
+agente Windows. Requiere una cuenta/suscripción compatible y queda pendiente
+de validación física en Xcode/iPhone.
 
 La lista de comandos incluye un botón `Usar` para preparar una frase sin
 enviarla. Las acciones actuales sin parámetros muestran `Ejecutar` y usan el
