@@ -29,6 +29,12 @@ bool PipaAudio::begin(TwoWire& wire) {
   status_.output_codec_present = probeAddress(wire, kEs8311Address);
   status_.input_codec_present = probeAddress(wire, kEs7210Address);
   status_.amplifier_disabled = true;
+  if (!status_.output_codec_present && !status_.input_codec_present) {
+    // A missing codec is a failed physical initialization, not a usable
+    // probe state. Keep the amplifier off and require a fresh probe before
+    // any future audio path can be considered again.
+    state_machine_.fail();
+  }
   status_.state = state_machine_.state();
   return status_.output_codec_present || status_.input_codec_present;
 #else

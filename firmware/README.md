@@ -27,6 +27,9 @@ CDC. La referencia física está en la
 - Diagnóstico I²C no destructivo de ES8311 (salida) y ES7210 (entrada), con el
   amplificador apagado por defecto; la captura/reproducción real aún queda
   pendiente.
+- Si la V2 no responde en ninguna de las dos direcciones de codec, la sonda
+  pasa a `ERROR` y exige una nueva inicialización controlada; una detección
+  parcial sigue siendo solo `PROBE_ONLY` y nunca habilita captura.
 - Máquina de estados de audio independiente (`DISABLED` → `PROBE_ONLY` →
   `CODEC_READY` → `LISTENING` → `DRAINING`) con cierre `ERROR`; exige codec
   inicializado, indicador visible, consentimiento y transporte seguro antes de

@@ -50,6 +50,10 @@ if ($audioHeader.IndexOf('pipa_audio_state.h', [System.StringComparison]::Ordina
     $audioSource.IndexOf('status_.state', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'La sonda física no está conectada a la compuerta de estado.'
 }
+if ($audioSource.IndexOf('!status_.output_codec_present && !status_.input_codec_present', [System.StringComparison]::Ordinal) -lt 0 -or
+    $audioSource.IndexOf('state_machine_.fail()', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'La ausencia de ambos codecs debe cerrar la compuerta de audio.'
+}
 if ($hostTest.IndexOf('PipaAudioStateMachine::vectorSelfTest()', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'Falta la ejecución host del vector de la compuerta de audio.'
 }
