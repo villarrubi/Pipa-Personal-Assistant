@@ -145,11 +145,46 @@ sin secretos.
 
 ## Compilar
 
+PlatformIO puede intentar escribir en una caché global con permisos heredados.
+Para mantener el toolchain reproducible y dentro del árbol ignorado, define la
+caché local antes de compilar desde la raíz del repositorio:
+
+```powershell
+$env:PLATFORMIO_CORE_DIR = Join-Path (Get-Location) '.platformio-preflight'
+```
+
+Después de terminar, puedes retirar la variable de esta sesión:
+
+```powershell
+Remove-Item Env:PLATFORMIO_CORE_DIR -ErrorAction SilentlyContinue
+```
+
+La configuración local de PlatformIO no contiene Wi-Fi, MAC ni claves; esos
+valores siguen viviendo únicamente en `include/pipa_device_config.local.h`.
+
 ```powershell
 python -m venv .\firmware\.venv
 .\firmware\.venv\Scripts\python.exe -m pip install platformio==6.1.19
 .\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c
 ```
+
+Para compilar todas las variantes antes de conectar la placa:
+
+```powershell
+foreach ($environment in @(
+    'waveshare-185c',
+    'waveshare-185c-v1',
+    'secure-session-vector',
+    'secure-session-v2',
+    'audio-i2s-lab'
+)) {
+    .\firmware\.venv\Scripts\pio.exe run -d firmware -e $environment
+}
+```
+
+`secure-session-vector` y `secure-session-v2` solo comprueban el camino de
+sesión segura; no sustituyen el emparejamiento físico ni activan por sí solos
+el transporte en una placa.
 
 Para verificar únicamente la compatibilidad con una placa V1 confirmada:
 
