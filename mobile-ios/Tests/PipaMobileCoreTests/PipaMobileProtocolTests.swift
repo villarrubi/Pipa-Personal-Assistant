@@ -83,6 +83,61 @@ final class PipaMobileProtocolTests: XCTestCase {
         XCTAssertFalse(String(data: encoded, encoding: .utf8)?.contains("privateKey") == true)
     }
 
+    func testMobileSettingsRejectUnsafePersistedValuesBeforeTransport() throws {
+        let valid = PipaMobileSettings(
+            host: "192.168.1.20",
+            port: "18765",
+            serverID: "pipa-agent-v2",
+            serverPublicKey: "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+            identityID: "iphone-main"
+        )
+        XCTAssertNoThrow(try valid.validateForStorage())
+
+        let partial = PipaMobileSettings(
+            host: "",
+            port: "18765",
+            serverID: "pipa-agent-v2",
+            serverPublicKey: "",
+            identityID: "iphone-main"
+        )
+        XCTAssertNoThrow(try partial.validateForStorage())
+
+        let invalidValues = [
+            PipaMobileSettings(
+                host: "8.8.8.8",
+                port: "18765",
+                serverID: valid.serverID,
+                serverPublicKey: valid.serverPublicKey,
+                identityID: valid.identityID
+            ),
+            PipaMobileSettings(
+                host: valid.host,
+                port: "18765\n443",
+                serverID: valid.serverID,
+                serverPublicKey: valid.serverPublicKey,
+                identityID: valid.identityID
+            ),
+            PipaMobileSettings(
+                host: valid.host,
+                port: valid.port,
+                serverID: "pipa-agent\u{202E}v2",
+                serverPublicKey: valid.serverPublicKey,
+                identityID: valid.identityID
+            ),
+            PipaMobileSettings(
+                host: valid.host,
+                port: valid.port,
+                serverID: valid.serverID,
+                serverPublicKey: "not-a-key",
+                identityID: valid.identityID
+            ),
+        ]
+
+        for settings in invalidValues {
+            XCTAssertThrowsError(try settings.validateForStorage())
+        }
+    }
+
     func testFingerprintIsPublicAndStable() throws {
         let identity = try PipaMobileIdentity.generate(identityID: "ios-test")
         let second = try PipaMobileIdentity(

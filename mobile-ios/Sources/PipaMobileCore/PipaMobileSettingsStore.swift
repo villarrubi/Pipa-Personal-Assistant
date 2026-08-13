@@ -26,6 +26,45 @@ public struct PipaMobileSettings: Codable, Equatable, Sendable {
         self.serverPublicKey = serverPublicKey
         self.identityID = identityID
     }
+
+    /// Validate values before they enter or leave the device-local Keychain.
+    ///
+    /// The first screen intentionally allows a partial configuration while
+    /// the user is copying the agent fingerprint, so `host` and
+    /// `serverPublicKey` may still be empty. Any value that is present must
+    /// nevertheless already satisfy the same endpoint and identity contract
+    /// used by the live TCP client.
+    public func validateForStorage() throws {
+        guard Self.isSafeStorageText(host, maximumBytes: 253),
+              Self.isSafeStorageText(port, maximumBytes: 5),
+              Self.isSafeStorageText(serverID, maximumBytes: 128),
+              Self.isSafeStorageText(serverPublicKey, maximumBytes: 128),
+              Self.isSafeStorageText(identityID, maximumBytes: 128),
+              PipaMobileIdentity.isValidIdentifier(serverID),
+              PipaMobileIdentity.isValidIdentifier(identityID) else {
+            throw PipaMobileError.invalidMessage
+        }
+
+        if !host.isEmpty {
+            guard PipaMobileTCPClient.isAllowedHost(host) else {
+                throw PipaMobileError.invalidMessage
+            }
+        }
+        if !port.isEmpty {
+            guard let value = UInt16(port), value != 0 else {
+                throw PipaMobileError.invalidMessage
+            }
+        }
+        if !serverPublicKey.isEmpty {
+            guard (try? PipaMobileIdentity.decodePublicKeyBase64URL(serverPublicKey)) != nil else {
+                throw PipaMobileError.invalidMessage
+            }
+        }
+    }
+
+    private static func isSafeStorageText(_ value: String, maximumBytes: Int) -> Bool {
+        value.utf8.count <= maximumBytes && !PipaMobileTextPolicy.containsDisplayControl(value)
+    }
 }
 
 public protocol PipaMobileSettingsStoring {
@@ -61,13 +100,16 @@ public final class PipaMobileSettingsStore: PipaMobileSettingsStoring {
             throw PipaKeychainError(status: status)
         }
         do {
-            return try JSONDecoder().decode(PipaMobileSettings.self, from: data)
+            let settings = try JSONDecoder().decode(PipaMobileSettings.self, from: data)
+            try settings.validateForStorage()
+            return settings
         } catch {
             throw PipaMobileError.invalidMessage
         }
     }
 
     public func save(_ settings: PipaMobileSettings) throws {
+        try settings.validateForStorage()
         let data: Data
         do {
             data = try JSONEncoder().encode(settings)

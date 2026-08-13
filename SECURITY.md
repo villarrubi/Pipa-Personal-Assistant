@@ -174,6 +174,11 @@ de recuperación y acceso.
   `server_id`, clave pública y `identity_id`) se guarda en un registro Keychain
   separado, no sincronizable y accesible solo con el dispositivo desbloqueado;
   la UI permite borrarla sin borrar la identidad Ed25519.
+- Ese registro se valida al guardar y cargar: se rechazan controles Unicode,
+  identificadores fuera de la gramática, puertos inválidos, claves públicas
+  malformadas y hosts que no sean literales privados/loopback/link-local. La
+  configuración inicial puede permanecer parcial mientras se completa el
+  emparejamiento.
 - La caché anti-replay de `session_id` v2 tiene límite de 4.096 entradas y
   caducidad de 30 minutos; no puede crecer indefinidamente por conexiones USB.
 - CI con tests Python, Ruff, auditoría de dependencias, build de firmware y

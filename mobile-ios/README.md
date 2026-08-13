@@ -105,6 +105,13 @@ no sincronizable y accesible solo con el dispositivo desbloqueado. La clave
 privada de la identidad usa otro registro independiente; borrar o cambiar la
 configuración de conexión no la exporta ni la mezcla con ella.
 
+Antes de guardar o cargar ese registro, `PipaMobileSettings.validateForStorage()`
+comprueba límites, controles Unicode, identificadores, puerto, clave pública y
+que la IP siga siendo literal privada/loopback/link-local. La pantalla puede
+conservar una configuración inicial parcial mientras se copian el fingerprint
+y la clave, pero un valor presente ya no entra en Keychain si no cumple el
+contrato del transporte.
+
 La UI ofrece `Borrar configuración guardada` para eliminar solo ese registro y
 volver a pedir los datos en la siguiente conexión.
 
@@ -134,6 +141,9 @@ las pruebas del núcleo; eso no convierte el cliente en una app de escritorio.
   sesión en vez de dejar la UI esperando indefinidamente.
 - El endpoint iOS no permite `0.0.0.0`, `::`, nombres DNS ni hosts públicos;
   esto complementa la validación equivalente del gateway Windows.
+- La configuración persistida vuelve a validar el endpoint, los identificadores
+  y la clave pública antes de entrar o salir de Keychain; una entrada corrupta
+  se descarta como configuración inválida y no alcanza el transporte.
 - La UI cierra la sesión al pasar a segundo plano y cancela las conexiones
   incompletas para que una sesión vieja no reaparezca como conectada.
 - La UI serializa las peticiones, bloquea comandos mientras espera una
