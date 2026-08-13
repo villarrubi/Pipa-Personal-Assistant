@@ -27,6 +27,7 @@ $firmwareSession = Get-Content -LiteralPath $firmwareSessionPath -Raw
 $firmwareAudioHeader = Get-Content -LiteralPath $firmwareAudioHeaderPath -Raw
 $firmwareAudio = Get-Content -LiteralPath $firmwareAudioPath -Raw
 $firmwareMain = Get-Content -LiteralPath $firmwareMainPath -Raw
+$fixtureObject = $fixture | ConvertFrom-Json
 
 foreach ($required in @(
     'AUDIO_PROTOCOL_VERSION = 2',
@@ -38,6 +39,18 @@ foreach ($required in @(
 )) {
     if ($python.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
         throw "El contrato Python no contiene el límite o la operación requerida: $required"
+    }
+}
+
+foreach ($required in @(
+    'kMaxChunkBytes = 4096',
+    'kMaxChunks = 64',
+    'kMaxStreamBytes = kMaxChunkBytes * kMaxChunks',
+    'kMaxStreamIdLength = 64',
+    'kMaxAdditionalDataBytes = 1024'
+)) {
+    if ($firmwareAudioHeader.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El header C++ no contiene el límite compartido: $required"
     }
 }
 
@@ -80,6 +93,46 @@ if ($firmwareMain -notmatch $vectorGuard) {
 if ($fixture -notmatch '"ciphertext"\s*:\s*"[^"\r\n]+"' -or
     $fixture -match '(?s)"frame"\s*:\s*\{[^}]*"samples"\s*:') {
     throw 'El vector debe contener ciphertext y no puede transportar samples dentro de la trama.'
+}
+
+if ($fixtureObject.frame.audio_protocol_version -ne 2 -or
+    $fixtureObject.frame.bits_per_sample -ne 16 -or
+    $fixtureObject.frame.channels -ne 1 -or
+    $fixtureObject.frame.sample_rate -ne 16000 -or
+    $fixtureObject.frame.chunk_index -ne 0 -or
+    $fixtureObject.frame.final -ne $true -or
+    $fixtureObject.frame.stream_id -ne $fixtureObject.stream_id) {
+    throw 'El fixture de audio no conserva el perfil PCM v2 esperado.'
+}
+
+function ConvertFrom-Base64Url {
+    param([Parameter(Mandatory)] [string]$Value)
+
+    $base64 = $Value.Replace('-', '+').Replace('_', '/')
+    switch ($base64.Length % 4) {
+        0 { }
+        2 { $base64 += '==' }
+        3 { $base64 += '=' }
+        default { throw 'El ciphertext base64url del fixture tiene una longitud inválida.' }
+    }
+    return [Convert]::FromBase64String($base64)
+}
+
+$fixtureCiphertext = ConvertFrom-Base64Url $fixtureObject.frame.ciphertext
+$firmwareVectorMatch = [regex]::Match(
+    $firmwareAudio,
+    '(?s)expected_ciphertext_and_tag\[\]\s*=\s*\{(?<bytes>.*?)\};')
+if (-not $firmwareVectorMatch.Success) {
+    throw 'El vector C++ no contiene su ciphertext esperado en una forma verificable.'
+}
+$firmwareBytes = @(
+    [regex]::Matches($firmwareVectorMatch.Groups['bytes'].Value, '0x(?<byte>[0-9A-Fa-f]{2})') |
+        ForEach-Object { $_.Groups['byte'].Value.ToUpperInvariant() }
+)
+$fixtureHex = (($fixtureCiphertext | ForEach-Object { $_.ToString('X2') }) -join '')
+$firmwareHex = ($firmwareBytes -join '')
+if ($fixtureHex -ne $firmwareHex) {
+    throw 'El ciphertext del vector firmware no coincide con el fixture compartido.'
 }
 
 $productionPython = @(Get-ChildItem -Path @(
