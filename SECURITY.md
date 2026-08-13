@@ -176,8 +176,10 @@ de recuperación y acceso.
 - El diagnóstico `secure-audio-test`, incluido también en `self-test`, recorre
   el framing PCM cifrado con muestras sintéticas, exige la compuerta de codec,
   pantalla, consentimiento y transporte seguro, valida un transcript final y
-  su intención segura, y solo expone contadores booleanos/acotados; no abre
-  micrófono, red, serie ni guarda muestras.
+  su intención segura; `PipaCore.handle_transcript` lo vuelve a validar antes
+  de compartir el parser y la confirmación con el texto móvil. Solo expone
+  contadores booleanos/acotados; no abre micrófono, red, serie ni guarda
+  muestras.
 - El diagnóstico `integration-test`, incluido también en `self-test`, comprueba
   los destinos HTTPS allowlisted, las colas de League y que Apple Music,
   WhatsApp, Discord, League y Codex mantengan sus pasos manuales; usa valores

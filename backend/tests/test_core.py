@@ -207,6 +207,34 @@ class CoreTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertNotIn("result", result)
 
+    def test_final_transcript_uses_the_same_router_as_text_input(self):
+        outputs = self.core.handle_transcript(self.session_id, "siguiente canción")
+        result = next(item for item in outputs if item["type"] == "tool_result")
+
+        self.assertEqual(result["tool_name"], "media_action")
+        self.assertTrue(result["success"])
+        self.assertNotIn("result", result)
+
+    def test_final_transcript_rejects_disguised_or_unbounded_text(self):
+        for transcript in ("comando\u202eoculto", "a" * 4001):
+            with self.subTest(transcript=transcript[:16]):
+                outputs = self.core.handle_transcript(self.session_id, transcript)
+
+                self.assertEqual(outputs[0]["code"], "invalid_transcript")
+                self.assertEqual(outputs[1]["state"], "idle")
+                self.assertNotIn("oculto", str(outputs))
+
+    def test_final_transcript_does_not_bypass_a_pending_confirmation(self):
+        outputs = self._send("tool_call", name="unsafe", arguments={"value": "primera"})
+        request = next(item for item in outputs if item["type"] == "confirm_request")
+
+        outputs = self.core.handle_transcript(self.session_id, "siguiente canción")
+
+        self.assertEqual(outputs[0]["code"], "confirmation_required")
+        self.assertEqual(outputs[1]["state"], "confirm")
+        self.assertEqual(self.calls, [])
+        self._send("confirm", confirmation_id=request["confirmation_id"], accepted=False)
+
     def test_catalog_request_returns_only_bounded_ui_metadata(self):
         outputs = self._send("catalog_request")
 

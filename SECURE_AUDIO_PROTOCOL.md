@@ -93,7 +93,10 @@ CODEC_READY`; un fallo deja el estado en `ERROR`. El callback recibe
 al volver del callback y el buffer temporal se pone a cero. El callback no debe
 conservar una copia ni escribir audio en disco. Si falla, el consumidor cierra
 la sesión segura. Si la secuencia termina sin `final`, también se cierra: una
-transcripción parcial no se interpreta como un comando.
+transcripción parcial no se interpreta como un comando. Después de obtener una
+transcripción final, el adaptador debe entregarla a
+`PipaCore.handle_transcript`; el Core la valida otra vez y usa exactamente el
+mismo parser, confirmación y redacción que `text_input`.
 
 Todavía no existe un callback STT concreto, no se anuncia `voice`/`audio` en
 las capacidades y `hold_end`/`audio_end` siguen respondiendo

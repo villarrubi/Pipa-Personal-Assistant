@@ -6,6 +6,7 @@ import re
 from collections.abc import Callable
 from typing import Any
 
+from tools.text_policy import validate_bounded_text
 from trusted_unlock_protocol import (
     AuthorizationVerifier,
     SignedChallenge,
@@ -379,18 +380,7 @@ class PipaCore:
         if message.type == "gesture":
             return [server_message("gesture_ack", gesture=message.fields["gesture"])]
         if message.type == "text_input":
-            intent = parse_text_intent(message.fields["text"])
-            if intent is None:
-                session.set_state("idle", caption="Todavía no conozco ese comando.")
-                return [
-                    server_message(
-                        "error",
-                        code="unsupported_text_intent",
-                        message="Comando no reconocido; usa un tool_call o una frase compatible.",
-                    ),
-                    session.ui_message(),
-                ]
-            return self._run_tool(session, intent.tool_name, intent.arguments)
+            return self._route_transcript(session, message.fields["text"])
         if message.type == "tool_call":
             return self._run_tool(
                 session,
@@ -444,6 +434,68 @@ class PipaCore:
             ]
 
         return [server_message("error", code="unsupported_message", message=message.type)]
+
+    def handle_transcript(self, session_id: str, transcript: str) -> list[dict[str, Any]]:
+        """Route one final local transcript through the normal command path.
+
+        A future secure-audio consumer can call this method after it has
+        authenticated, bounded and finalized the audio stream. Keeping this
+        entry point separate from the wire protocol means the current v1
+        ``hold_end``/``audio_end`` behavior remains fail-closed while a real
+        STT provider can reuse exactly the same parser, confirmation gate and
+        result redaction as text and mobile commands.
+        """
+
+        session = self.sessions.get(session_id)
+        if session is None:
+            return [server_message("error", code="unknown_session", message="Sesión desconocida.")]
+
+        session.touch()
+        if not session.capabilities_initialized:
+            return [
+                server_message(
+                    "error",
+                    code="device_hello_required",
+                    message="El dispositivo aún no está listo.",
+                )
+            ]
+        if session.state == "confirm":
+            return [
+                server_message(
+                    "error",
+                    code="confirmation_required",
+                    message="Responde a la confirmación pendiente antes de continuar.",
+                ),
+                session.ui_message(),
+            ]
+        return self._route_transcript(session, transcript)
+
+    def _route_transcript(self, session, transcript: str) -> list[dict[str, Any]]:
+        try:
+            bounded = validate_bounded_text(transcript, "La transcripción", 4000)
+        except ValueError:
+            session.set_state("idle", caption="La transcripción no es válida.")
+            return [
+                server_message(
+                    "error",
+                    code="invalid_transcript",
+                    message="La transcripción no es válida.",
+                ),
+                session.ui_message(),
+            ]
+
+        intent = parse_text_intent(bounded)
+        if intent is None:
+            session.set_state("idle", caption="Todavía no conozco ese comando.")
+            return [
+                server_message(
+                    "error",
+                    code="unsupported_text_intent",
+                    message="Comando no reconocido; usa un tool_call o una frase compatible.",
+                ),
+                session.ui_message(),
+            ]
+        return self._run_tool(session, intent.tool_name, intent.arguments)
 
     def _catalog_response(self) -> list[dict[str, Any]]:
         """Return only bounded, UI-safe command metadata over an authenticated session."""
