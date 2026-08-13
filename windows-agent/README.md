@@ -259,6 +259,7 @@ detén la música
 crea un temporizador 60
 abre una URL validada https://example.com
 busca en Apple Music Daft Punk
+busca Daft Punk en Apple Music
 busca una canción de Daft Punk en Apple Music
 busca música de Daft Punk
 pon música de Daft Punk en Apple Music
@@ -273,19 +274,23 @@ busca partida ARAM
 busca una partida dentro del LoL
 busca una partida clasificatoria solo en League
 quiero buscar una partida en el LoL
+quiero jugar una partida de ARAM
 prepara WhatsApp para +34 600 123 456 y dile Hola Mamá
 manda un mensaje a +34 600 123 456 por WhatsApp y dile Hola
 manda un mensaje a mama por WhatsApp y dile Hola
+manda un mensaje a mama por WhatsApp diciendo Hola
 escribe en WhatsApp para +34 600 123 456 y dile Hola
 escribe a mama por WhatsApp y dile Hola
 abre el chat de mama en WhatsApp
 abre WhatsApp con mama y escribe Hola
 abre Discord canal 12345678901234567
+abre el canal 12345678901234567 en Discord
 abre Discord servidor 98765432109876543 canal 12345678901234567
 abre el chat de amigo en Discord
 llama a amigo por Discord
 haz una llamada a amigo por Discord
 llama a Discord canal 12345678901234567
+llama al canal 12345678901234567 en Discord
 llama a Discord servidor 98765432109876543 canal 12345678901234567
 llama a Discord
 cancela la búsqueda

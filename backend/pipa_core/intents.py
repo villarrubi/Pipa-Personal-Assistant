@@ -151,7 +151,8 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     whatsapp_compose = re.fullmatch(
         r"(?:prepara|abre|escribe en|manda|env[ií]a)(?: un)? whatsapp "
-        r"(?:para|a) ([+\d][\d\s().-]{6,24}) (?:y dile|con el mensaje) (.+)",
+        r"(?:para|a) ([+\d][\d\s().-]{6,24}) "
+        r"(?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
         original,
         flags=re.IGNORECASE,
     )
@@ -164,7 +165,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     whatsapp_message = re.fullmatch(
         r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:para|a) "
         r"([+\d][\d\s().-]{6,24}) (?:por|en) whatsapp "
-        r"(?:y dile|con el mensaje) (.+)",
+        r"(?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
         original,
         flags=re.IGNORECASE,
     )
@@ -176,7 +177,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     whatsapp_contact_alternative = re.fullmatch(
         r"(?:prepara|abre|escribe(?:le)?|manda|env[ií]a) (?:para|a) (.+?) "
-        r"(?:por|en) whatsapp (?:y dile|con el mensaje) (.+)",
+        r"(?:por|en) whatsapp (?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
         original,
         flags=re.IGNORECASE,
     )
@@ -191,7 +192,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     whatsapp_contact_message = re.fullmatch(
         r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:para|a) (.+?) "
-        r"(?:por|en) whatsapp (?:y dile|con el mensaje) (.+)",
+        r"(?:por|en) whatsapp (?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
         original,
         flags=re.IGNORECASE,
     )
@@ -206,7 +207,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     whatsapp_contact = re.fullmatch(
         r"(?:prepara|abre|escribe en|manda|env[ií]a)(?: un)? whatsapp (?:para|a|con) (.+?) "
-        r"(?:y dile|y escribe|con el mensaje) (.+)",
+        r"(?:y dile|y escribe|dile|con el mensaje|diciendo|que diga) (.+)",
         original,
         flags=re.IGNORECASE,
     )
@@ -247,6 +248,52 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     )
     if discord_call_contact:
         return ParsedIntent("discord_call", {"contact": discord_call_contact.group(1).strip()})
+
+    discord_call_server_channel_suffix = re.fullmatch(
+        r"(?:llama(?:r)?|haz una llamada) (?:al|a(?:l)? )?(?:canal )?([0-9]{17,20}) "
+        r"(?:del|de|en el) (?:servidor|guild) ([0-9]{17,20}) (?:por|en) discord",
+        normalized,
+    )
+    if discord_call_server_channel_suffix:
+        return ParsedIntent(
+            "discord_call_channel",
+            {
+                "guild_id": discord_call_server_channel_suffix.group(2),
+                "channel_id": discord_call_server_channel_suffix.group(1),
+            },
+        )
+
+    discord_call_channel_suffix = re.fullmatch(
+        r"(?:llama(?:r)?|haz una llamada) (?:al|a(?:l)? )?(?:canal )?([0-9]{17,20}) "
+        r"(?:por|en) discord",
+        normalized,
+    )
+    if discord_call_channel_suffix:
+        return ParsedIntent(
+            "discord_call_channel",
+            {"channel_id": discord_call_channel_suffix.group(1)},
+        )
+
+    discord_open_server_channel_suffix = re.fullmatch(
+        r"(?:abre|abrir) (?:el )?(?:canal )?([0-9]{17,20}) "
+        r"(?:del|de|en el) (?:servidor|guild) ([0-9]{17,20}) (?:por|en) discord",
+        normalized,
+    )
+    if discord_open_server_channel_suffix:
+        return ParsedIntent(
+            "discord_open",
+            {
+                "guild_id": discord_open_server_channel_suffix.group(2),
+                "channel_id": discord_open_server_channel_suffix.group(1),
+            },
+        )
+
+    discord_open_channel_suffix = re.fullmatch(
+        r"(?:abre|abrir) (?:el )?(?:canal )?([0-9]{17,20}) (?:por|en) discord",
+        normalized,
+    )
+    if discord_open_channel_suffix:
+        return ParsedIntent("discord_open", {"channel_id": discord_open_channel_suffix.group(1)})
 
     discord_channel_contact = re.fullmatch(
         r"(?:abre|abrir) (?:el )?canal de (.+?) (?:por|en) discord",
@@ -419,8 +466,16 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     if song_search:
         return ParsedIntent("music_search", {"term": song_search.group(1).strip()})
 
+    music_search_suffix = re.fullmatch(
+        r"(?:b(?:u|ú)sca(?:me)?|buscar) (.+?) (?:en )?(?:apple music|m[uú]sica|musica)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if music_search_suffix:
+        return ParsedIntent("music_search", {"term": _clean_music_term(music_search_suffix.group(1))})
+
     league_search = re.fullmatch(
-        r"(?:(?:quiero(?: que)? )?(?:busca(?:me)?|buscar|encuentra|inicia(?:r)?|empieza(?:r)?|comienza(?:r)?)) "
+        r"(?:(?:quiero(?: que)? )?(?:busca(?:me)?|buscar|encuentra|inicia(?:r)?|empieza(?:r)?|comienza(?:r)?|juega|jugar)) "
         r"(?:una )?(?:partida|busqueda(?: de partida)?)(?: (.+))?",
         normalized,
     )
@@ -439,6 +494,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
             "",
             queue_text,
         ).strip()
+        queue_text = re.sub(r"^(?:de|en)\s+", "", queue_text).strip()
         queue = _LEAGUE_QUEUE_ALIASES.get(queue_text)
         if queue is not None:
             return ParsedIntent("league_search", {"queue": queue})

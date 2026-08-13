@@ -22,12 +22,18 @@ class IntegrationIntentTests(unittest.TestCase):
             "web_search",
             {"query": "documentación de Pipa"},
         )
+        self.assert_intent(
+            "busca documentación de Pipa en internet",
+            "web_search",
+            {"query": "documentación de Pipa"},
+        )
 
     def test_music_requests_strip_natural_language_filler(self):
         for phrase in (
             "pon una canción de Daft Punk en Apple Music",
             "reproduce el tema de Queen en Apple Music",
             "busca canción Blinding Lights en Apple Music",
+            "busca Daft Punk en Apple Music",
         ):
             with self.subTest(phrase=phrase):
                 expected_tool = "music_search"
@@ -40,6 +46,7 @@ class IntegrationIntentTests(unittest.TestCase):
                         "pon una canción de Daft Punk en Apple Music": "Daft Punk",
                         "reproduce el tema de Queen en Apple Music": "Queen",
                         "busca canción Blinding Lights en Apple Music": "Blinding Lights",
+                        "busca Daft Punk en Apple Music": "Daft Punk",
                     }[phrase],
                 )
 
@@ -64,6 +71,21 @@ class IntegrationIntentTests(unittest.TestCase):
             "discord_call_channel",
             {"guild_id": "98765432109876543", "channel_id": "12345678901234567"},
         )
+        self.assert_intent(
+            "abre el canal 12345678901234567 en Discord",
+            "discord_open",
+            {"channel_id": "12345678901234567"},
+        )
+        self.assert_intent(
+            "llama al canal 12345678901234567 en Discord",
+            "discord_call_channel",
+            {"channel_id": "12345678901234567"},
+        )
+        self.assert_intent(
+            "manda un mensaje a mamá por WhatsApp diciendo llego en diez minutos",
+            "whatsapp_contact",
+            {"contact": "mamá", "message": "llego en diez minutos"},
+        )
 
     def test_league_search_accepts_game_and_queue_context(self):
         self.assert_intent(
@@ -73,6 +95,11 @@ class IntegrationIntentTests(unittest.TestCase):
         )
         self.assert_intent(
             "ponme en cola aram",
+            "league_search",
+            {"queue": "aram"},
+        )
+        self.assert_intent(
+            "quiero jugar una partida de ARAM",
             "league_search",
             {"queue": "aram"},
         )
