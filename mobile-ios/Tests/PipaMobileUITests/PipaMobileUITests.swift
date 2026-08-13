@@ -93,7 +93,9 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertEqual(url.scheme, "https")
         XCTAssertEqual(url.host, "wa.me")
         XCTAssertEqual(url.path, "/34600123456")
-        XCTAssertTrue(url.absoluteString.contains("text=Hola%0AM%C3%A1m%C3%A1"))
+        let queryItems = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
+        XCTAssertEqual(queryItems.first?.name, "text")
+        XCTAssertEqual(queryItems.first?.value, "Hola\nMamá")
     }
 
     func testLocalWhatsAppLinkRejectsInvalidOrUnsafeInput() {
