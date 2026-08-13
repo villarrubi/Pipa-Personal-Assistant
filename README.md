@@ -55,8 +55,8 @@ que las solicitó y caducan si no se confirman.
 - Controlar volumen y teclas multimedia.
 - Crear y consultar temporizadores en memoria.
 - Abrir una URL validada desde una frase, siempre con confirmación.
-- Abrir League y comenzar/cancelar matchmaking en colas permitidas si el
-  cliente ya está abierto y autenticado.
+- Abrir League y comenzar/cancelar matchmaking en colas permitidas; una
+  búsqueda confirmada puede abrir el cliente si todavía no está listo.
 - Abrir WhatsApp Web, abrir el chat de un alias o preparar un mensaje sin
   pulsar `Enviar`.
 - Consultar si las integraciones y los alias locales están configurados con

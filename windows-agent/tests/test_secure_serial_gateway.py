@@ -114,10 +114,10 @@ class SecureSerialGatewayTests(unittest.TestCase):
 
     @patch("webbrowser.open", return_value=True)
     @patch("tools.agent_catalog.resolve_discord_contact")
-    @patch("tools.agent_catalog.with_client")
+    @patch("tools.agent_catalog.with_client_or_launch")
     def test_secure_gateway_runs_external_integrations_only_after_touch_confirmation(
         self,
-        with_client,
+        with_client_or_launch,
         resolve_discord_contact,
         open_browser,
     ):
@@ -135,7 +135,7 @@ class SecureSerialGatewayTests(unittest.TestCase):
                 return {"started": True, "queue": queue}
 
         fake_league = FakeLeagueClient()
-        with_client.side_effect = lambda callback: callback(fake_league)
+        with_client_or_launch.side_effect = lambda callback, _launcher: callback(fake_league)
         resolve_discord_contact.return_value = ("amigo", "12345678901234567", None)
         actions = [
             ("web_search", {"query": "documentación de Pipa"}),
@@ -262,7 +262,7 @@ class SecureSerialGatewayTests(unittest.TestCase):
         self.assertTrue(all("url" not in item and "phone" not in item for item in results))
         self.assertEqual(open_browser.call_count, 4)
         resolve_discord_contact.assert_called_once_with("amigo")
-        with_client.assert_called_once()
+        with_client_or_launch.assert_called_once()
 
     def test_secure_gateway_rejects_v1_message_instead_of_downgrading(self):
         connection = FakeSecureSerialConnection(

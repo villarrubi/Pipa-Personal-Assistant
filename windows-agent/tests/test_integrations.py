@@ -9,7 +9,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from tools.agent_catalog import build_agent_catalog  # noqa: E402
 from tools.apps import AppsConfigError  # noqa: E402
 from tools.browser import open_validated_url  # noqa: E402
-from tools.capabilities import get_capabilities, get_mobile_capabilities  # noqa: E402
+from tools.capabilities import (  # noqa: E402
+    get_capabilities,
+    get_integration_capabilities,
+    get_mobile_capabilities,
+)
 from tools.commands import open_apple_music, open_web_search  # noqa: E402
 from tools.discord import build_discord_app_url, open_discord_app  # noqa: E402
 from tools.integration_catalog import get_command_catalog  # noqa: E402
@@ -18,6 +22,7 @@ from tools.league import (  # noqa: E402
     LeagueClientConnection,
     LeagueClientError,
     resolve_queue_id,
+    with_client_or_launch,
 )
 from tools.timers import TimerManager  # noqa: E402
 from tools.whatsapp import build_whatsapp_web_url, open_whatsapp_compose, open_whatsapp_web  # noqa: E402
@@ -308,6 +313,46 @@ class IntegrationTests(unittest.TestCase):
 
         self.assertEqual(pending["status"], "needs_confirmation")
         with_client.assert_not_called()
+
+    @patch("tools.agent_catalog.open_league")
+    @patch("tools.agent_catalog.with_client_or_launch")
+    def test_confirmed_league_search_can_launch_the_allowlisted_client(
+        self,
+        with_client_or_launch,
+        open_league,
+    ):
+        with_client_or_launch.return_value = {"started": True, "client_started": True}
+        catalog = build_agent_catalog(TimerManager())
+        router = ToolRouter(catalog)
+
+        pending = router.invoke(
+            "league_search",
+            {"queue": "ranked_solo"},
+            owner_id="waveshare-test",
+        )
+        result = router.resolve_confirmation(
+            pending["confirmation"]["confirmation_id"],
+            True,
+            owner_id="waveshare-test",
+        )
+
+        self.assertEqual(result["status"], "completed")
+        self.assertTrue(result["result"]["client_started"])
+        with_client_or_launch.assert_called_once()
+        self.assertIs(with_client_or_launch.call_args.args[1], open_league)
+
+    @patch("tools.capabilities.find_client_connection", side_effect=LeagueClientError("not ready"))
+    def test_capabilities_keep_matchmaking_available_when_configured_but_closed(self, _find_client):
+        with patch(
+            "tools.capabilities.load_apps",
+            return_value={"league_of_legends": {"aliases": ["lol"], "command": ["LeagueClient.exe"]}},
+        ):
+            result = get_integration_capabilities()
+
+        self.assertTrue(result["league"]["available"])
+        self.assertFalse(result["league"]["client_ready"])
+        self.assertTrue(result["league"]["matchmaking"])
+        self.assertFalse(result["league"]["cancel_matchmaking"])
 
     def test_every_external_catalog_tool_is_confirmation_gated(self):
         catalog = build_agent_catalog(TimerManager())
@@ -616,6 +661,58 @@ class IntegrationTests(unittest.TestCase):
     def test_league_queue_aliases_are_bounded(self):
         self.assertEqual(resolve_queue_id("solo"), 420)
         self.assertEqual(resolve_queue_id("normal"), 400)
+
+    def test_league_search_can_launch_a_missing_client_with_a_bounded_wait(self):
+        connection = LeagueClientConnection(port=1234, **{"to" + "ken": "tok" + "en"})
+        callback_clients = []
+        launcher_calls = []
+
+        def launcher():
+            launcher_calls.append(True)
+            return {"success": True}
+
+        def callback(client):
+            callback_clients.append(client)
+            return {"started": True}
+
+        with (
+            patch(
+                "tools.league.find_client_connection",
+                side_effect=[LeagueClientError("closed"), connection],
+            ),
+            patch("tools.league.time.sleep"),
+        ):
+            result = with_client_or_launch(
+                callback,
+                launcher,
+                timeout_seconds=1,
+                poll_seconds=0.1,
+            )
+
+        self.assertEqual(launcher_calls, [True])
+        self.assertEqual(len(callback_clients), 1)
+        self.assertIsInstance(callback_clients[0], LeagueClientApi)
+        self.assertTrue(result["started"])
+        self.assertTrue(result["client_started"])
+
+    def test_league_does_not_launch_when_the_client_is_already_ready(self):
+        connection = LeagueClientConnection(port=1234, **{"to" + "ken": "tok" + "en"})
+        launcher_calls = []
+
+        def launcher():
+            launcher_calls.append(True)
+            return {"success": True}
+
+        with patch("tools.league.find_client_connection", return_value=connection):
+            result = with_client_or_launch(
+                lambda _client: {"started": True},
+                launcher,
+                timeout_seconds=1,
+                poll_seconds=0.1,
+            )
+
+        self.assertEqual(launcher_calls, [])
+        self.assertEqual(result, {"started": True})
 
     def test_league_api_rejects_paths_outside_the_exact_allowlist(self):
         test_credential = "tok"

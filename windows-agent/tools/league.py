@@ -14,6 +14,8 @@ import getpass
 import http.client
 import json
 import ssl
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -47,6 +49,8 @@ _ALLOWED_ENDPOINTS = {
 
 _CLIENT_NAMES = frozenset({"leagueclientux.exe", "leagueclientux"})
 _MAX_TOKEN_LENGTH = 1024
+_CLIENT_START_TIMEOUT_SECONDS = 30.0
+_CLIENT_START_POLL_SECONDS = 0.5
 
 
 def _same_windows_user(username: object) -> bool:
@@ -285,3 +289,54 @@ class LeagueClientApi:
 def with_client(callback):
     connection = find_client_connection()
     return callback(LeagueClientApi(connection))
+
+
+def with_client_or_launch(
+    callback: Callable[[LeagueClientApi], Any],
+    launcher: Callable[[], dict[str, object]],
+    *,
+    timeout_seconds: float = _CLIENT_START_TIMEOUT_SECONDS,
+    poll_seconds: float = _CLIENT_START_POLL_SECONDS,
+) -> Any:
+    """Use League if ready, otherwise launch it and wait within a hard bound.
+
+    Discovery happens before invoking ``callback`` so an LCU/API failure never
+    starts a second League process. The launcher is supplied by the caller and
+    is therefore still subject to the normal application allowlist and tool
+    confirmation. The bounded wait only applies to the explicit matchmaking
+    action; read-only status and cancellation keep their fail-closed behavior.
+    """
+
+    if not 0.5 <= timeout_seconds <= 120 or not 0.1 <= poll_seconds <= 5:
+        raise ValueError("Los límites de espera de League no son válidos.")
+
+    client_started = False
+    try:
+        connection = find_client_connection()
+    except LeagueClientError as initial_error:
+        launch_result = launcher()
+        if not isinstance(launch_result, dict) or launch_result.get("success") is not True:
+            raise initial_error
+
+        client_started = True
+        deadline = time.monotonic() + timeout_seconds
+        connection = None
+        while time.monotonic() < deadline:
+            try:
+                connection = find_client_connection()
+                break
+            except LeagueClientError:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                time.sleep(min(poll_seconds, remaining))
+
+        if connection is None:
+            raise LeagueClientError(
+                "League Client no estuvo listo a tiempo para buscar partida."
+            ) from initial_error
+
+    result = callback(LeagueClientApi(connection))
+    if client_started and isinstance(result, dict):
+        return result | {"client_started": True}
+    return result

@@ -19,7 +19,7 @@ from tools.commands import (
 )
 from tools.contacts import resolve_discord_contact, resolve_whatsapp_contact
 from tools.discord import open_discord_app, open_discord_call, open_discord_channel
-from tools.league import with_client
+from tools.league import with_client, with_client_or_launch
 from tools.media import send_media_action
 from tools.system import get_network_status, get_power_status, get_system_status, lock_pc
 from tools.timers import TimerManager, validate_timer_id
@@ -103,7 +103,11 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
         return timer_manager.cancel(validate_timer_id(_text(arguments, "timer_id")))
 
     def league_search(arguments):
-        return with_client(lambda client: client.start_search(_text(arguments, "queue")))
+        queue = _text(arguments, "queue")
+        return with_client_or_launch(
+            lambda client: client.start_search(queue),
+            open_league,
+        )
 
     def league_cancel(_arguments):
         return with_client(lambda client: client.cancel_search())

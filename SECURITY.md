@@ -196,6 +196,10 @@ de recuperación y acceso.
   modificar el Registro; una discrepancia no escribe nada.
 - No enviar WhatsApp, iniciar llamadas o ejecutar acciones externas sin la
   confirmación prevista.
+- Una orden confirmada de búsqueda de League puede abrir el cliente allowlisted
+  si no está iniciado, pero solo espera un tiempo acotado y no amplía la
+  allowlist ni ejecuta comandos del sistema; estado y cancelación siguen siendo
+  fail-closed si el cliente no está disponible.
 
 ## Datos prohibidos en Git
 

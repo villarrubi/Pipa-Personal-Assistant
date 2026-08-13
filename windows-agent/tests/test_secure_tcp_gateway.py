@@ -106,10 +106,10 @@ class SecureTcpGatewayTests(unittest.TestCase):
 
     @patch("webbrowser.open", return_value=True)
     @patch("tools.agent_catalog.resolve_discord_contact")
-    @patch("tools.agent_catalog.with_client")
+    @patch("tools.agent_catalog.with_client_or_launch")
     def test_real_loopback_runs_the_five_integrations_only_after_confirmation(
         self,
-        with_client,
+        with_client_or_launch,
         resolve_discord_contact,
         open_browser,
     ):
@@ -119,7 +119,7 @@ class SecureTcpGatewayTests(unittest.TestCase):
             def start_search(self, queue):
                 return {"started": True, "queue": queue}
 
-        with_client.side_effect = lambda callback: callback(FakeLeagueClient())
+        with_client_or_launch.side_effect = lambda callback, _launcher: callback(FakeLeagueClient())
         resolve_discord_contact.return_value = ("amigo", "12345678901234567", None)
         mobile_identity = SecureIdentity("mobile-integrations", Ed25519PrivateKey.generate())
         server_identity = SecureIdentity("server-integrations", Ed25519PrivateKey.generate())
@@ -154,7 +154,7 @@ class SecureTcpGatewayTests(unittest.TestCase):
                 for index, (name, arguments) in enumerate(actions):
                     browser_calls = open_browser.call_count
                     alias_calls = resolve_discord_contact.call_count
-                    league_calls = with_client.call_count
+                    league_calls = with_client_or_launch.call_count
                     pending = await client.call_tool(name, arguments, call_id=f"mobile-{index}")
                     self.assertEqual(pending[0]["type"], "confirm_request")
                     self.assertEqual(pending[0]["call_id"], f"mobile-{index}")
@@ -162,7 +162,7 @@ class SecureTcpGatewayTests(unittest.TestCase):
                     self.assertNotIn("mensaje de prueba", str(pending))
                     self.assertEqual(open_browser.call_count, browser_calls)
                     self.assertEqual(resolve_discord_contact.call_count, alias_calls)
-                    self.assertEqual(with_client.call_count, league_calls)
+                    self.assertEqual(with_client_or_launch.call_count, league_calls)
                     completed = await client.confirm(pending[0]["confirmation_id"], True)
                     self.assertEqual(completed[0]["type"], "tool_result")
                     self.assertEqual(completed[0]["tool_name"], name)
@@ -170,7 +170,7 @@ class SecureTcpGatewayTests(unittest.TestCase):
                     self.assertNotIn("phone", completed[0])
                 self.assertEqual(open_browser.call_count, 4)
                 resolve_discord_contact.assert_called_once_with("amigo")
-                self.assertEqual(with_client.call_count, 1)
+                self.assertEqual(with_client_or_launch.call_count, 1)
             finally:
                 await client.close()
                 gateway.stop()

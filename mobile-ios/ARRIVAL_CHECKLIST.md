@@ -89,8 +89,9 @@ Validar una por una, siempre con confirmación visible:
 - Apple Music: abre resultados, pero la pista se selecciona manualmente;
 - WhatsApp: prepara el chat, pero el usuario pulsa `Enviar`;
 - Discord: abre el canal, pero el usuario inicia la llamada;
-- League: inicia matchmaking solo si el cliente está listo y la cola está
-  allowlisted; cancelar también requiere confirmación.
+- League: una búsqueda confirmada puede abrir el cliente si está cerrado y
+  espera un tiempo acotado; la cola sigue allowlisted y cancelar requiere que
+  el cliente ya esté listo.
 
 ## 6. Dictado local del iPhone
 

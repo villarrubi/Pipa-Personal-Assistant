@@ -202,7 +202,9 @@ dispositivo sí exige firma Ed25519 y confirmación para herramientas externas.
   mediante una tecla multimedia.
 - League usa únicamente rutas locales allowlisted del cliente. Puede crear o
   reutilizar un lobby, consultar el estado de búsqueda e iniciar/cancelar
-  matchmaking, pero Riot puede cambiar esa API interna.
+  matchmaking. Si el cliente no está listo al confirmar `league_search`, el
+  agente abre la aplicación allowlisted y espera como máximo 30 segundos; las
+  consultas de estado y la cancelación nunca abren procesos automáticamente.
 - El móvil también puede consultar por separado el estado de búsqueda de
   League, la batería/red del PC y los temporizadores locales; esas consultas
   no requieren confirmación. Cancelar un temporizador solo afecta a la memoria
