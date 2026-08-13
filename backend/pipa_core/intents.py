@@ -306,7 +306,8 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     music_request = re.fullmatch(
         r"(?:pon(?:me)?|reproduce|reproducir) "
-        r"(?:(?:la )?(?:canci[oó]n|tema) )?(.+?) (?:en )?apple music",
+        r"(?:(?:(?:la|el|una|un) )?(?:canci[oó]n|tema)(?: de )?)?"
+        r"(.+?) (?:en )?apple music",
         original,
         flags=re.IGNORECASE,
     )

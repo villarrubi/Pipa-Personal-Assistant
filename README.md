@@ -163,7 +163,8 @@ El diseño previo a hardware de audio y voz está en
 Por ejemplo, el Core ya entiende frases como `abre WhatsApp`, `abre WhatsApp
 para mama`, `abre Discord`, `abre Codex`, `abre una aplicación configurada
 calculadora`, `abre Apple Music`, `busca en Apple Music Daft Punk`, `busca
-una canción de Daft Punk en Apple Music`, `busca partida`, `busca partida solo`,
+una canción de Daft Punk en Apple Music`, `pon una canción de Daft Punk en Apple Music`,
+`busca partida`, `busca partida solo`,
 `control multimedia next`, `busca la canción de Daft Punk en Apple Music` y,
 después de elegirla, `reproduce la canción seleccionada`, además de preparar un
 mensaje de WhatsApp sin enviarlo —por ejemplo `abre WhatsApp con mama y escribe
