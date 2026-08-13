@@ -258,6 +258,64 @@ final class PipaMobileProtocolTests: XCTestCase {
         XCTAssertEqual(try server.open(frame: frame)["type"] as? String, "ping")
     }
 
+    func testHandshakeMatchesTheSharedPythonVector() throws {
+        let fixtureURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("../Fixtures/mobile_handshake_v2.json")
+            .standardizedFileURL
+        let fixtureData = try Data(contentsOf: fixtureURL)
+        let fixture = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: fixtureData) as? [String: Any]
+        )
+        let clientSeed = try PipaMobileCodec.decodeBase64URL(
+            try XCTUnwrap(fixture["client_identity_seed"] as? String),
+            expectedCount: 32
+        )
+        let serverPublicKey = try PipaMobileCodec.decodeBase64URL(
+            try XCTUnwrap(fixture["server_public_key"] as? String),
+            expectedCount: 32
+        )
+        let clientEphemeral = try Curve25519.KeyAgreement.PrivateKey(
+            rawRepresentation: try PipaMobileCodec.decodeBase64URL(
+                try XCTUnwrap(fixture["client_ephemeral_private_key"] as? String),
+                expectedCount: 32
+            )
+        )
+        let clientNonce = try PipaMobileCodec.decodeBase64URL(
+            try XCTUnwrap(fixture["client_nonce"] as? String),
+            expectedCount: 32
+        )
+        let identity = try PipaMobileIdentity(
+            identityID: try XCTUnwrap(fixture["client_id"] as? String),
+            privateKey: try Curve25519.Signing.PrivateKey(rawRepresentation: clientSeed)
+        )
+        let context = try PipaMobileHandshake.makeClientHello(
+            identity: identity,
+            sessionID: try XCTUnwrap(fixture["session_id"] as? String),
+            ephemeralPrivateKey: clientEphemeral,
+            clientNonce: clientNonce
+        )
+        let expectedClientHello = try XCTUnwrap(fixture["client_hello"] as? [String: Any])
+        XCTAssertEqual(
+            try PipaMobileCodec.canonicalJSON(context.hello),
+            try PipaMobileCodec.canonicalJSON(expectedClientHello)
+        )
+
+        let serverHello = try XCTUnwrap(fixture["server_hello"] as? [String: Any])
+        let layer = try PipaMobileHandshake.complete(
+            context: context,
+            serverHello: serverHello,
+            serverPublicKeyData: serverPublicKey,
+            expectedServerID: try XCTUnwrap(fixture["server_id"] as? String)
+        )
+        let payload = try XCTUnwrap(fixture["payload"] as? [String: Any])
+        let frame = try layer.seal(payload: payload)
+        XCTAssertEqual(
+            frame["ciphertext"] as? String,
+            try XCTUnwrap((fixture["client_frame"] as? [String: Any])?["ciphertext"] as? String)
+        )
+    }
+
     func testSecureAudioFrameMatchesTheSharedPythonVector() throws {
         let fixtureURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

@@ -140,7 +140,12 @@ volver a pedir los datos en la siguiente conexión.
 El código sigue el mismo handshake, canonicalización JSON, HKDF, ChaCha20-
 Poly1305, límites y framing que `SECURE_SESSION_PROTOCOL.md`. El record layer
 comparte el fixture determinista
-`Tests/Fixtures/mobile_record_v2.json` con las pruebas Python. Este entorno es
+`Tests/Fixtures/mobile_record_v2.json` con las pruebas Python. El fixture
+`Tests/Fixtures/mobile_handshake_v2.json` añade un handshake completo
+determinista: claves sintéticas, firmas Ed25519, intercambio X25519, derivación
+HKDF, `ServerHello` y el primer record cifrado. Python y Swift comparan los
+mismos mensajes y ciphertext; sus semillas solo sirven para el test y nunca
+deben reutilizarse en una instalación. Este entorno es
 Windows y no tiene Xcode/Swift SDK, así que la compilación del paquete y las
 pruebas en iPhone quedan explícitamente pendientes para un Mac. Hasta que esa
 validación exista, no se debe distribuir la app ni activar el transporte TCP

@@ -136,16 +136,36 @@ public enum PipaMobileHandshake {
         identity: PipaMobileIdentity,
         sessionID: String? = nil
     ) throws -> PipaClientHelloContext {
+        try makeClientHello(
+            identity: identity,
+            sessionID: sessionID,
+            ephemeralPrivateKey: nil,
+            clientNonce: nil
+        )
+    }
+
+    /// Deterministic entry point used by the cross-language handshake vector.
+    /// Production callers use the random-key overload above.
+    static func makeClientHello(
+        identity: PipaMobileIdentity,
+        sessionID: String?,
+        ephemeralPrivateKey: Curve25519.KeyAgreement.PrivateKey?,
+        clientNonce: Data?
+    ) throws -> PipaClientHelloContext {
         let resolvedSessionID = sessionID ?? PipaMobileCodec.encodeBase64URL(PipaMobileCodec.randomData(count: 16))
         guard PipaMobileIdentity.isValidIdentifier(resolvedSessionID) else {
             throw PipaMobileError.invalidHandshake
         }
 
-        let ephemeral = Curve25519.KeyAgreement.PrivateKey()
+        let ephemeral = ephemeralPrivateKey ?? Curve25519.KeyAgreement.PrivateKey()
+        let nonce = clientNonce ?? PipaMobileCodec.randomData(count: 32)
+        guard nonce.count == 32 else {
+            throw PipaMobileError.invalidHandshake
+        }
         let unsigned: [String: Any] = [
             "client_ephemeral_public_key": PipaMobileCodec.encodeBase64URL(ephemeral.publicKey.rawRepresentation),
             "client_id": identity.identityID,
-            "client_nonce": PipaMobileCodec.encodeBase64URL(PipaMobileCodec.randomData(count: 32)),
+            "client_nonce": PipaMobileCodec.encodeBase64URL(nonce),
             "protocol_version": 2,
             "session_id": resolvedSessionID,
         ]

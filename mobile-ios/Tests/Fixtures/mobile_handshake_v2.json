@@ -1,0 +1,46 @@
+{
+  "session_id": "handshake-mobile",
+  "client_id": "iphone-vector",
+  "server_id": "pipa-agent-v2",
+  "client_identity_seed": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+  "server_identity_seed": "ISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0A",
+  "client_ephemeral_private_key": "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2A",
+  "server_ephemeral_private_key": "YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1-f4A",
+  "client_nonce": "gYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6A",
+  "server_nonce": "oaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2-v8A",
+  "client_public_key": "ebVWLo_mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ",
+  "server_public_key": "5_FioQvsVZr-oZXk3OhLaVaNXSywlj60RsBoXisX8vA",
+  "client_hello": {
+    "client_ephemeral_public_key": "ZLEBsdC-WocEvQePmJUAH8A-jp-VIvGI3RKNmEbUhGY",
+    "client_id": "iphone-vector",
+    "client_nonce": "gYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6A",
+    "protocol_version": 2,
+    "session_id": "handshake-mobile",
+    "signature": "ZFt98Q11oSi890MwRK-hpjAI0EtAdk6d6yKn5zEE6OiMyIk8a-1-dZY_N1m2vectEp2URzY4jr5Ex1UfvifTCQ"
+  },
+  "server_hello": {
+    "client_ephemeral_public_key": "ZLEBsdC-WocEvQePmJUAH8A-jp-VIvGI3RKNmEbUhGY",
+    "client_id": "iphone-vector",
+    "client_nonce": "gYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6A",
+    "protocol_version": 2,
+    "server_ephemeral_public_key": "JE_juWPomd0pW6_84kjTUw86mnR5ugYwAmgOv-etrUk",
+    "server_id": "pipa-agent-v2",
+    "server_nonce": "oaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2-v8A",
+    "session_id": "handshake-mobile",
+    "signature": "EGPhi7FwRFRyRf6GsN6E87tk7p32GHGkVZKGz_aURnqPyxntcGLCC3nIMzysZCQ-FtIfOIZerdw618lOs6zZBQ"
+  },
+  "payload": {
+    "protocol_version": 1,
+    "request_id": "handshake-vector",
+    "type": "ping"
+  },
+  "additional_data": "pipa/json/v2",
+  "plaintext": "{\"protocol_version\":1,\"request_id\":\"handshake-vector\",\"type\":\"ping\"}",
+  "client_frame": {
+    "protocol_version": 2,
+    "sequence": 0,
+    "session_id": "handshake-mobile",
+    "ciphertext": "k0mg3WUHXWjpI0ZymfvFxyjfg_-nVLX9ZN2DcZ26V61CIYz9fgIG9pm2M_WJ4UNiYqmgR38wgLBR0upbbdPbsTk-oMZOsEZrhmq_SP4snfrKL80G"
+  },
+  "synthetic_test_vector": true
+}

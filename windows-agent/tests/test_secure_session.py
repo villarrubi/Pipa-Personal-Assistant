@@ -273,6 +273,67 @@ class SecureSessionTests(unittest.TestCase):
             vector["plaintext"].encode("utf-8"),
         )
 
+    def test_mobile_handshake_cross_language_vector(self):
+        vector_path = (
+            Path(__file__).resolve().parents[2]
+            / "mobile-ios"
+            / "Tests"
+            / "Fixtures"
+            / "mobile_handshake_v2.json"
+        )
+        vector = json.loads(vector_path.read_text(encoding="utf-8"))
+
+        def decode(value):
+            return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+        client_identity = SecureIdentity(
+            vector["client_id"],
+            Ed25519PrivateKey.from_private_bytes(decode(vector["client_identity_seed"])),
+        )
+        server_identity = SecureIdentity(
+            vector["server_id"],
+            Ed25519PrivateKey.from_private_bytes(decode(vector["server_identity_seed"])),
+        )
+        self.assertEqual(client_identity.public_key_b64, vector["client_public_key"])
+        self.assertEqual(server_identity.public_key_b64, vector["server_public_key"])
+        client_hello, client_ephemeral = create_client_hello(
+            client_identity,
+            session_id=vector["session_id"],
+            ephemeral_private_key=X25519PrivateKey.from_private_bytes(
+                decode(vector["client_ephemeral_private_key"])
+            ),
+            nonce=decode(vector["client_nonce"]),
+        )
+        server_hello, server_session = create_server_hello(
+            server_identity,
+            client_hello,
+            client_identity.public_key,
+            ephemeral_private_key=X25519PrivateKey.from_private_bytes(
+                decode(vector["server_ephemeral_private_key"])
+            ),
+            nonce=decode(vector["server_nonce"]),
+        )
+        client_session = complete_client_handshake(
+            client_identity,
+            client_hello,
+            client_ephemeral,
+            server_hello,
+            server_identity.public_key,
+            expected_server_id=vector["server_id"],
+        )
+        self.assertEqual(client_hello.as_dict(), vector["client_hello"])
+        self.assertEqual(server_hello.as_dict(), vector["server_hello"])
+
+        frame = client_session.seal(
+            vector["plaintext"].encode("utf-8"),
+            additional_data=vector["additional_data"].encode("utf-8"),
+        )
+        self.assertEqual(frame, vector["client_frame"])
+        self.assertEqual(
+            server_session.open(frame, additional_data=vector["additional_data"].encode("utf-8")),
+            vector["plaintext"].encode("utf-8"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

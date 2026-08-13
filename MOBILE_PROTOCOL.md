@@ -304,8 +304,11 @@ operación de actualización. La aplicación final debe cumplir como mínimo:
 - pruebas de replay, downgrade, clave equivocada, pérdida de red y reloj;
 - vector bidireccional Python↔cliente Swift antes de anunciar soporte. El
   record-layer ya tiene un fixture determinista compartido en
-  `mobile-ios/Tests/Fixtures/mobile_record_v2.json`; aún falta ejecutar la
-  prueba Swift en macOS como parte de la validación Apple.
+  `mobile-ios/Tests/Fixtures/mobile_record_v2.json`. El handshake completo
+  también se compara en Python y Swift mediante
+  `mobile-ios/Tests/Fixtures/mobile_handshake_v2.json`; sus semillas son
+  exclusivamente sintéticas y no deben reutilizarse. Aún falta ejecutar la
+  prueba Swift en macOS/iPhone como parte de la validación Apple.
 
 No se debe usar Wake-on-LAN como autenticación ni convertir el endpoint local
 actual en un servidor móvil cambiando simplemente el host de escucha.
