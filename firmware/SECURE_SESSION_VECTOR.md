@@ -1,0 +1,27 @@
+# Vector de sesión segura v2
+
+El fixture determinista usado por Python y por el entorno PlatformIO
+`secure-session-vector` usa únicamente constantes públicas de prueba. No es
+una identidad del dispositivo ni una clave de producción.
+
+El entorno incluye también el cliente de handshake X25519/Ed25519, pero el
+vector determinista comprueba únicamente el record layer. La identidad del
+agente y la negociación completa se probarán con claves efímeras y una clave
+pública del agente provisionada específicamente para la unidad de pruebas.
+
+Para compilar el firmware que ejecutaría el vector en `setup()`:
+
+```powershell
+cd firmware
+.\.venv\Scripts\platformio.exe run -e secure-session-vector
+```
+
+Al flashearlo en una placa de pruebas y abrir el monitor serie debe aparecer:
+
+```text
+secure session vector: PASS
+```
+
+La ejecución real sobre la unidad Waveshare queda pendiente hasta que llegue
+el hardware. El build normal no define `PIPA_SECURE_SESSION_VECTOR_TEST` y no
+ejecuta este código.

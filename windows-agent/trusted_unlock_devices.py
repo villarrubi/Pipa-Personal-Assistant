@@ -1,8 +1,9 @@
 """Trusted-device registration for the future Pipa unlock protocol.
 
-Only Ed25519 public keys are stored.  The Windows implementation uses a
-64-bit HKLM registry location so pairing and revocation require administrator
-permissions.  The module has an in-memory store for tests and development.
+Only Ed25519 public keys are stored. The Windows implementation uses separate
+64-bit HKLM registry locations for Trusted Unlock and future mobile commands,
+so pairing and revocation require administrator permissions. The module has an
+in-memory store for tests and development.
 """
 
 from __future__ import annotations
@@ -23,7 +24,10 @@ from trusted_unlock_protocol import (
     public_key_to_base64,
 )
 
-REGISTRY_PATH = r"SOFTWARE\Pipa\TrustedUnlock\Devices"
+TRUSTED_UNLOCK_REGISTRY_PATH = r"SOFTWARE\Pipa\TrustedUnlock\Devices"
+MOBILE_REGISTRY_PATH = r"SOFTWARE\Pipa\Mobile\Devices"
+# Kept as a compatibility alias for callers that used the original constant.
+REGISTRY_PATH = TRUSTED_UNLOCK_REGISTRY_PATH
 PUBLIC_KEY_VALUE = "PublicKey"
 CREATED_AT_VALUE = "CreatedAt"
 DEVICE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
@@ -147,13 +151,16 @@ class InMemoryDeviceStore:
 class WindowsRegistryDeviceStore:
     """Persistent x64 HKLM store for trusted device public keys."""
 
-    def __init__(self) -> None:
+    def __init__(self, registry_path: str = TRUSTED_UNLOCK_REGISTRY_PATH) -> None:
         if __import__("platform").system() != "Windows":
             raise DeviceStoreError("WindowsRegistryDeviceStore requires Windows")
+        if not isinstance(registry_path, str) or not registry_path.strip():
+            raise ValueError("registry_path must be non-empty text")
         import winreg
 
         self._winreg = winreg
         self._wow64 = winreg.KEY_WOW64_64KEY
+        self._registry_path = registry_path.strip().strip("\\")
 
     def register(
         self,
@@ -164,7 +171,7 @@ class WindowsRegistryDeviceStore:
     ) -> RegisteredDevice:
         validate_device_id(device_id)
         public_key_b64 = public_key_to_base64(public_key)
-        path = f"{REGISTRY_PATH}\\{device_id}"
+        path = f"{self._registry_path}\\{device_id}"
         winreg = self._winreg
 
         try:
@@ -208,7 +215,7 @@ class WindowsRegistryDeviceStore:
     def revoke(self, device_id: str) -> None:
         validate_device_id(device_id)
         winreg = self._winreg
-        path = f"{REGISTRY_PATH}\\{device_id}"
+        path = f"{self._registry_path}\\{device_id}"
 
         try:
             winreg.DeleteKeyEx(
@@ -226,7 +233,7 @@ class WindowsRegistryDeviceStore:
         try:
             root = winreg.OpenKey(
                 winreg.HKEY_LOCAL_MACHINE,
-                REGISTRY_PATH,
+                self._registry_path,
                 0,
                 winreg.KEY_READ | self._wow64,
             )
@@ -256,6 +263,17 @@ class WindowsRegistryDeviceStore:
 
     def trusted_public_keys(self) -> dict[str, Ed25519PublicKey]:
         return {device.device_id: public_key_from_base64(device.public_key) for device in self.list_devices()}
+
+
+class WindowsRegistryMobileDeviceStore(WindowsRegistryDeviceStore):
+    """Separate x64 HKLM store for future mobile command identities.
+
+    Keeping this path distinct prevents pairing an iPhone from implicitly
+    granting it access to the experimental Trusted Unlock broker.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(MOBILE_REGISTRY_PATH)
 
 
 def verifier_from_store(store: DeviceStore) -> AuthorizationVerifier:

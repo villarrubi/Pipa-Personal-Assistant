@@ -32,13 +32,24 @@ IPC, pero todavía no contiene ni produce una credencial de Windows.
 La firma cubre todos los campos del desafío. Por tanto, no se puede cambiar la
 operación, el dispositivo, el nonce o la caducidad sin invalidar la firma.
 
+Los identificadores estructurales (`device_id`, `challenge_id`, operación,
+audiencia, `request_id` y comandos del broker) usan una gramática ASCII
+acotada; no aceptan controles Unicode, bidi ni caracteres invisibles.
+
 ## Estado de seguridad actual
+
+El broker local usa una ACL limitada al usuario interactivo y `SYSTEM`,
+rechaza clientes remotos y solicita `FILE_FLAG_FIRST_PIPE_INSTANCE`; si otro
+proceso ocupa el nombre del pipe, el broker falla en lugar de conectarse a él.
 
 - No existe `/unlock` ni otro endpoint que desbloquee Windows.
 - `GetSerialization` del Credential Provider sigue sin entregar credenciales.
 - No se almacena ninguna contraseña, PIN, token estático o secreto compartido.
 - Los desafíos caducan como máximo en 60 segundos; el valor normal es 30.
 - El número de desafíos pendientes está acotado globalmente y por dispositivo.
+- La caché de desafíos consumidos y la de tickets consumidos están limitadas a
+  4.096 entradas cada una; expulsar una entrada antigua no permite reutilizarla,
+  porque el replay pasa a rechazarse como identificador desconocido.
 - Un dispositivo revocado no puede completar desafíos pendientes.
 - El estado pendiente y anti-replay vive en memoria y se pierde al reiniciar;
   esto hace que los desafíos antiguos fallen cerradamente.
@@ -65,8 +76,9 @@ cd .\windows-agent
 # Ver dispositivos emparejados
 python .\trusted_unlock_admin.py list
 
-# Emparejar una clave pública proporcionada por el dispositivo
-python .\trusted_unlock_admin.py pair --device-id phone-main --public-key <CLAVE_PUBLICA_BASE64URL>
+# Emparejar una clave pública proporcionada por el dispositivo, tras comparar
+# físicamente su fingerprint
+python .\trusted_unlock_admin.py pair --device-id phone-main --public-key <CLAVE_PUBLICA_BASE64URL> --expected-fingerprint <FINGERPRINT_COMPARADO>
 
 # Revocar de forma explícita
 python .\trusted_unlock_admin.py revoke --device-id phone-main --yes

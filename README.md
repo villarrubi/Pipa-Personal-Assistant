@@ -9,16 +9,19 @@ recuperación segura.
 
 | Componente | Estado |
 | --- | --- |
-| Windows Agent | Operativo en `127.0.0.1:8765`, con inicio oculto y log local rotativo |
+| Windows Agent | Operativo en `127.0.0.1:8765`, con lanzador oculto preparado y log local rotativo |
 | Comandos de PC | Operativos: apps, web, música, audio, multimedia, temporizadores, League, WhatsApp y Discord |
 | Núcleo Pipα | Operativo: sesiones, Ed25519, estados de UI, herramientas y confirmaciones |
 | Gateway Waveshare | Implementado por USB CDC; requiere configurar el futuro puerto COM |
 | Firmware SKU 30684 | Compila para ESP32-S3 N16R8; aún no se ha probado en la placa física |
-| Pantalla, micrófono y altavoz | Pendientes de validar e integrar con el hardware real |
-| Voz | El protocolo acepta texto reconocido; todavía no hay STT ejecutándose en el Waveshare |
+| Pinout del firmware | Preparado para V2; touch con TCA9554 y confirmación por toque |
+| Pantalla | Driver QSPI ST77916 y UI mínima integrados; falta validación física |
+| Micrófono y altavoz | Sonda segura ES8311/ES7210 integrada; I²S y voz pendientes |
+| Voz Waveshare | El protocolo acepta texto reconocido; el firmware aún no tiene STT y el cierre de audio falla de forma explícita y segura |
+| Voz iPhone | Dictado local opcional que solo prepara el texto; requiere compilar y probar en Xcode |
 | Wake-on-LAN | Implementado en firmware; pendiente de prueba física y configuración de BIOS/red |
 | Trusted Unlock | **Desactivado**: la tile existe, pero no autentica ni entrega credenciales a Windows |
-| iPhone/remoto | No existe acceso remoto seguro; Wake-on-LAN del móvil depende de la red y de la app usada |
+| iPhone/remoto | Núcleo Swift CryptoKit/Keychain, TCP v2 y UI SwiftUI preparada; falta compilar Swift en Xcode y probar el iPhone |
 
 Pipα no sustituye ni desactiva contraseña, PIN, Windows Hello u otros
 Credential Providers. Hoy no permite entrar en Windows sin uno de esos métodos.
@@ -28,7 +31,7 @@ Credential Providers. Hoy no permite entrar en Windows sin uno de esos métodos.
 ```text
 Waveshare --USB JSON + firma Ed25519--> Gateway serie
                                                |
-iPhone futuro --transporte aún no diseñado--> Pipα Core --> herramientas Windows
+iPhone futuro --PipaMobileCore + TCP v2 opt-in--> Pipα Core --> herramientas Windows
                                                |                 |
                                                |                 +--> confirmación si sale del PC
                                                +--> sesión temporal
@@ -36,25 +39,110 @@ iPhone futuro --transporte aún no diseñado--> Pipα Core --> herramientas Wind
 Credential Provider --> broker local experimental --> siempre unlock_enabled=false
 ```
 
-El agente HTTP y WebSocket solo escucha en loopback. El dispositivo se
-autentica mediante desafíos de un solo uso; las acciones externas se ligan a
-la sesión que las solicitó y caducan si no se confirman.
+El agente HTTP y WebSocket solo escucha en loopback. El transporte móvil TCP
+v2 también está desactivado por defecto y solo acepta una IP privada concreta
+cuando se configura explícitamente. El dispositivo se autentica mediante
+identidades Ed25519 emparejadas; las acciones externas se ligan a la sesión
+que las solicitó y caducan si no se confirman.
 
 ## Qué puedes usar sin hardware
 
 - Abrir aplicaciones configuradas localmente y bloquear el PC.
-- Buscar en Internet y abrir búsquedas de Apple Music.
+- Abrir Codex o una aplicación configurada mediante una frase confirmable, sin
+  escribir nada en chats.
+- Buscar en Internet, abrir Apple Music y abrir búsquedas musicales.
 - Controlar volumen y teclas multimedia.
 - Crear y consultar temporizadores en memoria.
+- Abrir una URL validada desde una frase, siempre con confirmación.
 - Abrir League y comenzar/cancelar matchmaking en colas permitidas si el
   cliente ya está abierto y autenticado.
-- Preparar un mensaje de WhatsApp sin pulsar `Enviar`.
-- Abrir un canal de Discord sin iniciar automáticamente una llamada.
+- Abrir WhatsApp Web, abrir el chat de un alias o preparar un mensaje sin
+  pulsar `Enviar`.
+- Consultar si las integraciones y los alias locales están configurados con
+  `python .\windows-agent\pipa_cli.py integration-status`.
+- Usar alias locales ignorados por Git para preparar WhatsApp sin dictar el
+  teléfono.
+- Abrir Discord o un canal sin iniciar automáticamente una llamada.
+- Usar alias locales de Discord para abrir un canal sin iniciar la llamada.
+- Pedir una llamada de Discord para un alias: abre el destino y deja el botón
+  `Llamar` para la persona.
+- Consultar el estado de matchmaking de League y evitar duplicar una búsqueda.
+- Consultar por separado el estado de búsqueda de League, la batería/red del
+  PC y listar o cancelar temporizadores locales.
+- Probar las integraciones desde `windows-agent/pipa_cli.py` sin tener el
+  Waveshare conectado.
+- Dictar un comando en el iPhone y revisarlo en el editor antes de enviarlo;
+  no depende todavía del hardware Waveshare.
+- Ejecutar `python .\windows-agent\pipa_cli.py doctor` para comprobar en una
+  sola operación la salud local, capacidades, protocolo e integraciones.
+- Ejecutar `python .\windows-agent\pipa_cli.py self-test` para validar la
+  configuración de aplicaciones, URLs, rutas de voz, colas de League y
+  gateway sin abrir aplicaciones ni contactar con League Client; incluye un
+  loopback serie v2 inerte con handshake, catálogo, confirmación y redacción.
+- Ejecutar `python .\windows-agent\pipa_cli.py secure-test` para comprobar en
+  memoria el handshake autenticado, el cifrado y el rechazo de manipulación
+  del protocolo v2, sin hardware, red ni claves persistentes.
+- Ejecutar `python .\windows-agent\pipa_cli.py mobile-test` para validar en
+  memoria el flujo futuro de iPhone: handshake, capacidades de pantalla/touch,
+  confirmación y resultado sin datos privados.
+- Ejecutar `python .\windows-agent\pipa_cli.py mobile-tcp-test` para validar
+  el transporte cifrado real sobre un puerto efímero de `127.0.0.1`.
+- Ejecutar `python .\windows-agent\pipa_cli.py mobile-config` para validar la
+  configuración móvil sin abrir puertos, modificar el firewall ni modificar claves;
+  también valida que la identidad DPAPI corresponda al `server_id` configurado.
+- Preparar, solo cuando llegue el iPhone, una regla de firewall restringida con
+  `scripts/configure_mobile_firewall.ps1 -WhatIf` antes de aplicarla.
+- Preparar la configuración de transporte móvil sin escribirla a mano con
+  `scripts/configure_mobile_transport.ps1 -LocalAddress <IP_PRIVADA> -WhatIf`;
+  el script valida la IP y solo modifica variables de usuario cuando se ejecuta
+  sin `-WhatIf`.
+- Preparar la identidad pública del agente v2 sin exponer la clave privada:
+  `python .\windows-agent\secure_identity_admin.py init` y después
+  `firmware-snippet` cuando se vaya a provisionar la placa.
+- Consultar la matriz local de capacidades con
+  `python .\windows-agent\pipa_cli.py capabilities`.
+- Consultar el catálogo de frases y sus confirmaciones con
+  `python .\windows-agent\pipa_cli.py commands`.
+- Inspeccionar cómo se interpreta una frase con `pipa_cli.py intent` sin
+  ejecutar ninguna acción.
+- Revisar con `pipa_cli.py preview` la herramienta, argumentos y confirmación
+  que tendría una frase, sin abrir aplicaciones ni tocar League.
+- Ejecutar desde la CLI una acción externa solo con `--confirm`; las consultas
+  de estado siguen siendo de solo lectura.
 - Probar todo el protocolo de dispositivo con un simulador efímero.
 - Compilar el firmware exacto sin tener la placa.
+- La app iPhone recuerda la configuración pública de conexión en Keychain y
+  permite completar en un formulario local los parámetros de búsquedas,
+  WhatsApp, Discord o League antes de preparar la frase, sin enviarla
+  automáticamente.
+- Al conectar, la app iPhone muestra también qué integraciones están
+  disponibles en el PC y qué paso manual queda pendiente; esa matriz no
+  contiene rutas, URLs, contactos, IDs ni tokens.
+
+El gateway serie v2 cifrado también está preparado, pero permanece opt-in:
+`PIPA_SERIAL_SECURITY=v2` no hace downgrade a v1 si el handshake falla. Hasta
+validar la placa y provisionar la clave pública del agente en el firmware, el
+valor recomendado sigue siendo el transporte v1 local ya probado.
 
 Consulta el catálogo y sus límites en
 [windows-agent/README.md](windows-agent/README.md).
+El contrato del futuro cliente móvil está en
+[MOBILE_PROTOCOL.md](MOBILE_PROTOCOL.md).
+El núcleo Swift para iOS está en
+[mobile-ios/README.md](mobile-ios/README.md).
+La validación cuando haya Mac/iPhone está enumerada en
+[mobile-ios/ARRIVAL_CHECKLIST.md](mobile-ios/ARRIVAL_CHECKLIST.md).
+
+Por ejemplo, el Core ya entiende frases como `abre WhatsApp`, `abre WhatsApp
+para mama`, `abre Discord`, `abre Codex`, `abre una aplicación configurada
+calculadora`, `abre Apple Music`, `busca en Apple Music Daft Punk`, `busca
+una canción de Daft Punk en Apple Music`, `busca partida`, `busca partida solo`,
+`control multimedia next` y `crea un temporizador 60`, además de preparar un
+mensaje de WhatsApp sin enviarlo —por ejemplo `abre WhatsApp con mama y escribe
+Hola`—, consultar el estado de League y cancelar una búsqueda con confirmación.
+Desde una sesión autenticada, las acciones externas requieren confirmación y las
+interfaces que puedan enviar, llamar o reproducir siguen requiriendo la acción
+final del usuario.
 
 ## Instalación del agente
 
@@ -76,16 +164,32 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
   -File .\windows-agent\check_agent_status.ps1
 ```
 
-Para arrancarlo al iniciar sesión, ejecuta una vez PowerShell como
-administrador:
+Para arrancarlo al iniciar sesión, ejecuta una vez PowerShell normal (la tarea
+se registra para tu usuario y con nivel limitado):
 
 ```powershell
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
   -File .\windows-agent\install_agent_task.ps1
 ```
 
-El agente no deja una ventana CMD abierta. Su log está en
+Para instalar sin pregunta interactiva, usa una política temporal de proceso:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+& .\windows-agent\install_agent_task.ps1 -Confirm:$false
+```
+
+El agente no deja una ventana CMD abierta. Si el Programador de tareas está
+restringido, el instalador usa `HKCU` o un acceso directo `.lnk` en `Startup`
+como fallback. Su log está en
 `%LOCALAPPDATA%\Pipa\logs\agent.log`, rota a 1 MB y conserva dos copias.
+`check_agent_status.ps1` también verifica que la tarea use PowerShell oculto,
+arranque al iniciar sesión y nivel limitado, y que ejecuta exactamente el
+lanzador de Pipa con el usuario correcto; una tarea arbitraria de PowerShell no
+se considera válida. Al actualizar la instalación, el lanzador recarga el
+agente mediante una señal local de apagado dirigida al propio servidor; solo
+usa la comprobación exacta de proceso como fallback y nunca mata un PID ajeno
+solo porque escuche en el puerto 8765.
 
 ## Validación
 
@@ -105,10 +209,19 @@ python -m compileall -q backend windows-agent
 
 .\scripts\check_repo_hygiene.ps1
 .\scripts\check_git_history.ps1
+.\scripts\check_powershell_syntax.ps1
+.\scripts\check_trusted_unlock_safety.ps1
+
+# Comprobacion unificada del estado local
+.\scripts\pipa_preflight.ps1
 ```
 
 La CI repite esas comprobaciones, ejecuta Ruff, audita dependencias, compila
 el firmware y construye/prueba el Credential Provider x64.
+
+La comprobación de higiene también prueba con rutas ficticias que `.gitignore`
+cubre configuraciones locales, claves, builds, logs, capturas, grabaciones y
+trazas antes de permitir publicar el árbol.
 
 Para compilar el firmware:
 
@@ -118,14 +231,21 @@ python -m venv .\firmware\.venv
 .\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c
 ```
 
+El preflight no modifica configuraciones. Con `-CheckFirmware` añade las dos
+compilaciones del firmware; con `-RequireHardware` convierte la ausencia de
+`PIPA_SERIAL_PORT` en un fallo, útil después de conectar el Waveshare.
+
 ## Cuando llegue el Waveshare
+
+La secuencia operativa detallada está en
+[firmware/ARRIVAL_CHECKLIST.md](firmware/ARRIVAL_CHECKLIST.md).
 
 Solo quedará trabajo dependiente del dispositivo:
 
 1. confirmar revisión de placa, pines y controladores de pantalla/audio;
 2. cargar el firmware y comprobar USB, touch, Wi‑Fi y Wake-on-LAN;
 3. comparar físicamente la huella de la clave antes de emparejarla;
-4. implementar UI, captura de audio y STT sobre el protocolo ya probado;
+4. validar la UI QSPI y después implementar captura de audio y STT para español sobre un transporte protegido;
 5. validar Secure Boot, cifrado de Flash, actualización y recuperación;
 6. revisar de nuevo el modelo de amenazas antes de plantear desbloqueo real.
 
@@ -136,13 +256,23 @@ ignorados. No deben entrar en Git claves privadas, tokens, builds, logs,
 capturas de LogonUI ni datos personales. Los controles y limitaciones están
 documentados en [SECURITY.md](SECURITY.md).
 
+La biblioteca offline ESP-SR que trae Arduino-ESP32 ofrece reconocimiento de
+comandos en chino e inglés, no un STT general en español. Por eso el firmware
+no finge reconocer frases españolas: el siguiente diseño debe usar un
+reconocedor español en Windows o un servicio explícitamente autorizado, con
+audio protegido y un indicador visible de escucha. Referencias: [guía oficial
+de ESP-SR](https://docs.espressif.com/projects/esp-sr/en/latest/esp32s3/speech_command_recognition/README.html)
+y [repositorio oficial](https://github.com/espressif/esp-sr).
+
 ## Estructura
 
 ```text
 Pipa/
 ├── backend/          protocolo, sesiones, memoria temporal y simulador
 ├── firmware/         firmware PlatformIO y definición de la placa N16R8
+├── mobile-ios/       núcleo, UI SwiftUI y plantilla de app iPhone
 ├── scripts/          comprobaciones de higiene actual e histórica
+├── MOBILE_PROTOCOL.md contrato del futuro cliente iPhone
 ├── trusted-unlock/   Credential Provider experimental y rollback
 └── windows-agent/    API local, herramientas, gateway USB y arranque oculto
 ```

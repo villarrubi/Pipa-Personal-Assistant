@@ -22,6 +22,8 @@ class WindowsNamedPipeBrokerClient:
     """Send bounded JSON requests to the local broker."""
 
     def __init__(self, *, pipe_name: str = PIPE_NAME, timeout_ms: int = 5000) -> None:
+        if pipe_name != PIPE_NAME:
+            raise ValueError("only the fixed local Pipa broker pipe is allowed")
         if timeout_ms < 1 or timeout_ms > 60_000:
             raise ValueError("timeout_ms must be between 1 and 60000")
         self._pipe_name = pipe_name
@@ -30,11 +32,15 @@ class WindowsNamedPipeBrokerClient:
     def request(self, command: str, payload: dict[str, Any] | None = None) -> dict[str, object]:
         if not isinstance(command, str) or not command:
             raise ValueError("command must be a non-empty string")
+        if payload is not None and not isinstance(payload, dict):
+            raise ValueError("payload must be an object")
+        request_payload = {} if payload is None else payload
+        request_id = secrets.token_hex(8)
         request = {
             "version": PROTOCOL_VERSION,
-            "request_id": secrets.token_hex(8),
+            "request_id": request_id,
             "command": command,
-            "payload": payload or {},
+            "payload": request_payload,
         }
         encoded = json.dumps(request, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         if len(encoded) > MAX_MESSAGE_BYTES:
@@ -80,7 +86,9 @@ class WindowsNamedPipeBrokerClient:
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
             raise BrokerClientError("invalid_response", "broker response is invalid") from error
 
-        if not isinstance(response, dict) or response.get("ok") is not True:
+        if not isinstance(response, dict) or response.get("request_id") != request_id:
+            raise BrokerClientError("invalid_response", "broker response does not match the request")
+        if response.get("ok") is not True:
             error_data = response.get("error", {}) if isinstance(response, dict) else {}
             code = error_data.get("code", "broker_error") if isinstance(error_data, dict) else "broker_error"
             message = (

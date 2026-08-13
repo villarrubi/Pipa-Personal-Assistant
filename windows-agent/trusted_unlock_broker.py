@@ -12,9 +12,14 @@ import json
 import os
 import re
 import sys
-from typing import Any
+from typing import Any, Final
 
-from trusted_unlock_devices import DeviceStore, WindowsRegistryDeviceStore, verifier_from_store
+from trusted_unlock_devices import (
+    DeviceStore,
+    WindowsRegistryDeviceStore,
+    validate_device_id,
+    verifier_from_store,
+)
 from trusted_unlock_protocol import (
     AuthorizationVerifier,
     ChallengeMismatchError,
@@ -40,9 +45,17 @@ BROKER_VERSION = "0.1.0"
 PROTOCOL_VERSION = 1
 PIPE_NAME = r"\\.\pipe\PipaTrustedUnlock"
 MAX_MESSAGE_BYTES = 16 * 1024
-UNLOCK_ENABLED = False
+UNLOCK_ENABLED: Final[bool] = False
+# winbase.h: PIPE_REJECT_REMOTE_CLIENTS. Keep a local fallback so an older
+# pywin32 cannot silently weaken the local-only transport.
+PIPE_REJECT_REMOTE_CLIENTS_FLAG = 0x00000008
+# winbase.h: FILE_FLAG_FIRST_PIPE_INSTANCE. Refuse to attach to a pipe created
+# by another process; a future unlock boundary must fail closed on a collision.
+FILE_FLAG_FIRST_PIPE_INSTANCE = 0x00080000
+_REQUEST_FIELDS = frozenset({"version", "request_id", "command", "payload"})
 
-_REQUEST_ID_PATTERN = re.compile(r"^[^\x00-\x1f]{1,64}$")
+# Request IDs and command names are structural ASCII metadata, never prose.
+_REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
 
 
 class BrokerRequestError(Exception):
@@ -60,6 +73,20 @@ def _require_payload(request: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise BrokerRequestError("payload must be an object")
     return payload
+
+
+def _reject_unknown_fields(payload: dict[str, Any], allowed: frozenset[str]) -> None:
+    if set(payload) - allowed:
+        raise BrokerRequestError("payload contains unsupported fields")
+
+
+def _reject_duplicate_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON field")
+        result[key] = value
+    return result
 
 
 def _issued_ticket_dict(ticket: IssuedTicket) -> dict[str, object]:
@@ -115,8 +142,11 @@ class TrustedUnlockBroker:
             return self._encode_response(None, False, "invalid_request", "message too large")
 
         try:
-            request = json.loads(raw_request.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
+            request = json.loads(
+                raw_request.decode("utf-8"),
+                object_pairs_hook=_reject_duplicate_fields,
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
             return self._encode_response(None, False, "invalid_request", "invalid JSON")
 
         response = self.handle_request(request)
@@ -134,6 +164,8 @@ class TrustedUnlockBroker:
         try:
             if not isinstance(request, dict):
                 raise BrokerRequestError("request must be an object")
+            if set(request) - _REQUEST_FIELDS:
+                raise BrokerRequestError("request contains unsupported fields")
             request_id = _require_identifier(request.get("request_id"), "request_id")
             if request.get("version") != PROTOCOL_VERSION:
                 raise BrokerRequestError("unsupported broker protocol version")
@@ -142,19 +174,28 @@ class TrustedUnlockBroker:
             result = self._dispatch(command, _require_payload(request))
             return {"ok": True, "request_id": request_id, "result": result}
         except Exception as error:  # Convert expected failures into safe wire responses.
+            if isinstance(error, BrokerRequestError):
+                message = "Solicitud no válida."
+            elif isinstance(error, (TrustedUnlockError, TicketError)):
+                # Error codes are useful to the local administrator, but the
+                # exception text can contain a requested device identifier or
+                # another value supplied on the wire. Keep that data out of
+                # the broker response boundary.
+                message = "Autorización rechazada."
+            else:
+                message = "Solicitud no válida."
             return {
                 "ok": False,
                 "request_id": request_id,
                 "error": {
                     "code": _error_code(error),
-                    "message": str(error)
-                    if isinstance(error, (BrokerRequestError, TrustedUnlockError, TicketError))
-                    else "request failed",
+                    "message": message,
                 },
             }
 
     def _dispatch(self, command: str, payload: dict[str, Any]) -> dict[str, object]:
         if command == "health":
+            _reject_unknown_fields(payload, frozenset())
             return {
                 "broker_version": BROKER_VERSION,
                 "protocol_version": PROTOCOL_VERSION,
@@ -164,7 +205,8 @@ class TrustedUnlockBroker:
             }
 
         if command == "challenge.create":
-            device_id = _require_identifier(payload.get("device_id"), "device_id")
+            _reject_unknown_fields(payload, frozenset({"device_id", "ttl_seconds"}))
+            device_id = validate_device_id(_require_identifier(payload.get("device_id"), "device_id"))
             ttl_seconds = payload.get("ttl_seconds", 30)
             if isinstance(ttl_seconds, bool) or not isinstance(ttl_seconds, int):
                 raise BrokerRequestError("ttl_seconds must be an integer")
@@ -172,6 +214,7 @@ class TrustedUnlockBroker:
             return {"challenge": challenge.as_dict()}
 
         if command == "challenge.submit":
+            _reject_unknown_fields(payload, frozenset({"response"}))
             response_data = payload.get("response")
             if not isinstance(response_data, dict):
                 raise BrokerRequestError("response must be an object")
@@ -187,6 +230,7 @@ class TrustedUnlockBroker:
             }
 
         if command == "ticket.consume":
+            _reject_unknown_fields(payload, frozenset({"token"}))
             token = payload.get("token")
             if not isinstance(token, str) or not token:
                 raise BrokerRequestError("token must be a non-empty string")
@@ -265,14 +309,24 @@ class WindowsNamedPipeBroker:
         from winerror import ERROR_BROKEN_PIPE, ERROR_NO_DATA, ERROR_PIPE_CONNECTED
 
         security_attributes, _descriptor, _dacl = self._security_attributes()
+        reject_remote_clients = int(
+            getattr(
+                win32pipe,
+                "PIPE_REJECT_REMOTE_CLIENTS",
+                PIPE_REJECT_REMOTE_CLIENTS_FLAG,
+            )
+        )
+        if reject_remote_clients == 0:
+            raise RuntimeError("named pipe remote-client rejection is unavailable")
+
         while True:
             pipe = win32pipe.CreateNamedPipe(
                 self._pipe_name,
-                win32pipe.PIPE_ACCESS_DUPLEX,
+                win32pipe.PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE,
                 win32pipe.PIPE_TYPE_MESSAGE
                 | win32pipe.PIPE_READMODE_MESSAGE
                 | win32pipe.PIPE_WAIT
-                | getattr(win32pipe, "PIPE_REJECT_REMOTE_CLIENTS", 0),
+                | reject_remote_clients,
                 1,
                 MAX_MESSAGE_BYTES,
                 MAX_MESSAGE_BYTES,

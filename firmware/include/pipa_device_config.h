@@ -7,4 +7,13 @@
 #define PIPA_PC_MAC "00:00:00:00:00:00"
 #define PIPA_DEVICE_ID "waveshare-01"
 #define PIPA_FIRMWARE_VERSION "0.1.0"
+#ifndef PIPA_SECURE_SESSION_ENABLED
+#define PIPA_SECURE_SESSION_ENABLED 0
+#endif
+#define PIPA_SECURE_SERVER_ID "pipa-agent-v2"
+#define PIPA_SECURE_SERVER_PUBLIC_KEY ""
+// Waveshare V2 is the current hardware; set to 1 only for a confirmed V1 PCB.
+// PlatformIO's V1 compatibility environment overrides this at compile time.
+#ifndef PIPA_BOARD_REVISION
 #define PIPA_BOARD_REVISION 2
+#endif

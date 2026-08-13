@@ -2,6 +2,8 @@
 
 #include <WiFi.h>
 
+#include "pipa_text_policy.h"
+
 namespace pipa {
 
 PipaProtocol::PipaProtocol(
@@ -19,6 +21,19 @@ PipaProtocol::PipaProtocol(
 void PipaProtocol::begin() {
   last_challenge_request_ = millis();
   sendChallengeRequest();
+}
+
+void PipaProtocol::setHardwareCapabilities(
+    bool display_ready,
+    bool touch_ready,
+    bool audio_probe_ready) {
+  display_ready_ = display_ready;
+  touch_ready_ = touch_ready;
+  audio_probe_ready_ = audio_probe_ready;
+}
+
+void PipaProtocol::setBatteryPercent(int battery_percent) {
+  battery_percent_ = battery_percent >= 0 && battery_percent <= 100 ? battery_percent : -1;
 }
 
 void PipaProtocol::poll() {
@@ -56,25 +71,28 @@ void PipaProtocol::sendGesture(const char* gesture) {
 }
 
 void PipaProtocol::sendTextInput(const char* text, const char* source) {
-  if (!authenticated_ || text == nullptr || text[0] == '\0') return;
+  if (!authenticated_ || text == nullptr || text[0] == '\0' || strlen(text) > kMaxTextInput) {
+    if (authenticated_ && text != nullptr && strlen(text) > kMaxTextInput) {
+      log("outgoing text discarded: too large");
+    }
+    return;
+  }
   JsonDocument document;
   document["protocol_version"] = 1;
   document["type"] = "text_input";
   document["text"] = text;
-  document["source"] = source;
+  document["source"] = source == nullptr || source[0] == '\0' ? "unknown" : source;
   sendJson(document);
 }
 
 void PipaProtocol::sendConfirmation(bool accepted) {
-  if (!authenticated_ || ui_.confirmation_id.isEmpty()) return;
+  if (!authenticated_ || ui_.confirmation_id.isEmpty() || ui_.confirmation_summary.isEmpty()) return;
   JsonDocument document;
   document["protocol_version"] = 1;
   document["type"] = "confirm";
   document["confirmation_id"] = ui_.confirmation_id;
   document["accepted"] = accepted;
   sendJson(document);
-  ui_.confirmation_id.clear();
-  ui_.confirmation_summary.clear();
 }
 
 void PipaProtocol::readTransport() {
@@ -147,9 +165,13 @@ void PipaProtocol::handleMessage(JsonDocument& document) {
     updateUi(document.as<JsonObject>());
   } else if (strcmp(type, "confirm_request") == 0) {
     if (!authenticated_) return;
+    if (!ui_.confirmation_id.isEmpty()) {
+      log("confirmation request discarded: another confirmation is visible");
+      return;
+    }
     const char* confirmation_id = document["confirmation_id"] | "";
     const char* summary = document["summary"] | "";
-    if (confirmation_id[0] == '\0' || strlen(confirmation_id) > 128 || strlen(summary) > 256) {
+    if (!isSafeDisplayText(confirmation_id, 128) || !isSafeDisplayText(summary, 256)) {
       log("invalid confirmation request discarded");
       return;
     }
@@ -239,7 +261,9 @@ void PipaProtocol::sendSignedHello(JsonObject challenge) {
   response["firmware_version"] = firmware_version_;
   JsonArray capabilities = response["capabilities"].to<JsonArray>();
   capabilities.add("usb_serial");
-  capabilities.add("touch");
+  if (touch_ready_) capabilities.add("touch");
+  if (display_ready_) capabilities.add("display");
+  if (audio_probe_ready_) capabilities.add("audio_probe");
   capabilities.add("wol");
   capabilities.add("text_input");
   capabilities.add("device_status");
@@ -259,6 +283,7 @@ void PipaProtocol::sendDeviceStatus() {
   JsonDocument document;
   document["protocol_version"] = 1;
   document["type"] = "device_status";
+  if (battery_percent_ >= 0) document["battery_percent"] = battery_percent_;
   if (WiFi.status() == WL_CONNECTED) document["wifi_rssi"] = WiFi.RSSI();
   sendJson(document);
 }
@@ -274,10 +299,18 @@ void PipaProtocol::updateUi(JsonObject object) {
     ui_.state = "idle";
   }
   const char* caption = object["caption"] | "";
-  ui_.caption = String(caption).substring(0, 256);
+  ui_.caption = isSafeDisplayText(caption, 256) ? String(caption).substring(0, 256) : String();
+  if (ui_.state != "confirm") {
+    ui_.confirmation_id.clear();
+    ui_.confirmation_summary.clear();
+  }
 }
 
 void PipaProtocol::sendJson(JsonDocument& document) {
+  if (measureJson(document) + 1 > kMaxOutboundLine) {
+    log("outgoing message discarded: too large");
+    return;
+  }
   serializeJson(document, transport_);
   transport_.print('\n');
 }

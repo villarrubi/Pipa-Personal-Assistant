@@ -59,6 +59,7 @@ class ToolRouter:
         *,
         confirmation_id: str | None = None,
         owner_id: str | None = None,
+        call_id: str | None = None,
     ) -> dict[str, Any]:
         definition = self.catalog.get(name)
         values = dict(arguments or {})
@@ -70,6 +71,7 @@ class ToolRouter:
                 values,
                 definition.confirm_summary(values),
                 owner_id=owner_id,
+                call_id=call_id,
             )
             return {"status": "needs_confirmation", "confirmation": pending.as_dict()}
 
@@ -90,13 +92,24 @@ class ToolRouter:
     ) -> dict[str, Any]:
         pending = self.confirmations.consume(confirmation_id, owner_id=owner_id)
         if not accepted:
-            return {
+            result: dict[str, Any] = {
                 "status": "rejected",
                 "tool_name": pending.tool_name,
                 "message": "Acción cancelada por el usuario.",
             }
+            if pending.call_id is not None:
+                result["call_id"] = pending.call_id
+            return result
         definition = self.catalog.get(pending.tool_name)
-        return self._execute(definition, pending.arguments)
+        result = {"tool_name": pending.tool_name, **self._execute(definition, pending.arguments)}
+        if pending.call_id is not None:
+            result["call_id"] = pending.call_id
+        return result
+
+    def cancel_pending(self, owner_id: str) -> int:
+        """Invalidate pending outward actions when a device session ends or aborts."""
+
+        return self.confirmations.cancel_for_owner(owner_id)
 
     @staticmethod
     def _execute(definition: ToolDefinition, arguments: dict[str, Any]) -> dict[str, Any]:

@@ -28,6 +28,24 @@ jobs:
         run: ruff format --check backend windows-agent
       - name: Compile Python modules
         run: python -m compileall -q backend windows-agent
+      - name: Check PowerShell syntax
+        shell: pwsh
+        run: ./scripts/check_powershell_syntax.ps1
+      - name: Check agent startup lifecycle
+        shell: pwsh
+        run: ./scripts/check_agent_startup.ps1
+      - name: Check iOS package structure
+        shell: pwsh
+        run: ./scripts/check_mobile_ios_package.ps1
+      - name: Check Waveshare V1/V2 pin map
+        shell: pwsh
+        run: ./scripts/check_waveshare_pinmap.ps1
+      - name: Check firmware configuration safety
+        shell: pwsh
+        run: ./scripts/check_firmware_config.ps1
+      - name: Check Trusted Unlock safety
+        shell: pwsh
+        run: ./scripts/check_trusted_unlock_safety.ps1
       - name: Run backend tests
         run: python -B -m unittest discover -s backend/tests -p "test_*.py"
       - name: Run Windows Agent tests
@@ -52,6 +70,20 @@ jobs:
         run: python -m pip install platformio==6.1.19
       - name: Compile Waveshare firmware
         run: pio run -d firmware -e waveshare-185c
+      - name: Compile V1 compatibility map
+        run: pio run -d firmware -e waveshare-185c-v1
+      - name: Compile secure session variant
+        run: pio run -d firmware -e secure-session-v2
+      - name: Compile deterministic secure-session vector
+        run: pio run -d firmware -e secure-session-vector
+
+  swift-package:
+    name: Swift mobile core tests
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Test PipaMobileCore
+        run: swift test --package-path mobile-ios
 
   credential-provider-build:
     name: Credential Provider smoke test

@@ -14,26 +14,96 @@ CDC. La referencia física está en la
 - Diagnósticos separados del protocolo mediante líneas que empiezan por `#`.
 - Reconexión tras reinicio del agente y timeout de heartbeat.
 - Límites de tamaño de mensaje y validación estricta de desafíos.
+- Límite común de 12.000 bytes también para mensajes salientes; el texto
+  reconocido se rechaza por encima de 4.000 bytes antes de tocar USB.
 - Lectura básica del controlador táctil CST816.
 - Wake-on-LAN con MAC estricta, cooldown y Wi‑Fi no bloqueante.
 - Heartbeat y telemetría de RSSI.
+- Mapa de pines separado por revisión V1/V2; la V2 usa I²C en GPIO10/11 y
+  reserva el audio para ES8311/ES7210.
+- Driver ST77916 basado en la referencia oficial, adaptado a `esp_lcd` moderno,
+  con transporte QSPI, retroiluminación PWM y una UI mínima de
+  estados/confirmación; queda validar la pantalla en la placa física.
+- Diagnóstico I²C no destructivo de ES8311 (salida) y ES7210 (entrada), con el
+  amplificador apagado por defecto; la captura/reproducción real aún queda
+  pendiente.
+- Telemetría opcional de batería para la revisión V2 mediante el ADC documentado;
+  publica solo un porcentaje acotado y no controla carga ni alimentación.
+- La pantalla de confirmación muestra el resumen de la acción en ASCII
+  normalizado y `TAP`; el protocolo descarta UTF-8 malformado, controles C0/C1
+  y formato bidireccional o invisible antes de mostrarlo. El toque no confirma
+  una acción cuyo resumen no haya llegado al dispositivo.
+- Tras una acción, la pantalla muestra un resultado breve y fijo, sin URLs,
+  teléfonos, consultas ni mensajes privados.
+- La UI redibuja también cuando cambia el texto de estado, y no sustituye una
+  confirmación visible por otra hasta resolverla o cancelarla.
+- El `hello` anuncia solo las capacidades físicas que realmente inicializaron
+  (`display`, `touch` y `audio_probe`), para que el agente no confunda una
+  compilación correcta con hardware disponible.
+- Las acciones externas solo se autorizan cuando el Core recibe `display` y
+  `touch`; una unidad parcialmente inicializada puede seguir enviando estado,
+  pero no puede confirmar acciones.
+- Transporte seguro v2 opt-in disponible en `pipa_secure_protocol.cpp`: cifra
+  las líneas de Core con ChaCha20-Poly1305 después de un handshake X25519 y
+  nunca vuelve a v1 tras iniciar ese modo. Tras autenticarse anuncia por el
+  canal cifrado la versión y las capacidades físicas; sin ese anuncio el Core
+  no permite confirmar acciones externas. La configuración rastreada lo deja
+  desactivado hasta provisionar la clave pública del agente.
+- El entorno `secure-session-vector` compila un vector determinista compartido
+  con Python para el record layer; su ejecución en una placa real sigue
+  pendiente y no forma parte del firmware normal.
 
-La compilación verificada ocupa aproximadamente un 6,2 % de la partición de
-aplicación y un 7,9 % de la RAM interna. Es una validación de software; no
+La compilación verificada ocupa aproximadamente un 8,0 % de la partición de
+aplicación y un 10,2 % de la RAM interna. Es una validación de software; no
 demuestra todavía que el pinout, touch, red o periféricos funcionen en la
 unidad física.
 
 ## Deliberadamente pendiente
 
-- Driver y diseño visual de la pantalla redonda.
-- Micrófono, altavoz, codec/I2S y cancelación de eco.
+- Prueba física de la pantalla, orientación, colores y frecuencia QSPI.
+- Micrófono, altavoz, codec/I2S y cancelación de eco. La referencia oficial ya
+  está localizada y el firmware solo hace una sonda segura de presencia.
 - Reconocimiento de voz local o streaming STT.
 - Gestos más ricos que el toque básico.
 - Indicador de batería real.
 - OTA, partición de recuperación, Secure Boot y cifrado de Flash.
 
+La V2 del 1.85C cambió el audio y varias señales respecto a V1. El firmware
+selecciona el mapa con `PIPA_BOARD_REVISION` y registra la revisión al arrancar;
+no se debe flashear una configuración V1/V2 sin comprobar la serigrafía o el
+firmware de fábrica. La documentación oficial también distingue ambas
+revisiones y sus pines, por lo que la pantalla y el audio se validarán en la
+unidad física antes de habilitar funciones sensibles. Referencia: [documentación
+oficial del 1.85C](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.85C).
+
+### Mapa de revisión
+
+| Señal | V1 | V2 (esperada en SKU 30684) |
+| --- | ---: | ---: |
+| Touch SDA / SCL | GPIO1 / GPIO3 | GPIO11 / GPIO10 |
+| Touch INT | GPIO4 | GPIO4 |
+| Touch/LCD reset | EXIO1 / EXIO2 | EXIO1 / EXIO2 |
+| Audio | PCM5101 + micrófono digital | ES8311 + ES7210 + micrófonos analógicos |
+
+La revisión se identifica por `Rev2.0` en la serigrafía o el firmware de
+fábrica; también puede aparecer una pegatina `V2`. El SKU 30684 corresponde a la
+variante BOX, pero el SKU por sí solo no sustituye la comprobación de revisión.
+El [esquema oficial V1/V2 y sus recursos](https://docs.waveshare.com/ESP32-S3-Touch-LCD-1.85C/Resources-And-Documents)
+es la referencia para resolver cualquier discrepancia antes de flashear.
+El chequeo reproducible en scripts/check_waveshare_pinmap.ps1 mantiene este
+mapa protegido contra cambios accidentales y se ejecuta también en el
+preflight y la CI.
+
 La capacidad `text_input` significa que el protocolo puede enviar texto ya
-reconocido; no significa que el firmware actual escuche voz.
+reconocido; no significa que el firmware actual escuche voz. La pantalla
+representa el estado recibido y muestra `CONFIRM`/`TAP` cuando hay una acción
+pendiente de confirmación.
+
+No se ha activado ESP-SR como solución de voz española: la documentación
+oficial de MultiNet limita los modelos disponibles a chino e inglés. La ruta
+pendiente es captura I²S y STT español con privacidad, consentimiento e
+indicador de escucha, no enviar micrófono en claro por el protocolo actual.
+Véase la [documentación oficial de reconocimiento de comandos ESP-SR](https://docs.espressif.com/projects/esp-sr/en/latest/esp32s3/speech_command_recognition/README.html).
 
 ## Configuración local
 
@@ -65,6 +135,40 @@ python -m venv .\firmware\.venv
 .\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c
 ```
 
+Para verificar únicamente la compatibilidad con una placa V1 confirmada:
+
+```powershell
+.\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c-v1
+```
+
+Ese entorno solo comprueba la compilación del mapa legado; no debe usarse para
+flashear el SKU 30684 sin identificar antes la revisión física.
+
+Para compilar también el camino seguro sin cambiar la configuración local:
+
+```powershell
+$env:PLATFORMIO_BUILD_FLAGS = '-DPIPA_SECURE_SESSION_ENABLED=1'
+.\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c
+Remove-Item Env:PLATFORMIO_BUILD_FLAGS
+```
+
+Ese build solo comprueba el código. Para activarlo en una placa hay que definir
+`PIPA_SECURE_SESSION_ENABLED 1` y provisionar `PIPA_SECURE_SERVER_ID` y
+`PIPA_SECURE_SERVER_PUBLIC_KEY` en `pipa_device_config.local.h`, tras verificar
+la huella por un canal físico.
+
+La clave pública y los `#define` se pueden obtener sin imprimir la clave privada
+con:
+
+```powershell
+python .\windows-agent\secure_identity_admin.py init
+python .\windows-agent\secure_identity_admin.py firmware-snippet
+```
+
+`init` protege la identidad privada con DPAPI en `%LOCALAPPDATA%\Pipa`; el
+snippet solo contiene la identidad pública, el fingerprint y la activación
+explícita del transporte.
+
 Con la placa conectada:
 
 ```powershell
@@ -73,6 +177,9 @@ Con la placa conectada:
 ```
 
 ## Emparejamiento físico
+
+La secuencia completa de validación está en
+[ARRIVAL_CHECKLIST.md](ARRIVAL_CHECKLIST.md).
 
 En cada arranque aparece una línea similar a:
 
@@ -87,7 +194,8 @@ canal físico antes de autorizarla:
 .\windows-agent\.venv\Scripts\python.exe `
   .\windows-agent\trusted_unlock_admin.py pair `
   --device-id waveshare-01 `
-  --public-key <CLAVE_PUBLICA_BASE64URL>
+  --public-key <CLAVE_PUBLICA_BASE64URL> `
+  --expected-fingerprint <FINGERPRINT_COMPARADO>
 ```
 
 Después configura el COM como variable del usuario y vuelve a iniciar sesión:
@@ -101,9 +209,15 @@ El gateway se mantiene desactivado si esa variable no existe.
 ## Comportamiento del touch
 
 - Sin sesión USB autenticada: intenta Wake-on-LAN si Wi‑Fi y MAC están listas.
-- Con sesión autenticada: envía un gesto `tap` al Pipα Core.
+- Con sesión autenticada: envía un gesto `tap`; si la UI muestra una
+  confirmación, el toque confirma únicamente esa acción pendiente.
+- Si una confirmación caduca, se rechaza o se cancela, el estado visual vuelve
+  a `idle` y el identificador anterior se elimina.
 - Wake-on-LAN nunca desbloquea Windows; solo puede encender o despertar un PC
   configurado para aceptarlo.
+- El identificador de confirmación se conserva tras transmitir el toque y solo
+  se limpia al recibir el resultado o un nuevo estado; así un fallo de
+  transporte permite reintentar el mismo toque sin crear otra acción.
 
 ## Seguridad antes de uso sensible
 

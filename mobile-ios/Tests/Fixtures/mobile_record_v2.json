@@ -1,0 +1,13 @@
+{
+  "session_id": "vector-mobile",
+  "shared_secret": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+  "transcript_hash": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
+  "additional_data": "pipa/json/v2",
+  "payload": {
+    "protocol_version": 1,
+    "request_id": "vector-mobile",
+    "type": "ping"
+  },
+  "plaintext": "{\"protocol_version\":1,\"request_id\":\"vector-mobile\",\"type\":\"ping\"}",
+  "ciphertext_and_tag": "rXCXCYnHUyeAmu_e_kz_0UFWfymlHK82zjsN6pP4UYdRAvqr5ZBkfPxsmW2pNmJNSDXhHQJGtGDfzhzECAd4-O8aYtBviQa7W8xLrtRwEJQk"
+}

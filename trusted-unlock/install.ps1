@@ -86,6 +86,7 @@ $createdProviderKey = $false
 $createdClsidKey = $false
 $createdInprocKey = $false
 $copiedDll = $false
+$registrationApplied = $false
 
 try {
     $existingProvider = $registryBase.OpenSubKey($ProviderRegistryPath, $false)
@@ -105,13 +106,14 @@ try {
     Write-Host "Registro:     HKLM\$ProviderRegistryPath"
     Write-Host "Registro COM: HKLM\$InprocRegistryPath"
 
-    if ($PSCmdlet.ShouldProcess($InstalledDllPath, 'Copiar DLL x64')) {
+    $copyApproved = $PSCmdlet.ShouldProcess($InstalledDllPath, 'Copiar DLL x64')
+    if ($copyApproved) {
         New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
         Copy-Item -LiteralPath $source -Destination $InstalledDllPath -Force:$false
         $copiedDll = $true
     }
 
-    if ($PSCmdlet.ShouldProcess("HKLM:\$ProviderRegistryPath y HKLM:\$ClsidRegistryPath", 'Registrar Credential Provider adicional')) {
+    if ($copyApproved -and $PSCmdlet.ShouldProcess("HKLM:\$ProviderRegistryPath y HKLM:\$ClsidRegistryPath", 'Registrar Credential Provider adicional')) {
         $providerKey = $registryBase.CreateSubKey($ProviderRegistryPath)
         $createdProviderKey = $true
         try {
@@ -136,6 +138,11 @@ try {
         } finally {
             $inprocKey.Dispose()
         }
+        $registrationApplied = $true
+    }
+
+    if (-not $WhatIfPreference -and (-not $copyApproved -or -not $registrationApplied)) {
+        throw 'La instalación no se confirmó por completo; se revertirán los cambios parciales.'
     }
 
     if (-not $WhatIfPreference) {

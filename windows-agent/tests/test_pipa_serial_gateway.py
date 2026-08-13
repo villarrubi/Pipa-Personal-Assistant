@@ -8,15 +8,20 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "windows-agent"))
 sys.path.insert(0, str(ROOT))
 
-from pipa_serial_gateway import SerialGateway  # noqa: E402
+from pipa_serial_gateway import MAX_LINE_BYTES, MAX_PROTOCOL_ERRORS, SerialGateway  # noqa: E402
 from trusted_unlock_devices import InMemoryDeviceStore, verifier_from_store  # noqa: E402
 from trusted_unlock_protocol import Challenge  # noqa: E402
 from trusted_unlock_simulator import InMemoryTrustedDevice  # noqa: E402
 
-from backend.pipa_core.connection import MAX_AUTH_FAILURES, AuthenticatedConnection  # noqa: E402
+from backend.pipa_core.connection import (  # noqa: E402
+    AUTHENTICATION_TIMEOUT_SECONDS,
+    MAX_AUTH_FAILURES,
+    AuthenticatedConnection,
+)
 from backend.pipa_core.core import PipaCore  # noqa: E402
 from backend.pipa_core.protocol import parse_client_message  # noqa: E402
-from backend.pipa_core.tools import ToolCatalog, ToolRouter  # noqa: E402
+from backend.pipa_core.state import SessionLimitError  # noqa: E402
+from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter  # noqa: E402
 
 
 class FakeSerialConnection:
@@ -93,6 +98,10 @@ class SerialProtocolSessionTests(unittest.TestCase):
         result = self.protocol.process(parse_client_message({"protocol_version": 1, "type": "ping"}))
         self.assertEqual(result.responses[0]["code"], "authentication_required")
 
+    def test_unauthenticated_connection_has_a_short_timeout(self):
+        self.now += AUTHENTICATION_TIMEOUT_SECONDS
+        self.assertTrue(self.protocol.idle())
+
     def test_gateway_validates_configuration(self):
         with self.assertRaises(ValueError):
             SerialGateway(self.core, "")
@@ -102,6 +111,35 @@ class SerialProtocolSessionTests(unittest.TestCase):
             self.assertEqual(SerialGateway(self.core, "com7").port, "COM7")
             with self.assertRaises(ValueError):
                 SerialGateway(self.core, r"\\.\COM7")
+
+    def test_gateway_reports_worker_and_port_connection_separately(self):
+        gateway = SerialGateway(self.core, "COM7")
+
+        self.assertFalse(gateway.running)
+        self.assertFalse(gateway.connected)
+
+        gateway._connected.set()
+        self.assertTrue(gateway.connected)
+        gateway.stop()
+        self.assertFalse(gateway.connected)
+
+    def test_session_limit_is_a_controlled_authentication_error(self):
+        challenge = self._request_challenge()
+        signed = self.device.sign(Challenge(**challenge))
+        hello = parse_client_message(
+            {
+                "protocol_version": 1,
+                "type": "hello",
+                "device_id": self.device.device_id,
+                "challenge_id": signed.challenge_id,
+                "signature": signed.signature,
+            }
+        )
+        with patch.object(self.core.sessions, "create", side_effect=SessionLimitError("full")):
+            result = self.protocol.process(hello)
+
+        self.assertTrue(result.close)
+        self.assertEqual(result.responses[0]["code"], "session_limit")
 
     def test_idle_connection_and_close_are_fail_closed(self):
         challenge = self._request_challenge()
@@ -118,7 +156,7 @@ class SerialProtocolSessionTests(unittest.TestCase):
             )
         )
         self.assertEqual(self.core.sessions.count(), 1)
-        self.now += 601
+        self.now += 600
         self.assertTrue(self.protocol.idle())
 
         self.protocol.close()
@@ -140,6 +178,97 @@ class SerialProtocolSessionTests(unittest.TestCase):
         self.assertEqual(len(connection.writes), 1)
         response = json.loads(connection.writes[0].decode("utf-8"))
         self.assertEqual(response["type"], "challenge")
+
+    def test_repeated_invalid_serial_messages_close_without_reflecting_input(self):
+        gateway = SerialGateway(self.core, "COM7")
+        malicious = b'{"type":"' + (b"x" * 4000) + b'"}\n'
+        connection = FakeSerialConnection([malicious] * MAX_PROTOCOL_ERRORS, gateway)
+
+        gateway._serve_connection(connection)
+
+        self.assertEqual(len(connection.writes), MAX_PROTOCOL_ERRORS)
+        for raw in connection.writes:
+            response = json.loads(raw.decode("utf-8"))
+            self.assertEqual(response["code"], "protocol_error")
+            self.assertNotIn("x" * 100, raw.decode("utf-8"))
+
+    def test_oversized_serial_responses_are_replaced_by_a_bounded_error(self):
+        gateway = SerialGateway(self.core, "COM7")
+        connection = FakeSerialConnection([], gateway)
+
+        gateway._send(connection, {"type": "result", "data": "x" * MAX_LINE_BYTES})
+
+        self.assertEqual(len(connection.writes), 1)
+        self.assertLessEqual(len(connection.writes[0]), MAX_LINE_BYTES)
+        response = json.loads(connection.writes[0].decode("utf-8"))
+        self.assertEqual(response["code"], "response_too_large")
+
+    def test_authenticated_serial_flow_requires_and_resolves_confirmation(self):
+        executed = []
+
+        def handler(arguments):
+            executed.append(arguments)
+            return {"success": True, "private_value": arguments["value"]}
+
+        catalog = ToolCatalog(
+            [
+                ToolDefinition(
+                    "external_action",
+                    handler,
+                    safety="unsafe",
+                    confirm_summary=lambda _arguments: "Ejecutar acción externa",
+                )
+            ]
+        )
+        core = PipaCore(self.core.verifier, ToolRouter(catalog))
+        protocol = AuthenticatedConnection(core, clock=lambda: self.now)
+
+        challenge = protocol.process(self._challenge_request("waveshare-01")).responses[0]["challenge"]
+        signed = self.device.sign(Challenge(**challenge))
+        ready = protocol.process(
+            parse_client_message(
+                {
+                    "protocol_version": 1,
+                    "type": "hello",
+                    "device_id": self.device.device_id,
+                    "challenge_id": signed.challenge_id,
+                    "signature": signed.signature,
+                    "capabilities": ["display", "touch"],
+                }
+            )
+        )
+        self.assertEqual(ready.responses[0]["type"], "ready")
+
+        pending = protocol.process(
+            parse_client_message(
+                {
+                    "protocol_version": 1,
+                    "type": "tool_call",
+                    "name": "external_action",
+                    "arguments": {"value": "only-after-confirmation"},
+                }
+            )
+        )
+        request = pending.responses[0]
+        self.assertEqual(request["type"], "confirm_request")
+        self.assertEqual(executed, [])
+
+        completed = protocol.process(
+            parse_client_message(
+                {
+                    "protocol_version": 1,
+                    "type": "confirm",
+                    "confirmation_id": request["confirmation_id"],
+                    "accepted": True,
+                }
+            )
+        )
+        self.assertEqual(completed.responses[0]["type"], "tool_result")
+        self.assertTrue(completed.responses[0]["success"])
+        self.assertNotIn("result", completed.responses[0])
+        self.assertNotIn("only-after-confirmation", str(completed.responses[0]))
+        self.assertEqual(executed, [{"value": "only-after-confirmation"}])
+        self.assertEqual(completed.responses[1]["state"], "idle")
 
     def _request_challenge(self):
         result = self.protocol.process(self._challenge_request("waveshare-01"))

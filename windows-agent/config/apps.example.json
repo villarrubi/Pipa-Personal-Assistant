@@ -13,19 +13,16 @@
   },
   "chrome": {
     "aliases": ["chrome", "google chrome"],
-    "command": ["cmd", "/c", "start", "", "chrome"]
+    "command": ["chrome.exe"]
   },
   "vscode": {
     "aliases": ["vscode", "visual studio code", "code"],
-    "command": ["cmd", "/c", "start", "", "code"]
+    "command": ["code"]
   },
   "apple_music": {
     "aliases": ["apple music", "music", "música"],
     "command": [
-      "cmd",
-      "/c",
-      "start",
-      "",
+      "explorer.exe",
       "shell:AppsFolder\\AppleInc.AppleMusicWin_nzyj5cx40ttqa!App"
     ]
   },

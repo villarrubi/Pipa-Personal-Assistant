@@ -7,8 +7,10 @@ Estado actual
 -------------
 
 La DLL implementa la tile adicional `Pipα Trusted Unlock`, pero todavía no
-autentica ni entrega credenciales a Windows. `GetSerialization` devuelve
-`CPGSR_NO_CREDENTIAL_NOT_FINISHED` y el autologon está desactivado.
+autentica ni entrega credenciales a Windows. La tile se muestra como
+`Desactivado: no autentica`, `GetSerialization` devuelve
+`CPGSR_NO_CREDENTIAL_NOT_FINISHED`, el proveedor rechaza serializaciones
+externas y el autologon está desactivado.
 
 Compilar y probar
 -----------------
@@ -28,6 +30,18 @@ build x64 limpia en `build-ci`; los binarios nunca deben entrar en Git.
 
 Instalación controlada
 ----------------------
+
+Antes de registrar una clave, calcula su fingerprint sin modificar el Registro
+y compáralo con el valor obtenido por un canal físico:
+
+```powershell
+.\windows-agent\.venv\Scripts\python.exe .\windows-agent\trusted_unlock_admin.py fingerprint `
+  --public-key <CLAVE_PUBLICA_BASE64URL>
+```
+
+El comando `pair` debe ejecutarse solo después de esa comprobación y exige
+repetirla con `--expected-fingerprint`; una discrepancia no modifica el
+Registro.
 
 La instalación real requiere PowerShell como administrador y se debe hacer
 solo después de confirmar que el smoke test pasa:
@@ -55,7 +69,10 @@ HKLM\SOFTWARE\Classes\CLSID\{7D886843-37F4-4C64-A45A-8550F112E57A}\InprocServer3
 
 No se usa `regsvr32`: esta DLL exporta `DllGetClassObject`, pero no contiene
 un instalador COM automático. El script rechaza claves existentes para no
-sobrescribir instalaciones ajenas.
+sobrescribir instalaciones ajenas. La copia y el registro forman una
+operación transaccional: si se rechaza cualquiera de las dos confirmaciones,
+el instalador revierte la copia y no deja una instalación parcial. Con
+`-WhatIf` no se escribe nada.
 
 Rollback
 --------

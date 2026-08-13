@@ -1,0 +1,82 @@
+[CmdletBinding()]
+param()
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$launcherPath = Join-Path $repoRoot 'windows-agent/start_agent_hidden.ps1'
+$installerPath = Join-Path $repoRoot 'windows-agent/install_agent_task.ps1'
+$statusPath = Join-Path $repoRoot 'windows-agent/check_agent_status.ps1'
+
+foreach ($path in @($launcherPath, $installerPath, $statusPath)) {
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        throw "Falta el script de inicio: $path"
+    }
+}
+
+$launcher = Get-Content -Raw -LiteralPath $launcherPath
+$installer = Get-Content -Raw -LiteralPath $installerPath
+$status = Get-Content -Raw -LiteralPath $statusPath
+
+$launcherPatterns = @(
+    '[switch]$Restart',
+    'Get-CimInstance Win32_Process',
+    'Stop-Process',
+    'main.py',
+    'IndexOf(',
+    'Get-PipaLoopbackListenerProcessIds',
+    'Request-PipaGracefulReload',
+    '/internal/reload',
+    'X-Pipa-Reload',
+    'gracefulReloaded',
+    'hasExactScript',
+    '-B "{0}"',
+    'hasKnownInterpreter',
+    'linea de comandos exacta',
+    '127.0.0.1:8765',
+    'sigue ocupado'
+)
+foreach ($pattern in $launcherPatterns) {
+    if ($launcher.IndexOf($pattern, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El lanzador no contiene el control de recarga esperado: $pattern"
+    }
+}
+
+if ($launcher.IndexOf('Stop-PipaLoopbackListener', [System.StringComparison]::Ordinal) -ge 0) {
+    throw 'El lanzador no puede detener un proceso solo por escuchar en el puerto local.'
+}
+
+if ($installer.IndexOf("'-Restart'", [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'El instalador no solicita la recarga del agente actualizado.'
+}
+
+foreach ($requiredPattern in @(
+        "'/RL', 'LIMITED'",
+        '-RunLevel Limited',
+        '-WindowStyle Hidden',
+        'expectedArguments',
+        'exactAction',
+        'currentUserPrincipal',
+        '[StringComparison]::Ordinal',
+        'Register-WithUserRun',
+        'Register-WithStartupShortcut'
+    )) {
+    if ($installer.IndexOf($requiredPattern, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El instalador no conserva la politica de inicio seguro: $requiredPattern"
+    }
+}
+
+if ($installer -match '(?i)(-RunLevel\s+Highest|/RL\s+HIGHEST|-Verb\s+RunAs)') {
+    throw 'El instalador contiene una ruta de elevacion no permitida.'
+}
+
+if ($status.IndexOf('$taskQueryFailed = $true', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'El diagnostico no distingue una tarea ilegible de una tarea ausente.'
+}
+
+if (($launcher + $installer + $status) -match '(?i)(start_agent\.bat|\.cmd|\.vbs)') {
+    throw 'Los scripts de inicio contienen un fallback de CMD/VBS no permitido.'
+}
+
+Write-Host 'Ciclo de actualizacion del agente OK: recarga exacta, oculta y sin CMD/VBS.' -ForegroundColor Green

@@ -10,6 +10,12 @@ from dataclasses import dataclass
 from .protocol import server_message
 
 UI_STATES = frozenset({"idle", "listening", "thinking", "confirm", "speaking", "focus", "dashboard"})
+MAX_SESSIONS = 32
+MAX_SESSIONS_PER_DEVICE = 2
+
+
+class SessionLimitError(ValueError):
+    """The core cannot accept another authenticated session right now."""
 
 
 @dataclass
@@ -22,6 +28,7 @@ class DeviceSession:
     focus_remaining: int | None = None
     firmware_version: str | None = None
     capabilities: tuple[str, ...] = ()
+    capabilities_initialized: bool = True
     last_seen_at: int | None = None
     battery_percent: int | None = None
     wifi_rssi: int | None = None
@@ -55,6 +62,7 @@ class SessionRegistry:
         *,
         firmware_version: str | None = None,
         capabilities: tuple[str, ...] = (),
+        capabilities_initialized: bool = True,
     ) -> DeviceSession:
         now = int(time.time())
         session = DeviceSession(
@@ -63,9 +71,15 @@ class SessionRegistry:
             connected_at=now,
             firmware_version=firmware_version,
             capabilities=capabilities,
+            capabilities_initialized=capabilities_initialized,
             last_seen_at=now,
         )
         with self._lock:
+            if len(self._sessions) >= MAX_SESSIONS:
+                raise SessionLimitError("too many authenticated sessions")
+            sessions_for_device = sum(existing.device_id == device_id for existing in self._sessions.values())
+            if sessions_for_device >= MAX_SESSIONS_PER_DEVICE:
+                raise SessionLimitError("too many sessions for this device")
             self._sessions[session.session_id] = session
         return session
 

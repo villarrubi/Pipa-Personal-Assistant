@@ -1,0 +1,8 @@
+{
+  "session_id": "vector-session",
+  "shared_secret": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+  "transcript_hash": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
+  "additional_data": "route:usb",
+  "plaintext": "vector payload",
+  "ciphertext_and_tag": "oDeED4nBHDSOj9zH-loSdwmytFoKot-8YKNRVghu"
+}

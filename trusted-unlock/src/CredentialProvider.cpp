@@ -94,6 +94,8 @@ HRESULT STDMETHODCALLTYPE PipaCredentialProvider::SetSerialization(
 {
     UNREFERENCED_PARAMETER(pcpcs);
 
+    // Nunca aceptamos una serializacion externa para convertirla en un
+    // desbloqueo. Trusted Unlock sigue siendo solo una tile inerte.
     return E_NOTIMPL;
 }
 

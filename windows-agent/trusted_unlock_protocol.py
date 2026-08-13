@@ -32,8 +32,12 @@ DEFAULT_CLOCK_SKEW_SECONDS = 5
 NONCE_BYTES = 32
 MAX_PENDING_CHALLENGES = 256
 MAX_PENDING_PER_DEVICE = 8
+MAX_CONSUMED_CHALLENGES = 4096
 
-_IDENTIFIER_PATTERN = re.compile(r"^[^\x00-\x1f]{1,128}$")
+# Protocol identifiers are structural metadata, not user-facing prose. Keep
+# them ASCII so control, bidi and invisible Unicode cannot enter signatures,
+# logs or administrator-facing responses.
+_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 _BASE64URL_PATTERN = re.compile(r"^[A-Za-z0-9_-]+={0,2}$")
 
 
@@ -304,7 +308,7 @@ class AuthorizationVerifier:
                 raise ReplayDetectedError("challenge response was already consumed")
 
             challenge = self._pending.get(response.challenge_id)
-            if challenge is not None and verified_at > challenge.expires_at:
+            if challenge is not None and verified_at >= challenge.expires_at:
                 del self._pending[challenge.challenge_id]
                 self._prune(verified_at)
                 raise ExpiredChallengeError("challenge has expired")
@@ -332,6 +336,8 @@ class AuthorizationVerifier:
                 raise InvalidResponseError("signature verification failed") from error
 
             del self._pending[challenge.challenge_id]
+            if len(self._consumed) >= MAX_CONSUMED_CHALLENGES:
+                self._consumed.pop(next(iter(self._consumed)))
             self._consumed[challenge.challenge_id] = challenge.expires_at
 
             return VerifiedAuthorization(
@@ -344,13 +350,13 @@ class AuthorizationVerifier:
 
     def _prune(self, now: int) -> None:
         expired_pending = [
-            challenge_id for challenge_id, challenge in self._pending.items() if challenge.expires_at < now
+            challenge_id for challenge_id, challenge in self._pending.items() if challenge.expires_at <= now
         ]
         for challenge_id in expired_pending:
             del self._pending[challenge_id]
 
         expired_consumed = [
-            challenge_id for challenge_id, expires_at in self._consumed.items() if expires_at < now
+            challenge_id for challenge_id, expires_at in self._consumed.items() if expires_at <= now
         ]
         for challenge_id in expired_consumed:
             del self._consumed[challenge_id]

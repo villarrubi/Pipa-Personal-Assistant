@@ -2,6 +2,7 @@ import sys
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -51,6 +52,14 @@ class TrustedUnlockProtocolTests(unittest.TestCase):
         with self.assertRaises(InvalidResponseError):
             self.verifier.verify_response(response, now=1000)
 
+    def test_structural_identifiers_reject_unicode_formatting_controls(self):
+        challenge = self.verifier.create_challenge("phone-main", now=1000)
+
+        with self.assertRaises(ValueError):
+            replace(challenge, device_id="phone\u202e-main")
+        with self.assertRaises(ValueError):
+            replace(challenge, operation="unlock\u0085")
+
     def test_expired_challenge_is_rejected(self):
         challenge = self.verifier.create_challenge(
             "phone-main",
@@ -60,7 +69,7 @@ class TrustedUnlockProtocolTests(unittest.TestCase):
         response = create_signed_response(challenge, self.private_key)
 
         with self.assertRaises(ExpiredChallengeError):
-            self.verifier.verify_response(response, now=1006)
+            self.verifier.verify_response(response, now=1005)
 
     def test_response_cannot_change_the_device_binding(self):
         challenge = self.verifier.create_challenge("phone-main", now=1000)
@@ -99,6 +108,17 @@ class TrustedUnlockProtocolTests(unittest.TestCase):
 
         with self.assertRaises(ChallengeLimitError):
             self.verifier.create_challenge("phone-main", now=1000)
+
+    def test_consumed_challenge_cache_is_bounded_and_replay_stays_rejected(self):
+        with patch("trusted_unlock_protocol.MAX_CONSUMED_CHALLENGES", 1):
+            first = self.verifier.create_challenge("phone-main", now=1000)
+            self.verifier.verify_response(create_signed_response(first, self.private_key), now=1000)
+            second = self.verifier.create_challenge("phone-main", now=1000)
+            self.verifier.verify_response(create_signed_response(second, self.private_key), now=1000)
+
+            self.assertEqual(len(self.verifier._consumed), 1)
+            with self.assertRaises(UnknownChallengeError):
+                self.verifier.verify_response(create_signed_response(first, self.private_key), now=1000)
 
 
 if __name__ == "__main__":

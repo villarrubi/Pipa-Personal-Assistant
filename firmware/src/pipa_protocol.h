@@ -27,12 +27,17 @@ class PipaProtocol {
   bool authenticated() const { return authenticated_; }
   const UiSnapshot& ui() const { return ui_; }
 
+  void setHardwareCapabilities(bool display_ready, bool touch_ready, bool audio_probe_ready);
+  void setBatteryPercent(int battery_percent);
+
   void sendGesture(const char* gesture);
   void sendTextInput(const char* text, const char* source = "voice");
   void sendConfirmation(bool accepted);
 
  private:
   static constexpr size_t kMaxInboundLine = 12000;
+  static constexpr size_t kMaxOutboundLine = 12000;
+  static constexpr size_t kMaxTextInput = 4000;
   static constexpr uint32_t kChallengeRetryMs = 5000;
   static constexpr uint32_t kHeartbeatMs = 30000;
   static constexpr uint32_t kStatusMs = 60000;
@@ -59,6 +64,10 @@ class PipaProtocol {
   bool dropping_oversized_line_ = false;
   bool awaiting_ready_ = false;
   bool authenticated_ = false;
+  bool display_ready_ = false;
+  bool touch_ready_ = false;
+  bool audio_probe_ready_ = false;
+  int battery_percent_ = -1;
   uint32_t last_challenge_request_ = 0;
   uint32_t last_heartbeat_ = 0;
   uint32_t last_status_ = 0;

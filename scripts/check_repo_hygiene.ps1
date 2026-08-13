@@ -9,9 +9,10 @@ $reviewedFiles = @(git -C $repoRoot ls-files --cached --others --exclude-standar
 $violations = [System.Collections.Generic.List[string]]::new()
 
 $forbiddenPathPattern = (
-    '(^|/)(build|build-ci|__pycache__|\.venv|venv|out|bin|obj|dist|\.pio|\.platformio)(/|$)|' +
+    '(^|/)(build|build-ci|__pycache__|\.venv|venv|out|bin|obj|dist|\.pio|\.platformio|\.platformio-preflight)(/|$)|' +
     '(^|/)windows-agent/config/apps\.json$|' +
-    '(^|/)firmware/include/pipa_device_config\.local\.h$'
+    '(^|/)firmware/include/pipa_device_config\.local\.h$|' +
+    '(^|/)secure_agent_identity\.json$'
 )
 foreach ($path in $reviewedFiles) {
     if ($path -match $forbiddenPathPattern) {
@@ -33,7 +34,7 @@ $sensitiveContentPattern = (
     'gh[oprsu]_[A-Za-z0-9]{20,}|' +
     'sk-(proj-)?[A-Za-z0-9_-]{20,}|' +
     'AKIA[0-9A-Z]{16}|' +
-    '(password|secret|api[_-]?key|token)\s*[:=]\s*"'
+    '(?<![A-Za-z0-9_-])(password|secret|api[_-]?key|token)\s*[:=]\s*"'
 )
 foreach ($path in $reviewedFiles) {
     $absolutePath = Join-Path $repoRoot $path
@@ -47,13 +48,47 @@ foreach ($path in $reviewedFiles) {
     }
 }
 
+# Verify the ignore policy itself with hypothetical paths. This catches a
+# weakened pattern before a local config, recording, capture or build can be
+# staged accidentally. --no-index makes the check independent of whether a
+# fixture happens to exist on disk.
+$ignoreFixtures = @(
+    '.env',
+    '.env.local',
+    'windows-agent/config/apps.json',
+    'windows-agent/config/contacts.local.json',
+    'windows-agent/config/apps.private.json',
+    'secure_agent_identity.json',
+    'windows-agent/config/secure_agent_identity.json',
+    'firmware/include/pipa_device_config.local.h',
+    'firmware/.pio/build/waveshare-185c/firmware.bin',
+    'firmware/.platformio/packages/framework-arduinoespressif32/package.txt',
+    '.platformio-preflight/packages/platformio/package.json',
+    'windows-agent/__pycache__/main.cpython-312.pyc',
+    'logs/agent.log',
+    'captures/logonui.png',
+    'recordings/voice.wav',
+    'exports/browser.har',
+    'device-private.key',
+    'device-certificate.crt',
+    'desktop-session.rdp',
+    'session-token.txt',
+    'trusted-unlock/build/Release/PipaTrustedUnlock.dll'
+)
+foreach ($fixture in $ignoreFixtures) {
+    git -C $repoRoot check-ignore --no-index --quiet -- $fixture
+    if ($LASTEXITCODE -ne 0) {
+        $violations.Add("La politica .gitignore no cubre la ruta sensible de prueba: $fixture")
+    }
+}
+
 $safeDeviceConfig = Join-Path $repoRoot 'firmware/include/pipa_device_config.h'
 if (Test-Path -LiteralPath $safeDeviceConfig -PathType Leaf) {
     $configText = Get-Content -LiteralPath $safeDeviceConfig -Raw
     if ($configText -notmatch '#define PIPA_WIFI_SSID ""' -or
         $configText -notmatch '#define PIPA_WIFI_PASSWORD ""' -or
         $configText -notmatch '#define PIPA_PC_MAC "00:00:00:00:00:00"') {
-        $violations.Add('La configuración de firmware rastreada no contiene valores locales seguros.')
+        $violations.Add('La configuracion de firmware rastreada no contiene valores locales seguros.')
     }
 }
 

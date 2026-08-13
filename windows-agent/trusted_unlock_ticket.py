@@ -18,6 +18,7 @@ from trusted_unlock_protocol import (
 
 TICKET_TTL_SECONDS = 5
 MAX_TICKET_TTL_SECONDS = 10
+MAX_CONSUMED_TICKETS = 4096
 
 
 class TicketError(Exception):
@@ -74,7 +75,7 @@ class TicketIssuer:
             raise ValueError(f"ttl_seconds must be between 1 and {MAX_TICKET_TTL_SECONDS}")
 
         issued_at = int(time.time() if now is None else now)
-        if issued_at > authorization.expires_at:
+        if issued_at >= authorization.expires_at:
             raise ExpiredTicketError("authorization is already expired")
 
         expires_at = min(issued_at + ttl_seconds, authorization.expires_at)
@@ -110,7 +111,7 @@ class TicketIssuer:
             ticket = self._tickets.get(token)
             if ticket is None:
                 raise UnknownTicketError("ticket is unknown")
-            if consumed_at > ticket.expires_at:
+            if consumed_at >= ticket.expires_at:
                 del self._tickets[token]
                 self._prune(consumed_at)
                 raise ExpiredTicketError("ticket has expired")
@@ -118,6 +119,8 @@ class TicketIssuer:
                 raise TicketOperationError("ticket operation does not match")
 
             del self._tickets[token]
+            if len(self._consumed) >= MAX_CONSUMED_TICKETS:
+                self._consumed.pop(next(iter(self._consumed)))
             self._consumed[token] = ticket.expires_at
             self._prune(consumed_at)
             return ticket
@@ -128,10 +131,10 @@ class TicketIssuer:
             return len(self._tickets)
 
     def _prune(self, now: int) -> None:
-        expired = [token for token, ticket in self._tickets.items() if ticket.expires_at < now]
+        expired = [token for token, ticket in self._tickets.items() if ticket.expires_at <= now]
         for token in expired:
             del self._tickets[token]
 
-        expired_consumed = [token for token, expires_at in self._consumed.items() if expires_at < now]
+        expired_consumed = [token for token, expires_at in self._consumed.items() if expires_at <= now]
         for token in expired_consumed:
             del self._consumed[token]

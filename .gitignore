@@ -25,6 +25,7 @@ htmlcov/
 .pio/
 .pioenvs/
 .platformio/
+.platformio-preflight/
 firmware/libdeps/
 
 # Environment files and local secrets
@@ -33,9 +34,18 @@ firmware/libdeps/
 !.env.example
 *.pem
 *.key
+*.crt
+*.cer
+*.der
+*.p8
+*.jks
 *.pfx
 *.p12
 *.kdbx
+*.ovpn
+*.rdp
+*.reg
+*.lnk
 *secret*
 *secrets*
 *credential*
@@ -76,16 +86,52 @@ Makefile
 *.uf2
 *.sarif
 
+# Swift Package Manager and Xcode user state
+mobile-ios/.build/
+mobile-ios/.swiftpm/
+DerivedData/
+**/xcuserdata/
+*.xcuserstate
+
 # Logs, dumps and local reports
 *.log
 *.dmp
 *.tmp
 *.bak
+*.trace
+*.pcap
+*.pcapng
+*.har
+*.dump
+*.jsonl
+logs/
+captures/
+screenshots/
+recordings/
+reports/
+
+# Personal audio/video and screen captures
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+*.aac
+*.mp4
+*.mov
+*.webm
 
 # Machine-specific application configuration
 windows-agent/config/apps.json
+windows-agent/config/contacts.local.json
 windows-agent/config/*.local.json
 windows-agent/config/*.private.json
+secure_agent_identity.json
+windows-agent/config/secure_agent_identity.json
+*.local
+*.local.*
+*.private
+*.private.*
 
 # Device-local Wi-Fi, MAC and firmware provisioning values
 firmware/include/pipa_device_config.local.h

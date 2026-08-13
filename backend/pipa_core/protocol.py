@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -9,12 +10,15 @@ from typing import Any
 PROTOCOL_VERSION = 1
 MAX_TEXT_LENGTH = 4000
 MAX_TOOL_NAME_LENGTH = 80
+MAX_ARGUMENTS_BYTES = 4096
 MAX_CAPABILITIES = 16
 TEXT_SOURCES = frozenset({"voice", "touch", "mobile", "debug", "unknown"})
 _COMMON_FIELDS = frozenset({"protocol_version", "type"})
 _MESSAGE_FIELDS = {
     "challenge_request": frozenset({"device_id"}),
     "hello": frozenset({"device_id", "challenge_id", "signature", "firmware_version", "capabilities"}),
+    "device_hello": frozenset({"firmware_version", "capabilities"}),
+    "catalog_request": frozenset(),
     "text_input": frozenset({"text", "source"}),
     "wake": frozenset(),
     "hold_start": frozenset(),
@@ -35,7 +39,12 @@ class ProtocolError(ValueError):
 
 def _string(payload: Mapping[str, Any], name: str, *, maximum: int = 256) -> str:
     value = payload.get(name)
-    if not isinstance(value, str) or not value.strip() or len(value) > maximum:
+    if (
+        not isinstance(value, str)
+        or not value.strip()
+        or len(value) > maximum
+        or any(ord(character) < 0x20 or ord(character) == 0x7F for character in value)
+    ):
         raise ProtocolError(f"{name} must be a non-empty string of at most {maximum} characters")
     return value.strip()
 
@@ -52,6 +61,25 @@ def _optional_string(payload: Mapping[str, Any], name: str, *, maximum: int = 25
     if value is None:
         return None
     return _string(payload, name, maximum=maximum)
+
+
+def _capabilities(payload: Mapping[str, Any]) -> list[str]:
+    capabilities = payload.get("capabilities", [])
+    if not isinstance(capabilities, list) or len(capabilities) > MAX_CAPABILITIES:
+        raise ProtocolError(f"capabilities must be a list of at most {MAX_CAPABILITIES} items")
+    parsed_capabilities = []
+    for capability in capabilities:
+        if (
+            not isinstance(capability, str)
+            or not capability.strip()
+            or len(capability) > 32
+            or any(ord(character) < 0x20 or ord(character) == 0x7F for character in capability)
+        ):
+            raise ProtocolError("capabilities must contain non-empty strings of at most 32 characters")
+        parsed_capabilities.append(capability.strip())
+    if len(set(parsed_capabilities)) != len(parsed_capabilities):
+        raise ProtocolError("capabilities must not contain duplicates")
+    return parsed_capabilities
 
 
 @dataclass(frozen=True)
@@ -93,24 +121,19 @@ def parse_client_message(payload: Mapping[str, Any]) -> ClientMessage:
         firmware_version = _optional_string(payload, "firmware_version", maximum=32)
         if firmware_version is not None:
             fields["firmware_version"] = firmware_version
-        capabilities = payload.get("capabilities", [])
-        if not isinstance(capabilities, list) or len(capabilities) > MAX_CAPABILITIES:
-            raise ProtocolError(f"capabilities must be a list of at most {MAX_CAPABILITIES} items")
-        parsed_capabilities = []
-        for capability in capabilities:
-            if not isinstance(capability, str) or not capability.strip() or len(capability) > 32:
-                raise ProtocolError("capabilities must contain non-empty strings of at most 32 characters")
-            parsed_capabilities.append(capability.strip())
-        if len(set(parsed_capabilities)) != len(parsed_capabilities):
-            raise ProtocolError("capabilities must not contain duplicates")
-        fields["capabilities"] = parsed_capabilities
+        fields["capabilities"] = _capabilities(payload)
+    elif message_type == "device_hello":
+        firmware_version = _optional_string(payload, "firmware_version", maximum=32)
+        if firmware_version is not None:
+            fields["firmware_version"] = firmware_version
+        fields["capabilities"] = _capabilities(payload)
     elif message_type == "text_input":
         fields["text"] = _string(payload, "text", maximum=MAX_TEXT_LENGTH)
         source = payload.get("source", "unknown")
         if not isinstance(source, str) or source not in TEXT_SOURCES:
             raise ProtocolError("unsupported text source")
         fields["source"] = source
-    elif message_type in {"wake", "hold_start", "hold_end", "audio_end", "abort"}:
+    elif message_type in {"catalog_request", "wake", "hold_start", "hold_end", "audio_end", "abort"}:
         pass
     elif message_type == "ping":
         request_id = _optional_string(payload, "request_id", maximum=64)
@@ -141,6 +164,17 @@ def parse_client_message(payload: Mapping[str, Any]) -> ClientMessage:
         arguments = payload.get("arguments", {})
         if not isinstance(arguments, Mapping):
             raise ProtocolError("arguments must be a JSON object")
+        try:
+            encoded_arguments = json.dumps(
+                arguments,
+                ensure_ascii=False,
+                allow_nan=False,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        except (TypeError, ValueError, RecursionError) as error:
+            raise ProtocolError("arguments must be finite, JSON-serializable data") from error
+        if len(encoded_arguments) > MAX_ARGUMENTS_BYTES:
+            raise ProtocolError(f"arguments must fit in {MAX_ARGUMENTS_BYTES} UTF-8 bytes")
         fields["arguments"] = dict(arguments)
         call_id = payload.get("call_id")
         if call_id is not None:

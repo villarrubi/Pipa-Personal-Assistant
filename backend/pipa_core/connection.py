@@ -11,9 +11,11 @@ from trusted_unlock_protocol import TrustedUnlockError
 
 from .core import PipaCore
 from .protocol import ClientMessage, server_message
+from .state import SessionLimitError
 
 MAX_AUTH_FAILURES = 3
 MIN_CHALLENGE_INTERVAL_SECONDS = 1.0
+AUTHENTICATION_TIMEOUT_SECONDS = 20
 SESSION_IDLE_SECONDS = 10 * 60
 
 
@@ -32,7 +34,9 @@ class AuthenticatedConnection:
         self.session_id: str | None = None
         self.auth_failures = 0
         self.last_challenge_at: float | None = None
-        self.last_activity_at = clock()
+        now = clock()
+        self.connected_at = now
+        self.last_activity_at = now
 
     def process(self, message: ClientMessage) -> ConnectionResult:
         self.last_activity_at = self.clock()
@@ -45,7 +49,10 @@ class AuthenticatedConnection:
         return ConnectionResult(self.core.handle(self.session_id, message))
 
     def idle(self) -> bool:
-        return self.clock() - self.last_activity_at > SESSION_IDLE_SECONDS
+        now = self.clock()
+        if self.session_id is None:
+            return now - self.connected_at >= AUTHENTICATION_TIMEOUT_SECONDS
+        return now - self.last_activity_at >= SESSION_IDLE_SECONDS
 
     def close(self) -> None:
         if self.session_id is not None:
@@ -80,6 +87,11 @@ class AuthenticatedConnection:
                 message.fields["signature"],
                 firmware_version=message.fields.get("firmware_version"),
                 capabilities=message.fields.get("capabilities"),
+            )
+        except SessionLimitError:
+            return ConnectionResult(
+                [server_message("error", code="session_limit")],
+                close=True,
             )
         except (TrustedUnlockError, ValueError):
             return self._authentication_failure()

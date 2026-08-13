@@ -4,6 +4,19 @@
 #include <shlwapi.h>
 
 
+namespace
+{
+// This provider is intentionally inert until a separately reviewed unlock
+// design exists. Changing this requires changing the compile-time invariant
+// below as well as the security review.
+constexpr bool kTrustedUnlockEnabled = false;
+static_assert(
+    !kTrustedUnlockEnabled,
+    "Trusted Unlock must remain disabled in this provider"
+);
+}
+
+
 enum PIPA_FIELD_ID
 {
     PFI_TITLE = 0,
@@ -150,7 +163,7 @@ HRESULT STDMETHODCALLTYPE PipaCredential::GetStringValue(
             break;
 
         case PFI_STATUS:
-            value = L"Esperando autorizacion...";
+            value = L"Desactivado: no autentica";
             break;
 
         default:
@@ -261,7 +274,8 @@ HRESULT STDMETHODCALLTYPE PipaCredential::GetSerialization(
         return E_POINTER;
     }
 
-    // Por ahora Pipα NO entrega ninguna credencial a Windows.
+    // Pipα no entrega ninguna credencial a Windows mientras Trusted Unlock
+    // permanezca desactivado. La serializacion se deja completamente vacia.
     *pcpgsr = CPGSR_NO_CREDENTIAL_NOT_FINISHED;
 
     ZeroMemory(

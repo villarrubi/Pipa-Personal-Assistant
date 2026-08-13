@@ -175,6 +175,34 @@ int main()
 
     std::wcout << L"[OK] CPUS_LOGON aceptado\n";
 
+    hr = provider->SetUsageScenario(CPUS_CREDUI, 0);
+    if (hr != E_NOTIMPL)
+    {
+        std::wcerr << L"[ERROR] Se acepto un escenario no soportado\n";
+        provider->Release();
+        FreeLibrary(module);
+        return 1;
+    }
+
+    hr = provider->SetUsageScenario(CPUS_LOGON, 0);
+    if (FAILED(hr))
+    {
+        std::wcerr << L"[ERROR] No se pudo restaurar CPUS_LOGON\n";
+        provider->Release();
+        FreeLibrary(module);
+        return 1;
+    }
+
+    if (provider->SetSerialization(nullptr) != E_NOTIMPL)
+    {
+        std::wcerr << L"[ERROR] El provider acepto una serializacion externa\n";
+        provider->Release();
+        FreeLibrary(module);
+        return 1;
+    }
+
+    std::wcout << L"[OK] Escenarios y serializaciones externas rechazados\n";
+
 
     // 6. Consultar numero de campos
     DWORD fieldCount = 999;

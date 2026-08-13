@@ -1,5 +1,7 @@
 import json
+import os
 import subprocess
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +9,54 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
 LOCAL_APPS_FILE = CONFIG_DIR / "apps.json"
 DEFAULT_APPS_FILE = CONFIG_DIR / "apps.example.json"
+MAX_APP_ID_LENGTH = 64
+MAX_APPS = 64
+MAX_CONFIG_FILE_BYTES = 128 * 1024
+MAX_ALIASES_PER_APP = 32
+MAX_ALIAS_LENGTH = 80
+MAX_COMMAND_ARGUMENTS = 32
+MAX_COMMAND_ARGUMENT_LENGTH = 1024
+_BLOCKED_LAUNCHERS = frozenset(
+    {
+        "cmd",
+        "cmd.exe",
+        "powershell",
+        "powershell.exe",
+        "pwsh",
+        "pwsh.exe",
+        "wscript",
+        "wscript.exe",
+        "cscript",
+        "cscript.exe",
+        "bash",
+        "bash.exe",
+        "sh",
+        "sh.exe",
+    }
+)
+_BLOCKED_SHELL_SWITCHES = frozenset({"/c", "/k", "-command", "-encodedcommand", "-file"})
+
+
+def _is_forbidden_label_character(character: str) -> bool:
+    """Reject invisible/control characters from app IDs and aliases."""
+
+    return unicodedata.category(character) in {"Cc", "Cf", "Cs", "Co", "Cn"}
+
+
+def _uses_shell_launcher(command: list[str]) -> bool:
+    """Reject shell-mediated app entries from the local allowlist.
+
+    The app configuration is intentionally a list passed directly to
+    ``Popen``.  A shell launcher would turn a harmless-looking alias into an
+    interpreter boundary and could also recreate visible console windows.
+    Applications must be launched directly (for example ``explorer.exe``
+    with a ``shell:AppsFolder`` argument).
+    """
+
+    launcher = Path(command[0]).name.casefold()
+    return launcher in _BLOCKED_LAUNCHERS or any(
+        argument.casefold() in _BLOCKED_SHELL_SWITCHES for argument in command[1:]
+    )
 
 
 class AppsConfigError(ValueError):
@@ -18,12 +68,20 @@ def _get_apps_file() -> Path:
 
 
 def validate_apps_config(apps: Any) -> dict[str, dict[str, list[str]]]:
-    if not isinstance(apps, dict):
-        raise AppsConfigError("La configuración de aplicaciones debe ser un objeto JSON.")
+    if not isinstance(apps, dict) or len(apps) > MAX_APPS:
+        raise AppsConfigError("La configuración de aplicaciones debe ser un objeto de tamaño limitado.")
 
     validated: dict[str, dict[str, list[str]]] = {}
+    seen_labels: dict[str, str] = {}
     for app_id, app_data in apps.items():
-        if not isinstance(app_id, str) or not isinstance(app_data, dict):
+        if (
+            not isinstance(app_id, str)
+            or not app_id.strip()
+            or app_id != app_id.strip()
+            or len(app_id) > MAX_APP_ID_LENGTH
+            or any(_is_forbidden_label_character(character) for character in app_id)
+            or not isinstance(app_data, dict)
+        ):
             raise AppsConfigError("Cada aplicación debe tener un identificador y un objeto.")
 
         aliases = app_data.get("aliases")
@@ -31,12 +89,42 @@ def validate_apps_config(apps: Any) -> dict[str, dict[str, list[str]]]:
         if (
             not isinstance(aliases, list)
             or not aliases
+            or len(aliases) > MAX_ALIASES_PER_APP
             or not all(isinstance(alias, str) and alias.strip() for alias in aliases)
+            or not all(
+                alias == alias.strip()
+                and len(alias) <= MAX_ALIAS_LENGTH
+                and not any(_is_forbidden_label_character(character) for character in alias)
+                for alias in aliases
+            )
             or not isinstance(command, list)
             or not command
-            or not all(isinstance(argument, str) for argument in command)
+            or len(command) > MAX_COMMAND_ARGUMENTS
+            or not all(isinstance(argument, str) and argument for argument in command)
+            or not all(
+                len(argument) <= MAX_COMMAND_ARGUMENT_LENGTH
+                and not any(ord(character) < 0x20 or ord(character) == 0x7F for character in argument)
+                for argument in command
+            )
+            or _uses_shell_launcher(command)
         ):
             raise AppsConfigError(f"Configuración inválida para la aplicación '{app_id}'.")
+
+        app_folded = app_id.casefold()
+        if app_folded in seen_labels:
+            raise AppsConfigError(f"El nombre o alias '{app_id}' está repetido.")
+        seen_labels[app_folded] = app_id
+        seen_aliases: set[str] = set()
+        for alias in aliases:
+            folded = alias.casefold()
+            if folded == app_folded:
+                if folded in seen_aliases:
+                    raise AppsConfigError(f"El nombre o alias '{alias}' está repetido.")
+                seen_aliases.add(folded)
+                continue
+            if folded in seen_labels:
+                raise AppsConfigError(f"El nombre o alias '{alias}' está repetido.")
+            seen_labels[folded] = app_id
 
         validated[app_id] = {
             "aliases": aliases,
@@ -49,10 +137,17 @@ def validate_apps_config(apps: Any) -> dict[str, dict[str, list[str]]]:
 def load_apps() -> dict[str, dict[str, list[str]]]:
     apps_file = _get_apps_file()
     try:
-        with open(apps_file, encoding="utf-8") as file:
-            return validate_apps_config(json.load(file))
+        with open(apps_file, "rb") as file:
+            raw = file.read(MAX_CONFIG_FILE_BYTES + 1)
+        if len(raw) > MAX_CONFIG_FILE_BYTES:
+            raise AppsConfigError("La configuración de aplicaciones es demasiado grande.")
+        return validate_apps_config(json.loads(raw.decode("utf-8")))
     except FileNotFoundError as error:
         raise AppsConfigError(f"No existe la configuración: {apps_file}") from error
+    except OSError as error:
+        raise AppsConfigError("No se pudo leer la configuración de aplicaciones.") from error
+    except UnicodeDecodeError as error:
+        raise AppsConfigError("La configuración de aplicaciones no es UTF-8 válido.") from error
     except json.JSONDecodeError as error:
         raise AppsConfigError(f"JSON inválido en {apps_file}: {error.msg}") from error
 
@@ -77,14 +172,19 @@ def open_app(app_name: str):
         return {"success": False, "message": f"No conozco la aplicación '{app_name}'."}
 
     try:
-        subprocess.Popen(app_data["command"])
+        popen_options = {}
+        if os.name == "nt":
+            # Keep configured console applications from flashing a window when
+            # the agent runs invisibly. Prefer direct launchers in the example
+            # configuration instead of routing through cmd.exe.
+            popen_options["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        subprocess.Popen(app_data["command"], **popen_options)
 
         return {"success": True, "app": app_id, "message": f"Aplicación '{app_id}' abierta."}
 
-    except OSError as error:
+    except OSError:
         return {
             "success": False,
             "app": app_id,
             "message": f"No he podido abrir '{app_id}'.",
-            "error": str(error),
         }

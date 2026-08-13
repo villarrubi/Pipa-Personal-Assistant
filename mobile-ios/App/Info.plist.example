@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>Pipα</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Pipα necesita conectar con tu PC en la red local para ejecutar comandos que tú confirmes.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Pipα usa el micrófono solo para preparar localmente un comando dictado.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Pipα convierte tu voz en texto en el dispositivo para que puedas revisarlo antes de enviarlo.</string>
+</dict>
+</plist>

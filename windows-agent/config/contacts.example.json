@@ -1,0 +1,8 @@
+{
+  "persona-ejemplo": {
+    "aliases": ["persona ejemplo"],
+    "whatsapp_phone": "+34600000000",
+    "discord_channel_id": "12345678901234567",
+    "discord_guild_id": "98765432109876543"
+  }
+}

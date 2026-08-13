@@ -1,13 +1,25 @@
-"""In-memory timers that can be polled by a future device client."""
+"""In-memory timers that can be polled by a device client."""
 
 from __future__ import annotations
 
+import re
 import secrets
 import threading
 import time
 from dataclasses import dataclass
 
 MAX_TIMER_SECONDS = 7 * 24 * 60 * 60
+MAX_ACTIVE_TIMERS = 128
+MAX_TIMER_RECORDS = 256
+_TIMER_ID = re.compile(r"^[A-Za-z0-9_-]{1,32}$")
+
+
+def validate_timer_id(timer_id: str) -> str:
+    """Validate the opaque ID before it reaches a route or dictionary lookup."""
+
+    if not isinstance(timer_id, str) or _TIMER_ID.fullmatch(timer_id) is None:
+        raise ValueError("El identificador del temporizador no es válido.")
+    return timer_id
 
 
 @dataclass
@@ -61,6 +73,10 @@ class TimerManager:
             _timer=timer,
         )
         with self._lock:
+            self._prune_completed_locked()
+            active_count = sum(record.status == "pending" for record in self._timers.values())
+            if active_count >= MAX_ACTIVE_TIMERS:
+                raise ValueError(f"No puede haber más de {MAX_ACTIVE_TIMERS} temporizadores activos.")
             self._timers[timer_id] = record
         timer.start()
         return record.as_dict()
@@ -70,6 +86,7 @@ class TimerManager:
             return [record.as_dict() for record in self._timers.values()]
 
     def cancel(self, timer_id: str) -> dict[str, object]:
+        timer_id = validate_timer_id(timer_id)
         with self._lock:
             record = self._timers.get(timer_id)
             if record is None:
@@ -84,3 +101,12 @@ class TimerManager:
             record = self._timers.get(timer_id)
             if record is not None and record.status == "pending":
                 record.status = "fired"
+
+    def _prune_completed_locked(self) -> None:
+        if len(self._timers) <= MAX_TIMER_RECORDS:
+            return
+        completed = [
+            timer_id for timer_id, record in self._timers.items() if record.status in {"fired", "cancelled"}
+        ]
+        for timer_id in completed[: len(self._timers) - MAX_TIMER_RECORDS]:
+            del self._timers[timer_id]

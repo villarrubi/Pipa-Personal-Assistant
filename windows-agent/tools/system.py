@@ -34,8 +34,8 @@ def lock_pc():
 
         return {"success": True, "message": "Orden de bloqueo enviada."}
 
-    except Exception as error:
-        return {"success": False, "message": "No he podido bloquear el ordenador.", "error": str(error)}
+    except Exception:
+        return {"success": False, "message": "No he podido bloquear el ordenador."}
 
 
 def get_power_status():

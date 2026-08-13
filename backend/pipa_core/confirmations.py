@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from typing import Any
 
 DEFAULT_CONFIRMATION_TTL = 30
+MAX_PENDING_CONFIRMATIONS = 128
+MAX_PENDING_PER_OWNER = 4
 
 
 @dataclass(frozen=True)
@@ -21,15 +23,19 @@ class PendingConfirmation:
     summary: str
     created_at: int
     expires_at: int
+    call_id: str | None = None
 
     def as_dict(self) -> dict[str, object]:
-        return {
+        result: dict[str, object] = {
             "confirmation_id": self.confirmation_id,
             "tool_name": self.tool_name,
             "summary": self.summary,
             "created_at": self.created_at,
             "expires_at": self.expires_at,
         }
+        if self.call_id is not None:
+            result["call_id"] = self.call_id
+        return result
 
 
 class ConfirmationError(ValueError):
@@ -51,7 +57,16 @@ class ConfirmationManager:
         summary: str,
         *,
         owner_id: str | None = None,
+        call_id: str | None = None,
     ) -> PendingConfirmation:
+        if not isinstance(summary, str) or not summary.strip():
+            raise ConfirmationError("confirmation summary must not be empty")
+        if call_id is not None and (
+            not isinstance(call_id, str) or not call_id.strip() or len(call_id) > 128
+        ):
+            raise ConfirmationError("confirmation call_id is invalid")
+        if len(summary) > 240:
+            summary = summary[:240]
         now = int(time.time())
         record = PendingConfirmation(
             confirmation_id=secrets.token_urlsafe(12),
@@ -61,9 +76,16 @@ class ConfirmationManager:
             summary=summary[:240],
             created_at=now,
             expires_at=now + self._ttl_seconds,
+            call_id=call_id,
         )
         with self._lock:
             self._prune(now)
+            if len(self._pending) >= MAX_PENDING_CONFIRMATIONS:
+                raise ConfirmationError("too many pending confirmations")
+            if owner_id is not None:
+                owned = sum(record.owner_id == owner_id for record in self._pending.values())
+                if owned >= MAX_PENDING_PER_OWNER:
+                    raise ConfirmationError("too many pending confirmations for this session")
             self._pending[record.confirmation_id] = record
         return record
 
@@ -77,14 +99,25 @@ class ConfirmationManager:
         timestamp = int(time.time() if now is None else now)
         with self._lock:
             record = self._pending.get(confirmation_id)
-            if record is None or timestamp > record.expires_at:
+            if record is None or timestamp >= record.expires_at:
                 raise ConfirmationError("confirmation is missing or expired")
             if record.owner_id is not None and record.owner_id != owner_id:
                 raise ConfirmationError("confirmation belongs to another session")
             del self._pending[confirmation_id]
             return record
 
+    def cancel_for_owner(self, owner_id: str) -> int:
+        """Invalidate every outstanding action owned by a disconnected session."""
+
+        if not isinstance(owner_id, str) or not owner_id:
+            return 0
+        with self._lock:
+            cancelled = [key for key, record in self._pending.items() if record.owner_id == owner_id]
+            for key in cancelled:
+                del self._pending[key]
+            return len(cancelled)
+
     def _prune(self, now: int) -> None:
-        expired = [key for key, record in self._pending.items() if record.expires_at < now]
+        expired = [key for key, record in self._pending.items() if record.expires_at <= now]
         for key in expired:
             del self._pending[key]

@@ -1,14 +1,26 @@
+import io
 import sys
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from trusted_unlock_admin import (  # noqa: E402
+    _normalize_public_key_option,
+    build_parser,
+    normalize_fingerprint,
+    verify_expected_fingerprint,
+)
+from trusted_unlock_admin import main as trusted_unlock_admin_main  # noqa: E402
 from trusted_unlock_devices import (  # noqa: E402
+    MOBILE_REGISTRY_PATH,
+    REGISTRY_PATH,
     DeviceAlreadyRegisteredError,
     DeviceNotFoundError,
+    DeviceStoreError,
     InMemoryDeviceStore,
     public_key_fingerprint,
     public_key_to_base64,
@@ -69,6 +81,60 @@ class TrustedUnlockDeviceStoreTests(unittest.TestCase):
 
         self.assertEqual(len(fingerprint), 95)
         self.assertTrue(all(char in "0123456789ABCDEF:" for char in fingerprint))
+
+    def test_admin_fingerprint_command_is_read_only(self):
+        encoded = public_key_to_base64(self.private_key.public_key())
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            result = trusted_unlock_admin_main(["fingerprint", "--public-key", encoded])
+
+        self.assertEqual(result, 0)
+        self.assertIn("Fingerprint:", output.getvalue())
+
+    def test_public_key_option_accepts_a_leading_dash(self):
+        normalized = _normalize_public_key_option(["fingerprint", "--public-key", "-abc_"])
+
+        self.assertEqual(normalized, ["fingerprint", "--public-key=-abc_"])
+
+    def test_mobile_registry_path_is_separate_from_trusted_unlock(self):
+        self.assertNotEqual(MOBILE_REGISTRY_PATH, REGISTRY_PATH)
+        self.assertEqual(MOBILE_REGISTRY_PATH, r"SOFTWARE\Pipa\Mobile\Devices")
+
+    def test_mobile_pairing_commands_are_explicit(self):
+        parser = build_parser()
+
+        pair = parser.parse_args(
+            [
+                "pair-mobile",
+                "--device-id",
+                "iphone-main",
+                "--public-key",
+                "public-key",
+                "--expected-fingerprint",
+                "00" * 32,
+            ]
+        )
+        revoke = parser.parse_args(["revoke-mobile", "--device-id", "iphone-main", "--yes"])
+        listing = parser.parse_args(["list-mobile"])
+
+        self.assertEqual(pair.command, "pair-mobile")
+        self.assertEqual(revoke.command, "revoke-mobile")
+        self.assertEqual(listing.command, "list-mobile")
+
+    def test_pair_fingerprint_check_accepts_human_format_variants(self):
+        encoded = public_key_to_base64(self.private_key.public_key())
+        actual = public_key_fingerprint(encoded)
+
+        self.assertEqual(normalize_fingerprint(actual.replace(":", "").lower()), actual)
+        self.assertEqual(verify_expected_fingerprint(encoded, actual), actual)
+
+    def test_pair_fingerprint_check_rejects_before_registry_write(self):
+        encoded = public_key_to_base64(self.private_key.public_key())
+
+        with self.assertRaises(DeviceStoreError):
+            verify_expected_fingerprint(encoded, "00" * 32)
+        self.assertEqual(self.store.list_devices(), [])
 
 
 if __name__ == "__main__":

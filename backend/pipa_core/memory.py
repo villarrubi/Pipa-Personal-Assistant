@@ -7,6 +7,7 @@ from collections import defaultdict
 
 MAX_FACT_LENGTH = 500
 MAX_FACTS_PER_DEVICE = 100
+MAX_MEMORY_DEVICES = 256
 
 
 class MemoryStore:
@@ -19,6 +20,8 @@ class MemoryStore:
             raise ValueError(f"fact debe tener entre 1 y {MAX_FACT_LENGTH} caracteres")
         normalized = fact.strip()
         with self._lock:
+            if device_id not in self._facts and len(self._facts) >= MAX_MEMORY_DEVICES:
+                raise ValueError(f"memory only supports {MAX_MEMORY_DEVICES} devices")
             facts = self._facts[device_id]
             if normalized not in facts:
                 facts.append(normalized)

@@ -9,25 +9,45 @@
 #else
 #include "pipa_device_config.h"
 #endif
+#include "board_pins.h"
 #include "pipa_protocol.h"
+#include "pipa_secure_session.h"
+#include "pipa_secure_protocol.h"
+#include "pipa_display.h"
+#include "pipa_audio.h"
+#include "pipa_power.h"
 #include "wake_on_lan.h"
 
 namespace {
 
-constexpr int kTouchSda = 1;
-constexpr int kTouchScl = 3;
 constexpr uint32_t kTouchDebounceMs = 800;
 constexpr uint32_t kWolCooldownMs = 10000;
 constexpr uint32_t kWifiRetryMs = 30000;
+constexpr uint32_t kPowerSampleMs = 30000;
 
 pipa::DeviceIdentity identity;
+#if PIPA_SECURE_SESSION_ENABLED
+pipa::PipaSecureProtocol protocol(
+    Serial,
+    identity,
+    PIPA_DEVICE_ID,
+    PIPA_FIRMWARE_VERSION,
+    PIPA_SECURE_SERVER_ID,
+    PIPA_SECURE_SERVER_PUBLIC_KEY);
+#else
 pipa::PipaProtocol protocol(Serial, identity, PIPA_DEVICE_ID, PIPA_FIRMWARE_VERSION);
+#endif
+pipa::Tca9554 io_expander;
 WiFiUDP udp;
 pipa::WakeOnLan wake_on_lan(udp);
 pipa::Cst816Touch touch;
+pipa::PipaDisplay display;
+pipa::PipaAudio audio;
+pipa::PipaPower power;
 uint32_t last_touch = 0;
 uint32_t last_wol = 0;
 uint32_t last_wifi_attempt = 0;
+uint32_t last_power_sample = 0;
 bool wifi_online = false;
 bool firmware_ready = false;
 
@@ -68,6 +88,14 @@ void maintainWifi() {
   }
 }
 
+void maintainPower() {
+  const uint32_t now = millis();
+  if (last_power_sample != 0 && now - last_power_sample < kPowerSampleMs) return;
+  last_power_sample = now;
+  power.update();
+  protocol.setBatteryPercent(power.batteryPercent());
+}
+
 void maybeWakePc() {
   if (WiFi.status() != WL_CONNECTED) {
     log("Wake-on-LAN ignored: Wi-Fi offline");
@@ -83,7 +111,11 @@ void pollTouch() {
   if (!touch.read(point) || (last_touch != 0 && millis() - last_touch < kTouchDebounceMs)) return;
   last_touch = millis();
   if (protocol.authenticated()) {
-    protocol.sendGesture("tap");
+    if (protocol.ui().state == "confirm") {
+      protocol.sendConfirmation(true);
+    } else {
+      protocol.sendGesture("tap");
+    }
   } else {
     maybeWakePc();
   }
@@ -95,6 +127,13 @@ void setup() {
   Serial.begin(115200);
   delay(500);
   log(String("Pipa firmware ") + PIPA_FIRMWARE_VERSION + " starting");
+  log(String("board revision: ") + PIPA_BOARD_REVISION);
+
+#if defined(PIPA_SECURE_SESSION_VECTOR_TEST)
+  log(pipa::PipaSecureSession::vectorSelfTest()
+          ? "secure session vector: PASS"
+          : "secure session vector: FAIL");
+#endif
 
   if (!identity.begin()) {
     log("FATAL: device identity could not be loaded or created");
@@ -102,10 +141,29 @@ void setup() {
   }
   log(String("PIPA_PUBLIC_KEY=") + identity.publicKeyBase64Url());
 
-  protocol.begin();
   startWifiConnection();
-  Wire.begin(kTouchSda, kTouchScl);
-  log(touch.begin(Wire) ? "touch controller ready" : "touch controller unavailable");
+  Wire.begin(pipa::board::kI2cSda, pipa::board::kI2cScl);
+  const bool expander_ready = io_expander.begin(Wire);
+  log(expander_ready ? "IO expander ready" : "IO expander unavailable");
+  const bool display_ready = display.begin(expander_ready ? &io_expander : nullptr);
+  log(display_ready ? "display ready" : "display unavailable");
+  const bool audio_probe_ready = audio.begin(Wire);
+  const auto& audio_status = audio.status();
+  log(audio_probe_ready ? "audio codec probe ready" : "audio codecs not detected");
+  log(String("audio output ES8311: ") + (audio_status.output_codec_present ? "present" : "absent"));
+  log(String("audio input ES7210: ") + (audio_status.input_codec_present ? "present" : "absent"));
+  const bool power_ready = power.begin();
+  log(power_ready ? "battery ADC ready" : "battery ADC unavailable for this board revision");
+  protocol.setBatteryPercent(power.batteryPercent());
+  const bool touch_ready = touch.begin(
+      Wire,
+      0x15,
+      expander_ready ? &io_expander : nullptr,
+      pipa::board::kTouchResetExpander,
+      pipa::board::kTouchInterrupt);
+  log(touch_ready ? "touch controller ready" : "touch controller unavailable");
+  protocol.setHardwareCapabilities(display_ready, touch_ready, audio_probe_ready);
+  protocol.begin();
   firmware_ready = true;
 }
 
@@ -115,7 +173,9 @@ void loop() {
     return;
   }
   protocol.poll();
+  display.render(protocol.ui());
   maintainWifi();
+  maintainPower();
   pollTouch();
   delay(10);
 }

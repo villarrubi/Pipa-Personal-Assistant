@@ -32,6 +32,19 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(message.fields["firmware_version"], "0.2.0")
         self.assertEqual(message.fields["capabilities"], ["touch", "wol"])
 
+    def test_parses_encrypted_device_metadata_announcement(self):
+        message = parse_client_message(
+            {
+                "protocol_version": 1,
+                "type": "device_hello",
+                "firmware_version": "0.2.0",
+                "capabilities": ["display", "touch"],
+            }
+        )
+
+        self.assertEqual(message.fields["firmware_version"], "0.2.0")
+        self.assertEqual(message.fields["capabilities"], ["display", "touch"])
+
     def test_rejects_duplicate_capabilities(self):
         with self.assertRaises(ProtocolError):
             parse_client_message(
@@ -42,6 +55,16 @@ class ProtocolTests(unittest.TestCase):
                     "challenge_id": "challenge",
                     "signature": "signature",
                     "capabilities": ["touch", "touch"],
+                }
+            )
+
+    def test_capabilities_reject_control_characters(self):
+        with self.assertRaises(ProtocolError):
+            parse_client_message(
+                {
+                    "protocol_version": 1,
+                    "type": "device_hello",
+                    "capabilities": ["display\n"],
                 }
             )
 
@@ -63,9 +86,25 @@ class ProtocolTests(unittest.TestCase):
                 {"protocol_version": 1, "type": "text_input", "text": "pausa", "source": "remote-shell"}
             )
 
+    def test_catalog_request_has_no_extra_fields(self):
+        message = parse_client_message({"protocol_version": 1, "type": "catalog_request"})
+
+        self.assertEqual(message.type, "catalog_request")
+
+        with self.assertRaises(ProtocolError):
+            parse_client_message({"protocol_version": 1, "type": "catalog_request", "query": "private"})
+
     def test_text_source_must_be_string(self):
         with self.assertRaises(ProtocolError):
             parse_client_message({"protocol_version": 1, "type": "text_input", "text": "hola", "source": []})
+
+    def test_text_fields_reject_control_characters_at_the_protocol_boundary(self):
+        for text in ("hola\ncomando", "hola\x00comando", "hola\x7fcomando"):
+            with self.subTest(text=repr(text)):
+                with self.assertRaises(ProtocolError):
+                    parse_client_message(
+                        {"protocol_version": 1, "type": "text_input", "text": text, "source": "mobile"}
+                    )
 
     def test_unknown_fields_are_rejected(self):
         with self.assertRaises(ProtocolError):
@@ -95,6 +134,17 @@ class ProtocolTests(unittest.TestCase):
         with self.assertRaises(ProtocolError):
             parse_client_message(
                 {"protocol_version": 1, "type": "confirm", "confirmation_id": "x", "accepted": "yes"}
+            )
+
+    def test_tool_arguments_have_a_bounded_json_size(self):
+        with self.assertRaises(ProtocolError):
+            parse_client_message(
+                {
+                    "protocol_version": 1,
+                    "type": "tool_call",
+                    "name": "open_url",
+                    "arguments": {"url": "x" * 5000},
+                }
             )
 
 

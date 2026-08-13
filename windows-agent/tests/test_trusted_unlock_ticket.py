@@ -2,6 +2,7 @@ import sys
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -52,7 +53,13 @@ class TrustedUnlockTicketTests(unittest.TestCase):
         ticket = self.issuer.issue(authorization, now=1001, ttl_seconds=2)
 
         with self.assertRaises(ExpiredTicketError):
-            self.issuer.consume(ticket.token, now=1004)
+            self.issuer.consume(ticket.token, now=1003)
+
+    def test_ticket_cannot_be_issued_at_authorization_expiry(self):
+        authorization = replace(self._authorized(), expires_at=1001)
+
+        with self.assertRaises(ExpiredTicketError):
+            self.issuer.issue(authorization, now=1001)
 
     def test_ticket_cannot_be_used_for_another_operation(self):
         authorization = self._authorized()
@@ -70,6 +77,17 @@ class TrustedUnlockTicketTests(unittest.TestCase):
 
         with self.assertRaises(TicketOperationError):
             self.issuer.issue(authorization, now=1001)
+
+    def test_consumed_ticket_cache_is_bounded_and_replay_stays_rejected(self):
+        with patch("trusted_unlock_ticket.MAX_CONSUMED_TICKETS", 1):
+            first = self.issuer.issue(self._authorized(), now=1001)
+            self.issuer.consume(first.token, now=1002)
+            second = self.issuer.issue(self._authorized(), now=1001)
+            self.issuer.consume(second.token, now=1002)
+
+            self.assertEqual(len(self.issuer._consumed), 1)
+            with self.assertRaises(UnknownTicketError):
+                self.issuer.consume(first.token, now=1002)
 
 
 if __name__ == "__main__":
