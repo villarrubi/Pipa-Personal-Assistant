@@ -298,6 +298,12 @@ compilaciones del firmware; con `-RequireHardware` convierte la ausencia de
 Para las comprobaciones Python usa primero `windows-agent/.venv` si existe y
 solo recurre al `python` del `PATH` cuando no hay ese entorno local.
 
+Si el resultado muestra `Programador inaccesible` pero el agente aparece como
+`online`, el proceso está funcionando y el único dato no verificado es la tarea
+de inicio. Ejecuta el diagnóstico desde una PowerShell con permisos suficientes
+para consultar el Programador de tareas; no desactives la comprobación ni
+instales una tarea con privilegios elevados para ocultar ese aviso.
+
 ## Cuando llegue el Waveshare
 
 La secuencia operativa detallada está en
