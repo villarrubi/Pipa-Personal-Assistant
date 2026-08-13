@@ -50,7 +50,10 @@ public extension PipaMobileCommand {
     /// Convert the visible form into the registered tool's typed arguments.
     /// Commands from older agents without parameter metadata keep using text.
     func toolArguments(with values: [String: String]) -> [String: Any]? {
-        guard !parameters.isEmpty, parameters.count == placeholders.count else { return nil }
+        guard supportsStructuredArguments, parameters.count == placeholders.count else { return nil }
+        if parameters.isEmpty {
+            return values.isEmpty ? [:] : nil
+        }
         var arguments: [String: Any] = [:]
         for (index, parameter) in parameters.enumerated() {
             let placeholder = placeholders[index]

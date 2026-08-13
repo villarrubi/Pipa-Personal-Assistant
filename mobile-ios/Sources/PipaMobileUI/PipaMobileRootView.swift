@@ -254,8 +254,10 @@ public struct PipaMobileRootView: View {
                             }
                         }
                         Spacer(minLength: 4)
-                        Button("Usar") {
-                            if command.placeholders.isEmpty {
+                        Button(commandCanExecuteDirectly(command) ? "Ejecutar" : "Usar") {
+                            if commandCanExecuteDirectly(command) {
+                                model.sendStructuredCommand(command, values: [:])
+                            } else if command.placeholders.isEmpty {
                                 model.useCommand(command)
                             } else {
                                 commandToEdit = command
@@ -267,5 +269,9 @@ public struct PipaMobileRootView: View {
                 }
             }
         }
+    }
+
+    private func commandCanExecuteDirectly(_ command: PipaMobileCommand) -> Bool {
+        command.supportsStructuredArguments && command.placeholders.isEmpty
     }
 }

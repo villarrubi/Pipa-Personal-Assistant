@@ -107,6 +107,7 @@ class IntegrationTests(unittest.TestCase):
         )
         self.assertIn("sin escribir", commands["open_codex"]["description"])
         self.assertIn("reproductor multimedia activo", commands["media_play_pause"]["description"])
+        self.assertEqual(commands["discord_open_app"]["parameters"], [])
         self.assertEqual(
             commands["whatsapp_compose"]["parameters"],
             [

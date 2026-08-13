@@ -94,6 +94,9 @@ public struct PipaMobileCommand: Identifiable {
     public let safety: String
     public let requiresConfirmation: Bool
     public let parameters: [PipaMobileCommandParameter]
+    /// An empty explicit list is meaningful for direct no-argument calls.
+    /// Missing metadata keeps the legacy text-editor path for old agents.
+    public let supportsStructuredArguments: Bool
 
     init?(payload: [String: Any]) {
         guard payload.keys.allSatisfy({
@@ -123,8 +126,9 @@ public struct PipaMobileCommand: Identifiable {
         }
 
         let parameters: [PipaMobileCommandParameter]
-        if let rawParameters = payload["parameters"] {
-            guard let rawList = rawParameters as? [[String: Any]],
+        let supportsStructuredArguments: Bool
+        if payload.keys.contains("parameters") {
+            guard let rawList = payload["parameters"] as? [[String: Any]],
                   rawList.count <= 8 else {
                 return nil
             }
@@ -134,8 +138,10 @@ public struct PipaMobileCommand: Identifiable {
                 return nil
             }
             parameters = parsed
+            supportsStructuredArguments = true
         } else {
             parameters = []
+            supportsStructuredArguments = false
         }
 
         self.id = id
@@ -145,6 +151,7 @@ public struct PipaMobileCommand: Identifiable {
         self.safety = safety
         self.requiresConfirmation = requiresConfirmation
         self.parameters = parameters
+        self.supportsStructuredArguments = supportsStructuredArguments
     }
 }
 

@@ -429,4 +429,10 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
 def get_command_catalog() -> list[dict[str, Any]]:
     """Return fresh JSON-safe command descriptors for a local UI."""
 
-    return deepcopy(_COMMANDS)
+    commands = deepcopy(_COMMANDS)
+    # An explicit empty list advertises that a no-argument action supports
+    # the structured tool path. Older agents that omit this field still use
+    # the text-editor fallback in compatible clients.
+    for command in commands:
+        command.setdefault("parameters", [])
+    return commands

@@ -46,10 +46,13 @@ activo, WhatsApp requiere pulsar `Enviar` y Discord requiere iniciar la llamada.
 Esa matriz contiene solo flags y textos acotados, nunca configuración del PC.
 
 La lista de comandos incluye un botón `Usar` para preparar una frase sin
-enviarla. Si la frase tiene marcadores (`<consulta>`, `<teléfono>`,
+enviarla. Las acciones actuales sin parámetros muestran `Ejecutar` y usan el
+camino estructurado cifrado; las acciones peligrosas siguen deteniéndose en
+la confirmación visible. Si la frase tiene marcadores (`<consulta>`, `<teléfono>`,
 `<mensaje>`, `<cola>`, etc.), la UI abre un formulario local y muestra una
 vista previa acotada; después copia el resultado al editor para que la persona
-lo revise y lo envíe explícitamente. El formulario nunca ejecuta el comando.
+lo revise y lo envíe explícitamente. El formulario solo ejecuta cuando se pulsa
+su botón explícito de acción estructurada.
 
 Cuando el agente publica metadatos `parameters`, ese mismo formulario ofrece
 también `Enviar acción estructurada`: valida localmente tipos, límites y

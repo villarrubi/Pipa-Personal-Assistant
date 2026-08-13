@@ -173,6 +173,37 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertEqual(arguments?["channel_id"] as? String, "12345678901234567")
     }
 
+    func testNoArgumentCatalogCommandCanUseStructuredExecution() throws {
+        let command = try XCTUnwrap(
+            PipaMobileCommand(payload: [
+                "id": "discord_open_app",
+                "tool_name": "discord_open_app",
+                "phrase": "abre Discord",
+                "description": "Abre Discord.",
+                "safety": "unsafe",
+                "requires_confirmation": true,
+                "parameters": [],
+            ])
+        )
+
+        XCTAssertTrue(command.supportsStructuredArguments)
+        XCTAssertEqual(command.toolArguments(with: [:])?.count, 0)
+        XCTAssertNil(command.toolArguments(with: ["unexpected": "value"]))
+
+        let legacyCommand = try XCTUnwrap(
+            PipaMobileCommand(payload: [
+                "id": "discord_open_app",
+                "tool_name": "discord_open_app",
+                "phrase": "abre Discord",
+                "description": "Abre Discord.",
+                "safety": "unsafe",
+                "requires_confirmation": true,
+            ])
+        )
+        XCTAssertFalse(legacyCommand.supportsStructuredArguments)
+        XCTAssertNil(legacyCommand.toolArguments(with: [:]))
+    }
+
     func testStructuredCatalogCommandRejectsMalformedParameterMetadata() {
         let command = PipaMobileCommand(payload: [
             "id": "bad",

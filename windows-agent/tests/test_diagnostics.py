@@ -28,6 +28,7 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertEqual(result["checks"]["command_routes"]["recognized_commands"], 47)
         self.assertEqual(result["checks"]["command_routes"]["confirmation_gated_commands"], 30)
         self.assertEqual(result["checks"]["command_routes"]["structured_commands"], 16)
+        self.assertGreater(result["checks"]["command_routes"]["direct_structured_commands"], 0)
         self.assertEqual(result["checks"]["command_routes"]["unpublished_tools"], 0)
         self.assertTrue(result["checks"]["secure_session"]["ok"])
         self.assertTrue(result["checks"]["mobile_protocol"]["ok"])

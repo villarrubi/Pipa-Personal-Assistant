@@ -241,6 +241,7 @@ def _check_command_routes() -> dict[str, Any]:
     public_ids: set[str] = set()
     public_tool_names: set[str] = set()
     structured_commands = 0
+    direct_structured_commands = 0
     for command in public_commands:
         if not isinstance(command, dict):
             raise ValueError("public command catalog contains a non-object")
@@ -260,7 +261,9 @@ def _check_command_routes() -> dict[str, Any]:
                 raise ValueError("structured catalog parameters do not match phrase placeholders")
             structured_commands += 1
         elif parameters is not None:
-            raise ValueError("catalog exposes parameters without phrase placeholders")
+            if not isinstance(parameters, list) or parameters:
+                raise ValueError("catalog exposes invalid parameters without phrase placeholders")
+            direct_structured_commands += 1
         public_ids.add(command_id)
         public_tool_names.add(tool_name)
         try:
@@ -292,6 +295,7 @@ def _check_command_routes() -> dict[str, Any]:
         "confirmation_gated_commands": confirmation_count,
         "catalog_commands": len(public_commands),
         "structured_commands": structured_commands,
+        "direct_structured_commands": direct_structured_commands,
         "unpublished_tools": 0,
         "external_actions_executed": False,
     }

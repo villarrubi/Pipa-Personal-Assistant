@@ -119,9 +119,12 @@ textos cortas. No se permiten objetos anidados, números, rutas, IDs, URLs,
 tokens, teléfonos, contactos ni resultados del adaptador. El teléfono ignora
 integraciones desconocidas y muestra únicamente las que reconoce.
 
-Los comandos con argumentos pueden incluir además una lista `parameters` de
-metadatos no sensibles. Cada entrada solo contiene `name`, `label`, `kind`,
-`max_length` y, opcionalmente, una lista corta de `options` allowlisted:
+Los comandos pueden incluir además una lista `parameters` de metadatos no
+sensibles. Una lista vacía significa que la acción no tiene argumentos y puede
+ejecutarse directamente por el cliente actual; si el campo falta, el cliente
+conserva el camino compatible de frase libre. Cada entrada solo contiene
+`name`, `label`, `kind`, `max_length` y, opcionalmente, una lista corta de
+`options` allowlisted:
 
 ```json
 {
