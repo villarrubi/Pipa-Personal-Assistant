@@ -72,13 +72,33 @@ jobs:
       - name: Install PlatformIO
         run: python -m pip install platformio==6.1.19
       - name: Compile Waveshare firmware
-        run: pio run -d firmware -e waveshare-185c
-      - name: Compile V1 compatibility map
-        run: pio run -d firmware -e waveshare-185c-v1
-      - name: Compile secure session variant
-        run: pio run -d firmware -e secure-session-v2
-      - name: Compile deterministic secure-session vector
-        run: pio run -d firmware -e secure-session-vector
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_pio_with_retry() {
+            local environment="$1"
+            local attempt
+
+            for attempt in 1 2 3; do
+              echo "PlatformIO: entorno ${environment}, intento ${attempt}/3"
+              if pio run -d firmware -e "${environment}"; then
+                return 0
+              fi
+
+              if [ "${attempt}" -lt 3 ]; then
+                sleep $((attempt * 15))
+              fi
+            done
+
+            echo "PlatformIO: el entorno ${environment} ha fallado tras 3 intentos" >&2
+            return 1
+          }
+
+          run_pio_with_retry waveshare-185c
+          run_pio_with_retry waveshare-185c-v1
+          run_pio_with_retry secure-session-v2
+          run_pio_with_retry secure-session-vector
 
   swift-package:
     name: Swift mobile core tests
