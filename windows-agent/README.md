@@ -301,8 +301,9 @@ Valida además que la identidad protegida pueda cargarse con el `server_id`
 configurado. Si el modo TCP
 está activado, lee de forma no destructiva si existe algún dispositivo móvil
 emparejado y falla ante una configuración parcial, wildcard, IP pública, puerto
-inválido, ausencia de la identidad protegida o ausencia de emparejamiento. No
-devuelve IDs ni claves del almacén.
+inválido, una IP privada que no esté asignada a este PC, ausencia de la identidad
+protegida o ausencia de emparejamiento. No devuelve IDs, interfaces ni claves
+del almacén.
 
 Cuando llegue el iPhone, el firewall se puede preparar de forma explícita
 desde una consola elevada. Primero usa `-WhatIf`; la regla queda limitada a la

@@ -77,6 +77,9 @@ class IntegrationTests(unittest.TestCase):
                 "league_cancel",
                 "audio_volume",
                 "media_action",
+                "media_play_pause",
+                "media_next",
+                "media_previous",
                 "timer_create",
                 "timer_list",
                 "timer_cancel",
@@ -95,6 +98,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn("llamada", commands["discord_contact"]["description"])
         self.assertIn("manualmente", commands["discord_call"]["description"])
         self.assertIn("sin escribir", commands["open_codex"]["description"])
+        self.assertIn("reproductor multimedia activo", commands["media_play_pause"]["description"])
 
     @patch("tools.capabilities.find_client_connection", side_effect=LeagueClientError("not ready"))
     def test_capabilities_are_explicit_about_manual_final_steps(self, find_client):

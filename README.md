@@ -106,6 +106,9 @@ que las solicitó y caducan si no se confirman.
 - Ejecutar `python .\windows-agent\pipa_cli.py mobile-config` para validar la
   configuración móvil sin abrir puertos, modificar el firewall ni modificar claves;
   también valida que la identidad DPAPI corresponda al `server_id` configurado.
+  Si el transporte está activado, comprueba además que la IP privada configurada
+  esté asignada realmente a este PC; una dirección privada de otro equipo se
+  rechaza antes de reiniciar el agente.
 - Preparar, solo cuando llegue el iPhone, una regla de firewall restringida con
   `scripts/configure_mobile_firewall.ps1 -WhatIf` antes de aplicarla.
 - Preparar la configuración de transporte móvil sin escribirla a mano con
@@ -158,8 +161,10 @@ después de elegirla, `reproduce la canción seleccionada`, además de preparar 
 mensaje de WhatsApp sin enviarlo —por ejemplo `abre WhatsApp con mama y escribe
 Hola`—, consultar el estado de League y cancelar una búsqueda con confirmación.
 Desde una sesión autenticada, las acciones externas requieren confirmación y las
-interfaces que puedan enviar, llamar o reproducir siguen requiriendo la acción
-final del usuario.
+interfaces que puedan enviar o llamar siguen requiriendo la acción final del
+usuario. Tras seleccionar una canción, el catálogo móvil ofrece reproducir/pausar
+y pasar de pista mediante el reproductor multimedia activo; no selecciona una
+pista ni garantiza que Apple Music sea el reproductor que tenga el foco.
 
 En Apple Music la búsqueda no selecciona ni inicia una pista automáticamente.
 Después de elegirla, `reproduce la canción seleccionada`, `reanuda la pista` y

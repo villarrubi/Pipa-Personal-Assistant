@@ -33,11 +33,12 @@ class MobileConfigTests(unittest.TestCase):
         self.assertGreaterEqual(len(result["issues"]), 2)
         self.assertFalse(result["listener_started"])
 
+    @patch("tools.mobile_config._is_local_bind_address", return_value=True)
     @patch("tools.mobile_config.default_secure_identity_path")
     @patch("tools.mobile_config.SecureIdentityStore")
     @patch("tools.mobile_config.WindowsRegistryMobileDeviceStore")
     def test_valid_private_configuration_reports_scope_without_starting(
-        self, device_store, identity_store, identity_path
+        self, device_store, identity_store, identity_path, _is_local
     ):
         identity_path.return_value = Path(__file__)
         device_store.return_value.trusted_public_keys.return_value = {"iphone-main": object()}
@@ -51,6 +52,7 @@ class MobileConfigTests(unittest.TestCase):
 
         self.assertTrue(result["success"])
         self.assertEqual(result["bind_scope"], "private")
+        self.assertTrue(result["bind_address_local"])
         self.assertTrue(result["identity_present"])
         self.assertTrue(result["identity_valid"])
         self.assertTrue(result["paired_devices_checked"])
@@ -58,10 +60,13 @@ class MobileConfigTests(unittest.TestCase):
         self.assertFalse(result["listener_started"])
         identity_store.return_value.load.assert_called_once_with("pipa-agent-v2")
 
+    @patch("tools.mobile_config._is_local_bind_address", return_value=True)
     @patch("tools.mobile_config.default_secure_identity_path", return_value=Path(__file__))
     @patch("tools.mobile_config.SecureIdentityStore")
     @patch("tools.mobile_config.WindowsRegistryMobileDeviceStore")
-    def test_valid_network_without_pairing_fails_closed(self, device_store, identity_store, _identity_path):
+    def test_valid_network_without_pairing_fails_closed(
+        self, device_store, identity_store, _identity_path, _is_local
+    ):
         device_store.return_value.trusted_public_keys.return_value = {}
         result = inspect_mobile_transport(
             {
@@ -77,11 +82,12 @@ class MobileConfigTests(unittest.TestCase):
         self.assertFalse(result["paired_devices_present"])
         self.assertIn("no hay dispositivos móviles emparejados", result["issues"])
 
+    @patch("tools.mobile_config._is_local_bind_address", return_value=True)
     @patch("tools.mobile_config.default_secure_identity_path", return_value=Path(__file__))
     @patch("tools.mobile_config.SecureIdentityStore")
     @patch("tools.mobile_config.WindowsRegistryMobileDeviceStore")
     def test_corrupt_identity_fails_closed_without_exposing_store_details(
-        self, device_store, identity_store, _identity_path
+        self, device_store, identity_store, _identity_path, _is_local
     ):
         identity_store.return_value.load.side_effect = SecureIdentityStoreError("private DPAPI detail")
         device_store.return_value.trusted_public_keys.return_value = {"iphone-main": object()}
@@ -99,6 +105,26 @@ class MobileConfigTests(unittest.TestCase):
         self.assertFalse(result["identity_valid"])
         self.assertIn("la identidad segura no se pudo validar", result["issues"])
         self.assertNotIn("private DPAPI detail", str(result))
+
+    @patch("tools.mobile_config._is_local_bind_address", return_value=False)
+    @patch("tools.mobile_config.default_secure_identity_path", return_value=Path(__file__))
+    @patch("tools.mobile_config.SecureIdentityStore")
+    @patch("tools.mobile_config.WindowsRegistryMobileDeviceStore")
+    def test_private_address_not_assigned_to_this_pc_fails_closed(
+        self, device_store, identity_store, _identity_path, _is_local
+    ):
+        device_store.return_value.trusted_public_keys.return_value = {"iphone-main": object()}
+        result = inspect_mobile_transport(
+            {
+                "PIPA_MOBILE_TRANSPORT": "tcp-v2",
+                "PIPA_MOBILE_BIND": "192.168.1.20",
+                "PIPA_MOBILE_PORT": "18765",
+            }
+        )
+
+        self.assertFalse(result["success"])
+        self.assertFalse(result["bind_address_local"])
+        self.assertIn("no está asignada", " ".join(result["issues"]))
 
 
 if __name__ == "__main__":

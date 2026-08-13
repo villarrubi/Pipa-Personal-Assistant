@@ -25,7 +25,7 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertFalse(result["checks"]["serial_gateway"]["configured"])
         self.assertFalse(result["checks"]["serial_gateway"]["connected"])
         self.assertFalse(result["checks"]["url_builders"]["external_actions_executed"])
-        self.assertEqual(result["checks"]["command_routes"]["recognized_commands"], 44)
+        self.assertEqual(result["checks"]["command_routes"]["recognized_commands"], 46)
         self.assertEqual(result["checks"]["command_routes"]["confirmation_gated_commands"], 29)
         self.assertEqual(result["checks"]["command_routes"]["unpublished_tools"], 0)
         self.assertTrue(result["checks"]["secure_session"]["ok"])

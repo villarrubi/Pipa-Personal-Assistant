@@ -11,10 +11,12 @@ from __future__ import annotations
 import ipaddress
 import os
 import re
+import socket
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+import psutil
 from secure_identity_store import SecureIdentityStore, SecureIdentityStoreError, default_secure_identity_path
 from secure_tcp_gateway import DEFAULT_SERVER_ID, validate_mobile_bind_host, validate_mobile_port
 from trusted_unlock_devices import DeviceStoreError, WindowsRegistryMobileDeviceStore
@@ -29,6 +31,29 @@ def _scope(value: str) -> str:
     if address.is_link_local:
         return "link_local"
     return "private"
+
+
+def _is_local_bind_address(value: str) -> bool:
+    """Return whether the configured IPv4 is assigned to this Windows host.
+
+    A syntactically private address is not enough: binding to a stale or
+    neighbouring machine address makes the mobile setup look enabled while
+    the agent can never listen on it.  The helper intentionally returns only
+    a boolean and never exposes interface names or other network metadata.
+    """
+
+    address = ipaddress.ip_address(value)
+    if address.is_loopback:
+        return True
+    try:
+        interfaces = psutil.net_if_addrs()
+    except (OSError, psutil.Error):
+        return False
+    for addresses in interfaces.values():
+        for item in addresses:
+            if item.family == socket.AF_INET and item.address == value:
+                return True
+    return False
 
 
 def inspect_mobile_transport(
@@ -53,12 +78,16 @@ def inspect_mobile_transport(
 
     bind_host = values.get("PIPA_MOBILE_BIND", "").strip()
     bind_scope = None
+    bind_address_local = False
     if not bind_host:
         issues.append("falta PIPA_MOBILE_BIND")
     else:
         try:
             validate_mobile_bind_host(bind_host)
             bind_scope = _scope(bind_host)
+            bind_address_local = _is_local_bind_address(bind_host)
+            if not bind_address_local:
+                issues.append("PIPA_MOBILE_BIND no está asignada a este PC")
         except ValueError:
             issues.append("PIPA_MOBILE_BIND no es una IP privada o loopback válida")
 
@@ -110,6 +139,7 @@ def inspect_mobile_transport(
         "enabled": True,
         "mode": mode,
         "bind_scope": bind_scope,
+        "bind_address_local": bind_address_local,
         "port_configured": port_configured,
         "identity_present": identity_present,
         "identity_valid": identity_valid,

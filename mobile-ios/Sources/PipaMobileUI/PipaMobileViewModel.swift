@@ -66,6 +66,7 @@ public struct PipaMobileIntegration: Identifiable {
     public let id: String
     public let title: String
     public let available: Bool
+    public let appConfigured: Bool
     public let detail: String
 
     init?(id: String, payload: [String: Any]) {
@@ -86,25 +87,34 @@ public struct PipaMobileIntegration: Identifiable {
         self.id = id
         self.title = title
         self.available = available
+        self.appConfigured = payload["app_configured"] as? Bool ?? false
         if !available {
             detail = "No configurado o no disponible en el PC."
         } else if id == "apple_music", payload["requires_manual_selection"] as? Bool == true {
             if payload["media_control"] as? Bool == true {
-                detail = "Busca y selecciona la pista; controla reproducción/pausa manualmente."
+                if appConfigured {
+                    detail = "App disponible; busca y selecciona la pista y controla reproducción/pausa manualmente."
+                } else {
+                    detail = "Apple Music Web disponible; busca y selecciona la pista y controla reproducción/pausa manualmente."
+                }
             } else {
                 detail = "Busca; selecciona y reproduce la pista manualmente."
             }
         } else if id == "whatsapp", payload["requires_manual_send"] as? Bool == true {
             if payload["contact_aliases_configured"] as? Bool == false {
-                detail = "Puedes usar un teléfono; no hay alias locales. Pulsa Enviar manualmente."
+                let target = appConfigured ? "App disponible" : "WhatsApp Web disponible"
+                detail = "\(target); puedes usar un teléfono. Pulsa Enviar manualmente."
             } else {
-                detail = "Prepara el chat; pulsa Enviar manualmente."
+                let target = appConfigured ? "App disponible" : "WhatsApp Web disponible"
+                detail = "\(target); prepara el chat y pulsa Enviar manualmente."
             }
         } else if id == "discord", payload["requires_manual_call"] as? Bool == true {
             if payload["contact_aliases_configured"] as? Bool == false {
-                detail = "Puedes usar un ID; no hay alias locales. Inicia la llamada manualmente."
+                let target = appConfigured ? "App disponible" : "Discord Web disponible"
+                detail = "\(target); puedes usar un ID. Inicia la llamada manualmente."
             } else {
-                detail = "Abre el canal; inicia la llamada manualmente."
+                let target = appConfigured ? "App disponible" : "Discord Web disponible"
+                detail = "\(target); abre el canal e inicia la llamada manualmente."
             }
         } else if id == "league", payload["client_ready"] as? Bool == false {
             detail = "El cliente está configurado, pero no está listo ahora."

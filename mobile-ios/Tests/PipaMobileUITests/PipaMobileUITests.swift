@@ -35,7 +35,12 @@ final class PipaMobileUITests: XCTestCase {
     func testIntegrationCapabilitiesShowOnlyCoarseManualActionStatus() {
         let music = PipaMobileIntegration(
             id: "apple_music",
-            payload: ["available": true, "requires_manual_selection": true, "media_control": true]
+            payload: [
+                "available": true,
+                "app_configured": false,
+                "requires_manual_selection": true,
+                "media_control": true,
+            ]
         )
         let league = PipaMobileIntegration(
             id: "league",
@@ -43,7 +48,11 @@ final class PipaMobileUITests: XCTestCase {
         )
 
         XCTAssertEqual(music?.title, "Apple Music")
-        XCTAssertEqual(music?.detail, "Busca y selecciona la pista; controla reproducción/pausa manualmente.")
+        XCTAssertEqual(
+            music?.detail,
+            "Apple Music Web disponible; busca y selecciona la pista y controla reproducción/pausa manualmente."
+        )
+        XCTAssertFalse(music?.appConfigured ?? true)
         XCTAssertEqual(league?.detail, "El cliente está configurado, pero no está listo ahora.")
         XCTAssertNil(PipaMobileIntegration(id: "unknown", payload: ["available": true]))
     }

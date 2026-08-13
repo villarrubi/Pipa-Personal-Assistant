@@ -59,6 +59,8 @@ _COMMAND_ROUTE_CASES = (
     ("reproduce la canción Daft Punk en Apple Music", "music_search", {"term": "Daft Punk"}),
     ("reproduce la canción seleccionada", "media_action", {"action": "play_pause"}),
     ("reanuda la pista", "media_action", {"action": "play_pause"}),
+    ("siguiente canción", "media_action", {"action": "next"}),
+    ("canción anterior", "media_action", {"action": "previous"}),
     ("abre WhatsApp", "whatsapp_open", {}),
     (
         "prepara WhatsApp para +34 600 123 456 y dile Hola",
@@ -240,8 +242,6 @@ def _check_command_routes() -> dict[str, Any]:
             raise ValueError("public command catalog contains invalid or duplicate IDs")
         if not isinstance(tool_name, str) or not tool_name.strip():
             raise ValueError("public command catalog contains an invalid tool name")
-        if tool_name in public_tool_names:
-            raise ValueError("public command catalog contains duplicate tool names")
         public_ids.add(command_id)
         public_tool_names.add(tool_name)
         try:
