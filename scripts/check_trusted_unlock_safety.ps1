@@ -69,15 +69,15 @@ foreach ($marker in @(
     }
 }
 if ($broker -match '(?i)Everyone|Authenticated Users|WorldSid|AF_INET|http\.server|socket\.socket') {
-    throw 'El broker no puede ampliar la ACL ni añadir un transporte de red.'
+    throw 'El broker no puede ampliar la ACL ni anadir un transporte de red.'
 }
 if ($brokerClient.IndexOf('if pipe_name != PIPE_NAME:', [System.StringComparison]::Ordinal) -lt 0 -or
     $brokerTests.IndexOf('rejects_non_local_pipe_names', [System.StringComparison]::Ordinal) -lt 0) {
-    throw 'El cliente del broker no conserva la validación de pipe fijo/local.'
+    throw 'El cliente del broker no conserva la validacion de pipe fijo/local.'
 }
 if ($brokerTests.IndexOf('16 * 1024 + 1', [System.StringComparison]::Ordinal) -lt 0 -or
     $brokerTests.IndexOf('ticket_replay', [System.StringComparison]::Ordinal) -lt 0) {
-    throw 'Las pruebas del broker no cubren límites y anti-replay.'
+    throw 'Las pruebas del broker no cubren limites y anti-replay.'
 }
 
 Write-Host 'Trusted Unlock seguro: provider, broker y pruebas mantienen el desbloqueo inerte.' -ForegroundColor Green
