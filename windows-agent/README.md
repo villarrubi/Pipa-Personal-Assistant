@@ -27,6 +27,11 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
 un segundo Pipα si ya responde y no muestra CMD. El log rotativo está en
 `%LOCALAPPDATA%\Pipa\logs\agent.log`.
 
+Al recargar, primero solicita un apagado gracioso. Si el proceso antiguo no
+responde, solo tras volver a verificar la línea exacta de `main.py` puede usar
+un cierre forzado sobre ese proceso Pipa; nunca usa el PID del puerto ni una
+coincidencia por nombre para detener procesos.
+
 Para recargar el código después de una actualización, el instalador lo hace
 automáticamente. También puede solicitarse de forma explícita:
 

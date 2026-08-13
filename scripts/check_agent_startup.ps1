@@ -34,6 +34,7 @@ $launcherPatterns = @(
     '-B "{0}"',
     'hasKnownInterpreter',
     'linea de comandos exacta',
+    'Stop-PipaProcessId -ProcessId ([int]$process.ProcessId) -Force',
     '127.0.0.1:8765',
     'sigue ocupado'
 )

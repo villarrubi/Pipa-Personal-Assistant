@@ -56,7 +56,8 @@ function Get-PipaLoopbackListenerProcessIds {
 
 function Stop-PipaProcessId {
     param(
-        [Parameter(Mandatory)] [int]$ProcessId
+        [Parameter(Mandatory)] [int]$ProcessId,
+        [switch]$Force
     )
 
     if ($ProcessId -le 0) {
@@ -76,7 +77,14 @@ function Stop-PipaProcessId {
         # The process may exit after the read and before Stop-Process. That is
         # an idempotent success; the caller rechecks the exact listener after
         # this function and still fails closed if it remains alive.
-        Stop-Process -Id ([int]$resolvedProcessId) -ErrorAction SilentlyContinue
+        $stopParameters = @{
+            Id = [int]$resolvedProcessId
+            ErrorAction = 'SilentlyContinue'
+        }
+        if ($Force) {
+            $stopParameters.Force = $true
+        }
+        Stop-Process @stopParameters
     } catch {
         Write-Verbose "El proceso $ProcessId ya no estaba disponible para detenerlo: $($_.Exception.Message)"
     }
@@ -136,7 +144,10 @@ function Stop-PipaAgentProcesses {
     # The process list is revalidated by the same exact command-line match.
     foreach ($process in @(Get-PipaAgentProcesses)) {
         if ($null -ne $process -and $null -ne $process.ProcessId) {
-            Stop-PipaProcessId -ProcessId ([int]$process.ProcessId)
+            # The command line is revalidated immediately above. Force is
+            # limited to that exact Pipa process; never use a listener PID or
+            # a name-only match as a restart target.
+            Stop-PipaProcessId -ProcessId ([int]$process.ProcessId) -Force
         }
     }
     if (@(Get-PipaAgentProcesses).Count -gt 0) {
