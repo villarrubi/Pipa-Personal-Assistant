@@ -329,6 +329,12 @@ aplicaciones, enviar mensajes ni contactar con League Client. `self-test`
 incluye además un simulador v1 y el loopback serie cifrado, completamente inertes;
 comprueba también que una acción externa se rechaza sin capacidad `touch` y que
 cada comando parametrizado mantiene el mismo número de campos que sus marcadores.
+La matriz pública de integraciones se valida además contra un contrato único:
+Apple Music no anuncia reproducción automática, WhatsApp no anuncia envío,
+Discord no anuncia inicio de llamada, League no anuncia aceptación de partida y
+Codex no anuncia escritura en chats. Si aparece una integración nueva sin una
+entrada explícita en ese contrato, el self-test falla antes de publicarla al
+móvil o al dispositivo.
 `secure-test`
 además ejecuta en memoria el handshake y el cifrado v2; no toca la identidad
 persistente de DPAPI.

@@ -17,7 +17,10 @@ from tools.commands import (
     build_web_search_url,
 )
 from tools.discord import build_discord_app_url, build_discord_channel_url
-from tools.integration_catalog import build_integration_capabilities
+from tools.integration_catalog import (
+    build_integration_capabilities,
+    validate_integration_capabilities,
+)
 from tools.league import QUEUE_IDS, resolve_queue_id
 from tools.whatsapp import (
     build_whatsapp_chat_url,
@@ -84,19 +87,7 @@ def run_integration_self_test() -> dict[str, object]:
         whatsapp_contacts_configured=True,
         discord_contacts_configured=True,
     )
-    manual_boundaries = (
-        capabilities["apple_music"]["playback"] is False
-        and capabilities["apple_music"]["requires_manual_selection"] is True
-        and capabilities["whatsapp"]["send_message"] is False
-        and capabilities["whatsapp"]["requires_manual_send"] is True
-        and capabilities["discord"]["start_call"] is False
-        and capabilities["discord"]["requires_manual_call"] is True
-        and capabilities["league"]["accept_match"] is False
-        and capabilities["league"]["requires_manual_accept"] is True
-        and capabilities["codex"]["writes_to_chat"] is False
-    )
-    if not manual_boundaries:
-        raise ValueError("an integration capability crossed its manual-action boundary")
+    validate_integration_capabilities(capabilities)
 
     return {
         "url_builders_checked": len(builders),

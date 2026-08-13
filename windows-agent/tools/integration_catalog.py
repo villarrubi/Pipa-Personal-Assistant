@@ -12,6 +12,60 @@ from typing import Any
 
 from tools.league import QUEUE_IDS
 
+# These are safety properties, not availability flags.  Availability changes
+# with local configuration; crossing one of these boundaries would change
+# what a remote UI is allowed to believe the agent can do.  Keep the contract
+# next to the capability builder so a new integration cannot silently drift
+# from the public policy used by diagnostics and mobile clients.
+_INTEGRATION_SAFETY_CONTRACT: dict[str, dict[str, bool]] = {
+    "web_search": {
+        "requires_confirmation": True,
+    },
+    "apple_music": {
+        "playback": False,
+        "media_control": True,
+        "requires_manual_selection": True,
+        "requires_confirmation": True,
+    },
+    "whatsapp": {
+        "send_message": False,
+        "requires_manual_send": True,
+        "requires_confirmation": True,
+    },
+    "discord": {
+        "start_call": False,
+        "requires_manual_call": True,
+        "requires_confirmation": True,
+    },
+    "league": {
+        "accept_match": False,
+        "requires_manual_accept": True,
+        "requires_confirmation": True,
+    },
+    "codex": {
+        "writes_to_chat": False,
+        "requires_confirmation": True,
+    },
+}
+
+
+def validate_integration_capabilities(capabilities: object) -> None:
+    """Fail closed if the public integration matrix crosses a safety boundary."""
+
+    if not isinstance(capabilities, dict):
+        raise ValueError("integration capabilities must be an object")
+    unknown_integrations = set(capabilities) - set(_INTEGRATION_SAFETY_CONTRACT)
+    if unknown_integrations:
+        names = ", ".join(sorted(str(name) for name in unknown_integrations))
+        raise ValueError(f"integrations without a safety contract: {names}")
+    for integration, expected_fields in _INTEGRATION_SAFETY_CONTRACT.items():
+        values = capabilities.get(integration)
+        if not isinstance(values, dict):
+            raise ValueError(f"missing integration capability: {integration}")
+        for field, expected in expected_fields.items():
+            if type(values.get(field)) is not bool or values[field] is not expected:
+                raise ValueError(f"{integration}.{field} crosses the integration safety contract")
+
 
 def _parameter(
     name: str,
@@ -47,7 +101,7 @@ def build_integration_capabilities(
 ) -> dict[str, dict[str, Any]]:
     """Build the stable feature matrix without exposing local configuration."""
 
-    return {
+    capabilities = {
         "web_search": {
             "available": True,
             "requires_confirmation": True,
@@ -101,6 +155,8 @@ def build_integration_capabilities(
             "requires_confirmation": True,
         },
     }
+    validate_integration_capabilities(capabilities)
+    return capabilities
 
 
 _COMMANDS: tuple[dict[str, Any], ...] = (

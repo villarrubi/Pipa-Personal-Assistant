@@ -22,7 +22,10 @@ from tools.commands import (
 )
 from tools.contacts import ContactsConfigError, load_contacts
 from tools.discord import build_discord_app_url, build_discord_channel_url
-from tools.integration_catalog import get_command_catalog
+from tools.integration_catalog import (
+    get_command_catalog,
+    validate_integration_capabilities,
+)
 from tools.integration_diagnostics import run_integration_self_test
 from tools.league import QUEUE_IDS, LeagueClientError, find_client_connection, resolve_queue_id
 from tools.secure_diagnostics import (
@@ -229,28 +232,7 @@ def _check_integration_policy() -> dict[str, Any]:
     if not isinstance(integrations, dict):
         raise ValueError("integration capabilities are not an object")
 
-    required_false = (
-        ("apple_music", "playback"),
-        ("whatsapp", "send_message"),
-        ("discord", "start_call"),
-        ("league", "accept_match"),
-        ("codex", "writes_to_chat"),
-    )
-    required_true = (
-        ("apple_music", "media_control"),
-        ("apple_music", "requires_manual_selection"),
-        ("whatsapp", "requires_manual_send"),
-        ("discord", "requires_manual_call"),
-        ("league", "requires_manual_accept"),
-    )
-    for integration, field in required_false:
-        values = integrations.get(integration)
-        if not isinstance(values, dict) or values.get(field) is not False:
-            raise ValueError(f"{integration}.{field} must remain disabled")
-    for integration, field in required_true:
-        values = integrations.get(integration)
-        if not isinstance(values, dict) or values.get(field) is not True:
-            raise ValueError(f"{integration}.{field} must require a human")
+    validate_integration_capabilities(integrations)
 
     catalog = build_agent_catalog(TimerManager())
     unsafe_tools = {name for name in catalog.names() if catalog.get(name).safety == "unsafe"}

@@ -6,7 +6,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tools.agent_catalog import build_agent_catalog  # noqa: E402
 from tools.capabilities import build_integration_capabilities  # noqa: E402
-from tools.integration_catalog import get_command_catalog  # noqa: E402
+from tools.integration_catalog import (  # noqa: E402
+    get_command_catalog,
+    validate_integration_capabilities,
+)
 from tools.security_policy import (  # noqa: E402
     CONFIRMATION_TOOL_PATHS,
     LOCAL_CONFIRMATION_PATHS,
@@ -91,6 +94,48 @@ class IntegrationContractTests(unittest.TestCase):
         self.assertFalse(capabilities["discord"]["start_call"])
         self.assertTrue(capabilities["discord"]["requires_manual_call"])
         self.assertFalse(capabilities["codex"]["writes_to_chat"])
+
+    def test_capability_validator_rejects_a_crossed_manual_boundary(self):
+        capabilities = {
+            "web_search": {"requires_confirmation": True},
+            "apple_music": {
+                "playback": True,
+                "media_control": True,
+                "requires_manual_selection": True,
+                "requires_confirmation": True,
+            },
+            "whatsapp": {
+                "send_message": False,
+                "requires_manual_send": True,
+                "requires_confirmation": True,
+            },
+            "discord": {
+                "start_call": False,
+                "requires_manual_call": True,
+                "requires_confirmation": True,
+            },
+            "league": {
+                "accept_match": False,
+                "requires_manual_accept": True,
+                "requires_confirmation": True,
+            },
+            "codex": {"writes_to_chat": False, "requires_confirmation": True},
+        }
+
+        with self.assertRaises(ValueError):
+            validate_integration_capabilities(capabilities)
+
+    def test_capability_validator_requires_new_integrations_to_have_a_contract(self):
+        capabilities = build_integration_capabilities(
+            apple_music_configured=False,
+            league_available=False,
+            league_ready=False,
+            codex_configured=False,
+        )
+        capabilities["new_integration"] = {"available": True}
+
+        with self.assertRaises(ValueError):
+            validate_integration_capabilities(capabilities)
 
 
 if __name__ == "__main__":
