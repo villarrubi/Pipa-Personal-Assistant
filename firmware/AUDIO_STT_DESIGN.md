@@ -107,8 +107,10 @@ desconexión y comportamiento cuando el usuario revoca el permiso.
    opt-in `audio-i2s-lab`, que no anuncia audio al Core.
 5. Medir captura y reproducción con buffers acotados, watchdog y cancelación.
 6. Añadir el estado visible de escucha y comprobar que el touch cancela.
-7. Implementar bloques v2 cifrados y validar los vectores Python/firmware antes
-   de transportar una sola muestra real.
+7. Implementar exactamente las tramas de
+   [SECURE_AUDIO_PROTOCOL.md](../SECURE_AUDIO_PROTOCOL.md) y validar primero
+   los vectores Python/Swift/firmware, antes de transportar una sola muestra
+   real.
 8. Añadir STT elegido con pruebas de idioma, permisos, desconexión y borrado.
 9. Solo después publicar una capacidad de voz en el catálogo y habilitar
    comandos que puedan producir acciones externas.

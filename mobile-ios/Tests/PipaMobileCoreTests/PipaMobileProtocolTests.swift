@@ -188,6 +188,81 @@ final class PipaMobileProtocolTests: XCTestCase {
         XCTAssertEqual(try server.open(frame: frame)["type"] as? String, "ping")
     }
 
+    func testSecureAudioFrameMatchesTheSharedPythonVector() throws {
+        let fixtureURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("../Fixtures/secure_audio_v2.json")
+            .standardizedFileURL
+        let fixtureData = try Data(contentsOf: fixtureURL)
+        let fixture = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: fixtureData) as? [String: Any]
+        )
+        let sharedSecret = try PipaMobileCodec.decodeBase64URL(
+            try XCTUnwrap(fixture["shared_secret"] as? String),
+            expectedCount: 32
+        )
+        let transcriptHash = try PipaMobileCodec.decodeBase64URL(
+            try XCTUnwrap(fixture["transcript_hash"] as? String),
+            expectedCount: 32
+        )
+        let samples = try PipaMobileCodec.decodeBase64URL(
+            try XCTUnwrap(fixture["samples"] as? String),
+            expectedCount: 32
+        )
+        let expectedFrame = try XCTUnwrap(fixture["frame"] as? [String: Any])
+        let sessionID = try XCTUnwrap(fixture["session_id"] as? String)
+        let client = try PipaSecureRecordLayer(
+            sessionID: sessionID,
+            sharedSecretData: sharedSecret,
+            transcriptHash: transcriptHash,
+            role: .client
+        )
+        let server = try PipaSecureRecordLayer(
+            sessionID: sessionID,
+            sharedSecretData: sharedSecret,
+            transcriptHash: transcriptHash,
+            role: .server
+        )
+
+        let sender = try PipaSecureAudioSender(
+            layer: client,
+            streamID: try XCTUnwrap(fixture["stream_id"] as? String)
+        )
+        let frame = try sender.sealChunk(samples: samples, final: true)
+        XCTAssertEqual(frame["ciphertext"] as? String, expectedFrame["ciphertext"] as? String)
+        XCTAssertEqual(frame["audio_protocol_version"] as? Int, 2)
+        XCTAssertFalse(frame.keys.contains("samples"))
+
+        let receiver = PipaSecureAudioReceiver(layer: server)
+        XCTAssertEqual(try receiver.open(frame: frame), samples)
+        XCTAssertTrue(receiver.isComplete)
+        XCTAssertEqual(receiver.streamByteCount, 32)
+    }
+
+    func testSecureAudioRejectsReorderedAndTamperedFrames() throws {
+        let sharedSecret = Data((1...32).map(UInt8.init))
+        let transcriptHash = Data((32...63).map(UInt8.init))
+        let client = try PipaSecureRecordLayer(
+            sessionID: "audio-test",
+            sharedSecretData: sharedSecret,
+            transcriptHash: transcriptHash,
+            role: .client
+        )
+        let server = try PipaSecureRecordLayer(
+            sessionID: "audio-test",
+            sharedSecretData: sharedSecret,
+            transcriptHash: transcriptHash,
+            role: .server
+        )
+        let sender = try PipaSecureAudioSender(layer: client, streamID: "ordered")
+        let first = try sender.sealChunk(samples: Data([0, 1, 2, 3]), final: false)
+        let second = try sender.sealChunk(samples: Data([4, 5, 6, 7]), final: true)
+        let receiver = PipaSecureAudioReceiver(layer: server)
+
+        XCTAssertThrowsError(try receiver.open(frame: second))
+        XCTAssertThrowsError(try receiver.open(frame: first))
+    }
+
     @available(iOS 16.0, macOS 13.0, *)
     func testTCPClientRejectsInvalidTextAndOversizedArgumentsBeforeTransport() async throws {
         let identity = try PipaMobileIdentity.generate(identityID: "ios-client")

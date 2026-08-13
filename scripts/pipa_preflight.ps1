@@ -94,6 +94,7 @@ Invoke-RepoScriptCheck -Name 'iOS package structure' -RelativePath 'scripts/chec
 Invoke-RepoScriptCheck -Name 'Waveshare V1/V2 pin map' -RelativePath 'scripts/check_waveshare_pinmap.ps1'
 Invoke-RepoScriptCheck -Name 'Firmware configuration safety' -RelativePath 'scripts/check_firmware_config.ps1'
 Invoke-RepoScriptCheck -Name 'Trusted Unlock safety' -RelativePath 'scripts/check_trusted_unlock_safety.ps1'
+Invoke-RepoScriptCheck -Name 'Secure audio contract isolation' -RelativePath 'scripts/check_secure_audio_contract.ps1'
 
 $statusPath = Join-Path $repoRoot 'windows-agent/check_agent_status.ps1'
 if (Test-Path -LiteralPath $statusPath -PathType Leaf) {

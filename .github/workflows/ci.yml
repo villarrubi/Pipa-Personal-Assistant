@@ -46,6 +46,9 @@ jobs:
       - name: Check audio I2S lab safety
         shell: pwsh
         run: ./scripts/check_audio_i2s_lab.ps1
+      - name: Check secure audio contract isolation
+        shell: pwsh
+        run: ./scripts/check_secure_audio_contract.ps1
       - name: Check Trusted Unlock safety
         shell: pwsh
         run: ./scripts/check_trusted_unlock_safety.ps1

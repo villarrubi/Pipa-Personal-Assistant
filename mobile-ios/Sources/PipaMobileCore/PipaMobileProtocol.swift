@@ -10,6 +10,7 @@ public enum PipaMobileError: Error {
     case replay
     case sessionClosed
     case payloadTooLarge
+    case invalidAudioFrame
     case transportUnavailable
     case requestInProgress
 }
@@ -235,6 +236,7 @@ public enum PipaMobileHandshake {
 public final class PipaSecureRecordLayer {
     public static let maxRecordBytes = 64 * 1024
     public static let maxFrameBytes = 96 * 1024
+    public static let maxAdditionalDataBytes = 1024
 
     private let sessionID: String
     private let sendKey: SymmetricKey
@@ -311,10 +313,25 @@ public final class PipaSecureRecordLayer {
     }
 
     public func seal(payload: [String: Any]) throws -> [String: Any] {
+        let plaintext = try PipaMobileCodec.canonicalJSON(payload)
+        return try sealRaw(payload: plaintext, additionalData: Data("pipa/json/v2".utf8))
+    }
+
+    /// Seal a binary payload for a future authenticated protocol profile.
+    ///
+    /// The caller must bind its unencrypted frame metadata through
+    /// `additionalData`. Audio uses this path so samples never become JSON.
+    public func sealBinary(payload: Data, additionalData: Data) throws -> [String: Any] {
+        try sealRaw(payload: payload, additionalData: additionalData)
+    }
+
+    private func sealRaw(payload: Data, additionalData: Data) throws -> [String: Any] {
         guard !closed else { throw PipaMobileError.sessionClosed }
         guard sendSequence < UInt64.max else { throw PipaMobileError.sessionClosed }
-        let plaintext = try PipaMobileCodec.canonicalJSON(payload)
-        guard plaintext.count <= Self.maxRecordBytes else { throw PipaMobileError.payloadTooLarge }
+        guard payload.count <= Self.maxRecordBytes,
+              additionalData.count <= Self.maxAdditionalDataBytes else {
+            throw PipaMobileError.payloadTooLarge
+        }
         let sequence = sendSequence
         let header: [String: Any] = [
             "protocol_version": 2,
@@ -322,9 +339,9 @@ public final class PipaSecureRecordLayer {
             "session_id": sessionID,
         ]
         let nonce = sendNoncePrefix + PipaMobileCodec.bigEndian(sequence)
-        let aad = try PipaMobileCodec.canonicalJSON(header) + Data("pipa/json/v2".utf8)
+        let aad = try PipaMobileCodec.canonicalJSON(header) + additionalData
         let sealed = try ChaChaPoly.seal(
-            plaintext,
+            payload,
             using: sendKey,
             nonce: try ChaChaPoly.Nonce(data: nonce),
             authenticating: aad
@@ -337,7 +354,32 @@ public final class PipaSecureRecordLayer {
     }
 
     public func open(frame: [String: Any]) throws -> [String: Any] {
+        let plaintext = try openRaw(frame: frame, additionalData: Data("pipa/json/v2".utf8))
+        do {
+            guard let object = try JSONSerialization.jsonObject(with: plaintext) as? [String: Any] else {
+                throw PipaMobileError.invalidRecord
+            }
+            return object
+        } catch let error as PipaMobileError {
+            closed = true
+            throw error
+        } catch {
+            closed = true
+            throw PipaMobileError.invalidRecord
+        }
+    }
+
+    /// Open a binary payload whose metadata was authenticated as AAD.
+    public func openBinary(frame: [String: Any], additionalData: Data) throws -> Data {
+        try openRaw(frame: frame, additionalData: additionalData)
+    }
+
+    private func openRaw(frame: [String: Any], additionalData: Data) throws -> Data {
         guard !closed else { throw PipaMobileError.sessionClosed }
+        guard additionalData.count <= Self.maxAdditionalDataBytes else {
+            closed = true
+            throw PipaMobileError.payloadTooLarge
+        }
         var opened = false
         defer {
             // A malformed, replayed, or unauthenticated record invalidates the
@@ -375,7 +417,7 @@ public final class PipaSecureRecordLayer {
             "session_id": sessionID,
         ]
         let nonce = receiveNoncePrefix + PipaMobileCodec.bigEndian(sequence)
-        let aad = try PipaMobileCodec.canonicalJSON(header) + Data("pipa/json/v2".utf8)
+        let aad = try PipaMobileCodec.canonicalJSON(header) + additionalData
         do {
             let box = try ChaChaPoly.SealedBox(
                 nonce: try ChaChaPoly.Nonce(data: nonce),
@@ -383,13 +425,12 @@ public final class PipaSecureRecordLayer {
                 tag: Data(ciphertext.suffix(16))
             )
             let plaintext = try ChaChaPoly.open(box, using: receiveKey, authenticating: aad)
-            guard plaintext.count <= Self.maxRecordBytes,
-                  let object = try JSONSerialization.jsonObject(with: plaintext) as? [String: Any] else {
+            guard plaintext.count <= Self.maxRecordBytes else {
                 throw PipaMobileError.invalidRecord
             }
             receiveSequence += 1
             opened = true
-            return object
+            return plaintext
         } catch let error as PipaMobileError {
             throw error
         } catch {

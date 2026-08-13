@@ -1,0 +1,20 @@
+{
+  "session_id": "audio-vector",
+  "shared_secret": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA",
+  "transcript_hash": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
+  "stream_id": "audio-test",
+  "samples": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+  "frame": {
+    "protocol_version": 2,
+    "sequence": 0,
+    "session_id": "audio-vector",
+    "ciphertext": "1lPleOK2OkPn_7qjlzOCtz4pTwCAJZtTs1NilPyREPHC_24Rwj8gYFZdBG4Wa2fa",
+    "audio_protocol_version": 2,
+    "bits_per_sample": 16,
+    "channels": 1,
+    "chunk_index": 0,
+    "final": true,
+    "sample_rate": 16000,
+    "stream_id": "audio-test"
+  }
+}

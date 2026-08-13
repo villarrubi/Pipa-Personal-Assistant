@@ -161,6 +161,8 @@ La validación cuando haya Mac/iPhone está enumerada en
 [mobile-ios/ARRIVAL_CHECKLIST.md](mobile-ios/ARRIVAL_CHECKLIST.md).
 El diseño previo a hardware de audio y voz está en
 [firmware/AUDIO_STT_DESIGN.md](firmware/AUDIO_STT_DESIGN.md).
+El contrato binario cifrado que se validará antes de conectar la captura está
+en [SECURE_AUDIO_PROTOCOL.md](SECURE_AUDIO_PROTOCOL.md).
 
 Por ejemplo, el Core ya entiende frases como `abre WhatsApp`, `abre WhatsApp
 para mama`, `abre Discord`, `abre Codex`, `abre una aplicación configurada

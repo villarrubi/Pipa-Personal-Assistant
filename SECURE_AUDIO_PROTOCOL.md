@@ -1,0 +1,67 @@
+# Contrato de audio cifrado v2
+
+Este documento define la futura trama de audio entre un cliente autenticado y
+Pipα. El contrato está implementado y probado en memoria, pero no activa el
+micrófono, el altavoz, I²S, STT ni una capacidad de voz en el catálogo. La
+captura seguirá bloqueada hasta validar físicamente el Waveshare, el indicador
+de escucha y el consentimiento del usuario.
+
+## Sesión y autenticación
+
+El audio solo puede viajar dentro de una `SecureSession`/`PipaSecureRecordLayer`
+v2 ya autenticada. Cada record mantiene el encabezado v2 existente
+(`protocol_version`, `sequence`, `session_id`) y cifra el payload binario con
+ChaCha20-Poly1305.
+
+Los metadatos de audio no van cifrados para que el receptor pueda enrutar y
+ordenar la trama, pero forman parte de los datos autenticados (AAD):
+
+```text
+AAD = UTF-8("pipa/audio/v2\0") + canonical_json(audio_metadata)
+```
+
+`canonical_json` usa UTF-8, claves ordenadas, separadores sin espacios y no
+permite valores NaN o infinitos. Si un metadato cambia, la autenticación falla.
+
+## Forma exacta de una trama
+
+La trama debe contener exactamente estos campos, sin extensiones implícitas:
+
+| Campo | Tipo | Regla |
+| --- | --- | --- |
+| `ciphertext` | base64url | Payload PCM cifrado; nunca muestras en claro |
+| `protocol_version` | entero | `2`, procedente del record layer |
+| `sequence` | entero | Secuencia monotónica de la sesión |
+| `session_id` | string | Identificador de la sesión autenticada |
+| `audio_protocol_version` | entero | `2` |
+| `bits_per_sample` | entero | `16` |
+| `channels` | entero | `1` |
+| `chunk_index` | entero | Empieza en `0` y aumenta de uno en uno |
+| `final` | booleano | Solo marca el último bloque |
+| `sample_rate` | entero | `16000` Hz |
+| `stream_id` | string | 1–64 caracteres ASCII `[A-Za-z0-9_-]` |
+
+El payload descifrado es PCM little-endian mono de 16 bits. Los límites son
+4096 bytes por bloque, 64 bloques y 262144 bytes por stream (aproximadamente
+8,192 segundos). Un bloque no puede estar vacío ni tener un número impar de
+bytes.
+
+El receptor exige el bloque cero, el mismo `stream_id`, secuencias contiguas y
+un único marcador `final`. Un bloque repetido, adelantado, cambiado,
+demasiado grande o asociado a otra sesión cierra la sesión segura y descarta
+el estado temporal. `cancel` solo limpia el stream y conserva la sesión de
+control para poder iniciar otro stream; cerrar la sesión exige un handshake
+nuevo.
+
+## Implementaciones y pruebas
+
+- Windows: `windows-agent/secure_audio.py`.
+- iPhone: `mobile-ios/Sources/PipaMobileCore/PipaSecureAudio.swift`.
+- Vector compartido: `mobile-ios/Tests/Fixtures/secure_audio_v2.json`.
+- Tests Python y Swift: verifican ciphertext idéntico, ausencia de un campo
+  `samples`, orden, límites, manipulación de metadatos y cierre fail-closed.
+
+El módulo no se importa desde el agente residente ni desde el firmware normal.
+No escribe muestras en logs, archivos, NVS o pantalla y no tiene ninguna ruta
+de captura conectada. La integración del firmware queda deliberadamente para
+después de probar codec, I²S, buffers, cancelación e indicador en la placa.
