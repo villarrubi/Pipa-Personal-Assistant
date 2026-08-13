@@ -41,6 +41,7 @@ class IntegrationTests(unittest.TestCase):
     def test_command_catalog_is_non_sensitive_and_marks_external_actions(self):
         commands = get_command_catalog()
 
+        self.assertIsInstance(commands, list)
         self.assertGreaterEqual(len(commands), 7)
         self.assertTrue(all("token" not in str(command).lower() for command in commands))
         self.assertTrue(all("url" not in command for command in commands))

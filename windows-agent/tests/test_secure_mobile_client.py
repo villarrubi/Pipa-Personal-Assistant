@@ -14,6 +14,9 @@ from secure_session import SecureIdentity  # noqa: E402
 
 from backend.pipa_core.core import PipaCore  # noqa: E402
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter  # noqa: E402
+from tools.agent_catalog import build_agent_catalog  # noqa: E402
+from tools.integration_catalog import get_command_catalog  # noqa: E402
+from tools.timers import TimerManager  # noqa: E402
 
 
 class SecureMobileClientTests(unittest.TestCase):
@@ -91,6 +94,38 @@ class SecureMobileClientTests(unittest.TestCase):
         self.assertNotIn("result", completed[0])
         self.assertEqual(executed, [{}])
         client.close()
+
+    def test_real_catalog_preserves_direct_no_argument_actions(self):
+        mobile_identity = SecureIdentity("mobile-catalog", Ed25519PrivateKey.generate())
+        server_identity = SecureIdentity("pipa-catalog", Ed25519PrivateKey.generate())
+        core = PipaCore(
+            verifier=object(),
+            router=ToolRouter(build_agent_catalog(TimerManager())),
+            command_catalog=get_command_catalog,
+        )
+        connection = SecureCoreConnection(
+            core,
+            server_identity,
+            {mobile_identity.identity_id: mobile_identity.public_key},
+        )
+        client = SecureMobileClient(
+            mobile_identity,
+            server_identity.public_key,
+            server_id=server_identity.identity_id,
+        )
+
+        try:
+            client.connect(connection)
+            details = client.request_catalog_details()
+            command = next(item for item in details["commands"] if item["id"] == "discord_open_app")
+            self.assertEqual(command["parameters"], [])
+            league_command = next(item for item in details["commands"] if item["id"] == "league_search")
+            self.assertEqual(
+                league_command["parameters"][0]["name"],
+                "queue",
+            )
+        finally:
+            client.close()
 
     def test_mobile_client_rejects_a_wrong_pinned_server(self):
         client, connection, _executed = self._build()

@@ -44,9 +44,24 @@ _MOBILE_INTEGRATION_CASES = (
         "Buscar en Apple Music.",
     ),
     (
+        "music_open",
+        {},
+        "Abrir Apple Music.",
+    ),
+    (
+        "whatsapp_open",
+        {},
+        "Abrir WhatsApp Web.",
+    ),
+    (
         "whatsapp_compose",
         {"phone": "+34600000000", "message": "mensaje de diagnóstico"},
         "Preparar un mensaje de WhatsApp; el envío será manual.",
+    ),
+    (
+        "discord_open_app",
+        {},
+        "Abrir Discord.",
     ),
     (
         "discord_call",
