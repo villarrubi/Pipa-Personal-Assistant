@@ -14,6 +14,7 @@ public final class PipaMobileSpeechRecognizer: NSObject, ObservableObject {
     private let audioEngine = AVAudioEngine()
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
+    private var operationGeneration: UInt64 = 0
 
     public override init() {
         recognizer = SFSpeechRecognizer(locale: Locale(identifier: "es-ES"))
@@ -22,9 +23,11 @@ public final class PipaMobileSpeechRecognizer: NSObject, ObservableObject {
 
     public func start() {
         guard !isListening else { return }
+        operationGeneration &+= 1
+        let generation = operationGeneration
         transcript = ""
         errorMessage = nil
-        requestMicrophonePermission()
+        requestMicrophonePermission(generation: generation)
     }
 
     public func stop() {
@@ -35,19 +38,20 @@ public final class PipaMobileSpeechRecognizer: NSObject, ObservableObject {
         finish(clearTranscript: true)
     }
 
-    private func requestMicrophonePermission() {
+    private func requestMicrophonePermission(generation: UInt64) {
         let session = AVAudioSession.sharedInstance()
         switch session.recordPermission {
         case .granted:
-            requestSpeechPermission()
+            requestSpeechPermission(generation: generation)
         case .denied:
             fail("El micrófono está bloqueado; puedes habilitarlo en Ajustes.")
         case .undetermined:
             session.requestRecordPermission { [weak self] granted in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
+                    guard self.operationGeneration == generation else { return }
                     if granted {
-                        self.requestSpeechPermission()
+                        self.requestSpeechPermission(generation: generation)
                     } else {
                         self.fail("No se concedió permiso para usar el micrófono.")
                     }
@@ -58,10 +62,10 @@ public final class PipaMobileSpeechRecognizer: NSObject, ObservableObject {
         }
     }
 
-    private func requestSpeechPermission() {
+    private func requestSpeechPermission(generation: UInt64) {
         switch SFSpeechRecognizer.authorizationStatus() {
         case .authorized:
-            beginRecognition()
+            beginRecognition(generation: generation)
         case .denied:
             fail("El reconocimiento de voz está bloqueado; puedes habilitarlo en Ajustes.")
         case .restricted:
@@ -70,8 +74,9 @@ public final class PipaMobileSpeechRecognizer: NSObject, ObservableObject {
             SFSpeechRecognizer.requestAuthorization { [weak self] status in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
+                    guard self.operationGeneration == generation else { return }
                     if status == .authorized {
-                        self.beginRecognition()
+                        self.beginRecognition(generation: generation)
                     } else {
                         self.fail("No se concedió permiso para el reconocimiento de voz.")
                     }
@@ -82,7 +87,8 @@ public final class PipaMobileSpeechRecognizer: NSObject, ObservableObject {
         }
     }
 
-    private func beginRecognition() {
+    private func beginRecognition(generation: UInt64) {
+        guard operationGeneration == generation, !isListening else { return }
         guard let recognizer else {
             fail("El reconocimiento en español no está disponible en este iPhone.")
             return
@@ -121,7 +127,8 @@ public final class PipaMobileSpeechRecognizer: NSObject, ObservableObject {
                 let isFinal = result?.isFinal ?? false
                 let failed = error != nil
                 Task { @MainActor [weak self] in
-                    self?.receive(text: text, isFinal: isFinal, failed: failed)
+                    guard let self, self.operationGeneration == generation else { return }
+                    self.receive(text: text, isFinal: isFinal, failed: failed, generation: generation)
                 }
             }
             try audioEngine.start()
@@ -132,16 +139,24 @@ public final class PipaMobileSpeechRecognizer: NSObject, ObservableObject {
         }
     }
 
-    private func receive(text: String?, isFinal: Bool, failed: Bool) {
+    private func receive(text: String?, isFinal: Bool, failed: Bool, generation: UInt64) {
+        guard operationGeneration == generation, isListening else { return }
         if let text, !text.isEmpty {
             transcript = bounded(text)
         }
         if failed || isFinal {
-            finish(clearTranscript: false)
+            finish(clearTranscript: false, invalidate: true)
         }
     }
 
     private func finish(clearTranscript: Bool) {
+        finish(clearTranscript: clearTranscript, invalidate: true)
+    }
+
+    private func finish(clearTranscript: Bool, invalidate: Bool) {
+        if invalidate {
+            operationGeneration &+= 1
+        }
         if audioEngine.isRunning {
             audioEngine.stop()
         }
