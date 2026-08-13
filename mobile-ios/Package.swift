@@ -32,7 +32,7 @@ let package = Package(
         ),
         .testTarget(
             name: "PipaMobileUITests",
-            dependencies: ["PipaMobileUI"]
+            dependencies: ["PipaMobileUI", "PipaMobileCore"]
         ),
     ]
 )

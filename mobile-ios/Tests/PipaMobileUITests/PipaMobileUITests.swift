@@ -1,5 +1,6 @@
 import XCTest
 
+@testable import PipaMobileCore
 @testable import PipaMobileUI
 
 @available(iOS 16.0, macOS 13.0, *)
