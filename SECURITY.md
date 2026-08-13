@@ -177,6 +177,9 @@ de recuperación y acceso.
   caducidad de 30 minutos; no puede crecer indefinidamente por conexiones USB.
 - CI con tests Python, Ruff, auditoría de dependencias, build de firmware y
   smoke test del Credential Provider.
+- Una prueba de contrato cruza el catálogo público, el router real, las rutas
+  de confirmación local y las etiquetas fijas del dispositivo para evitar que
+  una integración nueva quede expuesta sin sus barreras.
 - Comprobaciones separadas del árbol actual y de toda la historia Git.
 - La auditoría de higiene prueba además patrones `.gitignore` con rutas
   ficticias de configuraciones, claves, builds, logs, capturas, grabaciones y

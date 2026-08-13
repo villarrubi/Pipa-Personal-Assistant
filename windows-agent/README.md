@@ -92,6 +92,10 @@ antiguo con el código instalado.
 La prueba `windows-agent/tests/test_secure_tcp_gateway.py` repite ese recorrido
 sobre un socket loopback real, que es el camino de referencia para el cliente
 móvil.
+La prueba windows-agent/tests/test_integration_contract.py comprueba que cada
+acción externa siga presente en el router, la ruta local y la confirmación del
+dispositivo, y que el catálogo no anuncie envío, llamadas, reproducción o
+escritura automática donde no existe.
 
 Las acciones que abren aplicaciones, preparan mensajes o cambian el estado del
 juego requieren `--confirm` cuando se ejecutan desde la CLI. La CLI no guarda
