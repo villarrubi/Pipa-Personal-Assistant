@@ -21,7 +21,7 @@ recuperación segura.
 | Voz iPhone | Dictado local opcional que solo prepara el texto; requiere compilar y probar en Xcode |
 | Wake-on-LAN | Implementado en firmware; pendiente de prueba física y configuración de BIOS/red |
 | Trusted Unlock | **Desactivado**: la tile existe, pero no autentica ni entrega credenciales a Windows |
-| iPhone/remoto | Núcleo Swift CryptoKit/Keychain, TCP v2 y UI SwiftUI preparada; falta compilar Swift en Xcode y probar el iPhone |
+| iPhone/remoto | Proyecto Xcode, núcleo Swift CryptoKit/Keychain, TCP v2 y UI SwiftUI preparados; falta probar el iPhone real |
 
 Pipα no sustituye ni desactiva contraseña, PIN, Windows Hello u otros
 Credential Providers. Hoy no permite entrar en Windows sin uno de esos métodos.

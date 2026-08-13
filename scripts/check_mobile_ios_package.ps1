@@ -16,7 +16,10 @@ $requiredFiles = @(
     'mobile-ios/Sources/PipaMobileUI/PipaMobileSpeechRecognizer.swift',
     'mobile-ios/Sources/PipaMobileUI/PipaMobileRootView.swift',
     'mobile-ios/App/PipaMobileApp.swift',
+    'mobile-ios/App/Info.plist',
     'mobile-ios/App/Info.plist.example',
+    'mobile-ios/PipaMobileApp/PipaMobile.xcodeproj/project.pbxproj',
+    'mobile-ios/PipaMobileApp/xcshareddata/xcschemes/PipaMobile.xcscheme',
     'mobile-ios/ARRIVAL_CHECKLIST.md',
     'MOBILE_PROTOCOL.md',
     'mobile-ios/Tests/PipaMobileCoreTests/PipaMobileProtocolTests.swift',
@@ -41,6 +44,9 @@ $commandEditor = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaM
 $speech = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileSpeechRecognizer.swift')
 $view = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileRootView.swift')
 $app = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/App/PipaMobileApp.swift')
+$appInfo = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/App/Info.plist')
+$xcodeProject = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/PipaMobileApp/PipaMobile.xcodeproj/project.pbxproj')
+$xcodeScheme = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/PipaMobileApp/xcshareddata/xcschemes/PipaMobile.xcscheme')
 $infoPlist = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/App/Info.plist.example')
 $arrivalChecklist = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/ARRIVAL_CHECKLIST.md')
 $mobileProtocol = Get-Content -Raw (Join-Path $repoRoot 'MOBILE_PROTOCOL.md')
@@ -60,6 +66,9 @@ $requiredPatterns = @(
     @($speech, '#if os(iOS)', 'AVAudioEngine', 'SFSpeechRecognizer', 'requestRecordPermission', 'supportsOnDeviceRecognition', 'requiresOnDeviceRecognition', 'PipaMobileSpeechRecognizer', 'bounded(text)'),
     @($view, 'PipaMobileRootView', 'scenePhase', 'onChange', 'commandToEdit', '.sheet(item:', 'command.placeholders', 'integrationSection', 'integrationCapabilities', 'Disponible', 'No disponible', 'Preparar identidad', 'Fingerprint:', 'Fingerprint del agente:', 'He comparado el fingerprint', 'Fingerprint verificado', 'Confirmar acción', 'Rechazar', 'Aceptar', 'Usar', 'PipaMobileSpeechRecognizer', 'Dictar comando', 'Parar dictado', 'updateVoiceDraft', 'speechRecognizer.cancel()', 'speechRecognizer.isListening', 'Borrar configuración guardada'),
     @($app, '@main', 'PipaMobileRootView', 'WindowGroup'),
+    @($appInfo, 'CFBundleDisplayName', 'LSRequiresIPhoneOS', 'NSLocalNetworkUsageDescription', 'NSMicrophoneUsageDescription', 'NSSpeechRecognitionUsageDescription'),
+    @($xcodeProject, 'PBXProject', 'PBXNativeTarget', 'PipaMobileApp.swift', 'PipaMobileUI', 'XCLocalSwiftPackageReference', 'relativePath = ..', 'INFOPLIST_FILE = ../App/Info.plist', 'IPHONEOS_DEPLOYMENT_TARGET = 16.0'),
+    @($xcodeScheme, 'BlueprintName = "PipaMobile"', 'BuildableName = "PipaMobile.app"', 'container:PipaMobile.xcodeproj'),
     @($infoPlist, 'CFBundleDisplayName', 'LSRequiresIPhoneOS', 'NSLocalNetworkUsageDescription', 'NSMicrophoneUsageDescription', 'NSSpeechRecognitionUsageDescription', 'red local'),
     @($coreTests, 'testRecordLayerEncryptsAuthenticatesAndRejectsReplay', 'testRecordLayerMatchesTheSharedPythonVector', 'testTCPClientRejectsInvalidTextAndOversizedArgumentsBeforeTransport', 'testMobileTextPolicyRejectsProtocolAndBidirectionalControls'),
     @($uiTests, 'testConnectionRequiresEphemeralFingerprintAcknowledgement', 'testSavedSettingsNeverCountAsFingerprintAcknowledgement', 'testCatalogCommandEditorRendersBoundedArgumentsWithoutSending', 'testVoiceDraftOnlyUpdatesTheEditorWithoutSending', 'testVoiceDraftRejectsControlCharactersAndOversizedInput', 'testCatalogRejectsBidirectionalFormattingControls', 'testIntegrationCapabilitiesShowOnlyCoarseManualActionStatus'),
@@ -78,6 +87,10 @@ foreach ($check in $requiredPatterns) {
     }
 }
 
+if ($appInfo -ne $infoPlist) {
+    throw 'App/Info.plist y App/Info.plist.example deben mantenerse sincronizados.'
+}
+
 $forbiddenPatterns = @(
     'public let privateKey',
     'public var privateKey',
@@ -92,6 +105,7 @@ foreach ($pattern in $forbiddenPatterns) {
     if ($protocol.Contains($pattern) -or $keychain.Contains($pattern) -or $tcp.Contains($pattern) -or
         $settingsStore.Contains($pattern) -or $viewModel.Contains($pattern) -or
         $speech.Contains($pattern) -or $view.Contains($pattern) -or $app.Contains($pattern) -or
+        $appInfo.Contains($pattern) -or $xcodeProject.Contains($pattern) -or $xcodeScheme.Contains($pattern) -or
         $arrivalChecklist.Contains($pattern) -or $mobileProtocol.Contains($pattern)) {
         throw "El paquete iOS contiene un patrón no permitido: $pattern"
     }

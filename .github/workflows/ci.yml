@@ -87,6 +87,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Test PipaMobileCore
         run: swift test --package-path mobile-ios
+      - name: Build iOS app project without signing
+        run: xcodebuild -project mobile-ios/PipaMobileApp/PipaMobile.xcodeproj -scheme PipaMobile -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
 
   credential-provider-build:
     name: Credential Provider smoke test

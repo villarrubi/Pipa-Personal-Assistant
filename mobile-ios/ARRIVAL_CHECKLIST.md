@@ -6,11 +6,12 @@ de recuperación.
 
 ## 1. Compilación en Mac
 
-- Abrir `mobile-ios/Package.swift` en Xcode sobre macOS.
-- Crear el `Info.plist` del target a partir de
-  `mobile-ios/App/Info.plist.example` y conservar
+- Abrir `mobile-ios/PipaMobileApp/PipaMobile.xcodeproj` en Xcode sobre macOS.
+- Confirmar que el esquema compartido `PipaMobile` aparece disponible y que
+  enlaza el paquete local del repositorio.
+- Confirmar que el target usa `mobile-ios/App/Info.plist`, conserva
   `NSLocalNetworkUsageDescription`, `NSMicrophoneUsageDescription` y
-  `NSSpeechRecognitionUsageDescription`; no añadir dominios públicos ni
+  `NSSpeechRecognitionUsageDescription`, y no añade dominios públicos ni
   excepciones ATS genéricas.
 - Ejecutar las pruebas del paquete en un simulador iOS 16 o posterior.
 - Confirmar que no hay warnings de concurrencia, Keychain, Network o CryptoKit

@@ -7,16 +7,18 @@ comando, enviar texto y resolver confirmaciones visibles. No habilita el
 transporte en Windows por sí mismo.
 
 La secuencia de aceptación para Xcode, provisioning, transporte e integraciones
-está en [ARRIVAL_CHECKLIST.md](ARRIVAL_CHECKLIST.md).
+está en [ARRIVAL_CHECKLIST.md](ARRIVAL_CHECKLIST.md). El repositorio incluye
+además un proyecto Xcode listo para abrir en
+`PipaMobileApp/PipaMobile.xcodeproj`.
 
 ## Uso previsto
 
-1. Abrir `mobile-ios/Package.swift` en Xcode sobre macOS y crear un proyecto
-   iOS App; añadir `App/PipaMobileApp.swift` al target para presentar
-   `PipaMobileRootView`. Copiar las claves necesarias de
-   `App/Info.plist.example` al `Info.plist` del target, especialmente
-   `NSLocalNetworkUsageDescription`, para que iOS permita la conexión a la
-   red local.
+1. Abrir `mobile-ios/PipaMobileApp/PipaMobile.xcodeproj` en Xcode sobre macOS.
+   El proyecto ya enlaza el paquete local, añade `App/PipaMobileApp.swift` y
+   usa el `App/Info.plist` rastreado con las declaraciones de red, micrófono y
+   reconocimiento. Seleccionar un Team de firma en el target antes de ejecutar
+   en un iPhone; para un simulador basta con desactivar la firma automática si
+   Xcode la solicita.
 2. Generar o cargar la identidad Ed25519 mediante `PipaKeychainIdentityStore`.
 3. Pulsar “Preparar identidad”, mostrar la clave pública y fingerprint y
    ejecutar `pair-mobile` en el PC solo después de compararlo físicamente.
@@ -29,11 +31,19 @@ está en [ARRIVAL_CHECKLIST.md](ARRIVAL_CHECKLIST.md).
    públicas.
 6. Mostrar `confirm_request` en una UI visible y enviar `confirm` una sola vez.
 
+Para comprobar el proyecto sin firmar una aplicación:
+
+```bash
+xcodebuild -project mobile-ios/PipaMobileApp/PipaMobile.xcodeproj \
+  -scheme PipaMobile -sdk iphonesimulator \
+  -configuration Debug CODE_SIGNING_ALLOWED=NO build
+```
+
 Tras conectar, la app muestra también una matriz resumida de integraciones
 (`Disponible`/`No disponible`) y sus pasos manuales: Apple Music requiere
-seleccionar la pista, WhatsApp requiere pulsar `Enviar` y Discord requiere
-iniciar la llamada. Esa matriz contiene solo flags y textos acotados, nunca
-configuración del PC.
+seleccionar la pista y permite controlar reproducción/pausa del reproductor
+activo, WhatsApp requiere pulsar `Enviar` y Discord requiere iniciar la llamada.
+Esa matriz contiene solo flags y textos acotados, nunca configuración del PC.
 
 La lista de comandos incluye un botón `Usar` para preparar una frase sin
 enviarla. Si la frase tiene marcadores (`<consulta>`, `<teléfono>`,
