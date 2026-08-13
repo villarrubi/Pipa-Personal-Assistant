@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from tools.agent_catalog import build_agent_catalog  # noqa: E402
+from tools.apps import AppsConfigError  # noqa: E402
 from tools.browser import open_validated_url  # noqa: E402
 from tools.capabilities import get_capabilities, get_mobile_capabilities  # noqa: E402
 from tools.commands import open_apple_music, open_web_search  # noqa: E402
@@ -341,6 +342,18 @@ class IntegrationTests(unittest.TestCase):
     @patch("tools.commands.webbrowser.open", return_value=True)
     @patch("tools.commands.open_app", return_value={"success": False, "message": "missing"})
     def test_apple_music_falls_back_to_web(self, open_app, open_browser):
+        result = open_apple_music()
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["target"], "web")
+        self.assertFalse(result["playback_started"])
+        self.assertNotIn("url", result)
+        open_app.assert_called_once_with("apple_music")
+        open_browser.assert_called_once_with("https://music.apple.com/es/browse")
+
+    @patch("tools.commands.webbrowser.open", return_value=True)
+    @patch("tools.commands.open_app", side_effect=AppsConfigError("private local configuration"))
+    def test_apple_music_falls_back_when_local_config_is_invalid(self, open_app, open_browser):
         result = open_apple_music()
 
         self.assertTrue(result["success"])

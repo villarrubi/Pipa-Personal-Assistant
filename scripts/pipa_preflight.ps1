@@ -188,6 +188,9 @@ if ($ruffAvailable) {
 Invoke-ExternalCheck -Name 'Agent doctor' -FilePath 'python' -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'doctor'
 )
+Invoke-ExternalCheck -Name 'Current-source integration self-test' -FilePath 'python' -Arguments @(
+    (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'local-self-test'
+)
 Invoke-ExternalCheck -Name 'Integration self-test' -FilePath 'python' -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'self-test'
 )

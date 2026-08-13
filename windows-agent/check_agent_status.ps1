@@ -46,6 +46,30 @@ $expectedPowerShell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\pow
 $expectedArguments = '-NoLogo -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}"' -f $expectedLauncher
 $startupDirectory = [Environment]::GetFolderPath('Startup')
 $startupShortcut = Join-Path $startupDirectory 'Pipa Windows Agent.lnk'
+$currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$currentUserName = [string]$currentIdentity.Name
+$currentUserLeaf = ($currentUserName -split '\\')[-1]
+$currentUserSid = if ($null -ne $currentIdentity.User) {
+    [string]$currentIdentity.User.Value
+} else {
+    ''
+}
+
+function Test-CurrentUserId {
+    param([string]$Value)
+
+    return (
+        [string]::Equals($Value, $currentUserName, [StringComparison]::OrdinalIgnoreCase) -or
+        (
+            $Value.IndexOf('\', [StringComparison]::Ordinal) -lt 0 -and
+            [string]::Equals($Value, $currentUserLeaf, [StringComparison]::OrdinalIgnoreCase)
+        ) -or
+        (
+            -not [string]::IsNullOrWhiteSpace($currentUserSid) -and
+            [string]::Equals($Value, $currentUserSid, [StringComparison]::OrdinalIgnoreCase)
+        )
+    )
+}
 
 function Get-SafeFallbackProfile {
     $runValue = Get-ItemProperty -Path $runKeyPath -Name $runValueName -ErrorAction SilentlyContinue
@@ -104,11 +128,10 @@ if ($null -ne $taskXml) {
         $expectedPowerShell,
         [StringComparison]::OrdinalIgnoreCase
     ) -and [string]::Equals($xmlArguments, $expectedArguments, [StringComparison]::Ordinal)
-    $xmlCurrentUser = [string]::Equals(
-        $xmlUserId,
-        [Security.Principal.WindowsIdentity]::GetCurrent().Name,
-        [StringComparison]::OrdinalIgnoreCase
-    )
+    # Task XML commonly stores UserId as the current user's SID, while the
+    # ScheduledTasks object may expose the DOMAIN\\user name. Accept only
+    # either exact representation of this same Windows identity.
+    $xmlCurrentUser = Test-CurrentUserId $xmlUserId
     $xmlSafeTask = $xmlExactAction -and $xmlLimited -and $xmlCurrentUser -and $null -ne $xmlLogonTrigger
     Write-Host "Tarea:       Ready"
     $xmlSafeTaskText = if ($xmlSafeTask) { 'OK' } else { 'REVISAR' }
@@ -162,7 +185,7 @@ if ($null -ne $taskXml) {
         [string]::Equals([string]$action.Execute, $expectedPowerShell, [StringComparison]::OrdinalIgnoreCase) -and
         [string]::Equals([string]$action.Arguments, $expectedArguments, [StringComparison]::Ordinal)
     $limitedPrincipal = $task.Principal.RunLevel -notmatch '(?i)Highest|Admin'
-    $currentUserPrincipal = [string]$task.Principal.UserId -eq ([Security.Principal.WindowsIdentity]::GetCurrent().Name)
+    $currentUserPrincipal = Test-CurrentUserId ([string]$task.Principal.UserId)
     $safeTask = $exactAction -and $limitedPrincipal -and $currentUserPrincipal -and $null -ne $trigger
     $profileStatus = if ($safeTask) { 'OK' } else { 'REVISAR' }
     $profileColor = if ($safeTask) { 'Green' } else { 'Yellow' }

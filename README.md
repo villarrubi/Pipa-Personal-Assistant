@@ -218,7 +218,8 @@ python -m compileall -q backend windows-agent
 .\scripts\check_powershell_syntax.ps1
 .\scripts\check_trusted_unlock_safety.ps1
 
-# Comprobacion unificada del estado local
+# Comprobacion unificada del estado local. Incluye el checkout actual y el
+# agente residente para no confundir código actualizado con un proceso antiguo.
 .\scripts\pipa_preflight.ps1
 ```
 

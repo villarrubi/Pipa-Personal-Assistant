@@ -10,7 +10,7 @@ from __future__ import annotations
 import webbrowser
 from urllib.parse import urlencode
 
-from tools.apps import open_app
+from tools.apps import AppsConfigError, open_app
 from tools.browser import open_validated_url, without_destination
 from tools.urls import validate_external_url
 
@@ -75,7 +75,12 @@ def build_apple_music_browse_url() -> str:
 def open_apple_music() -> dict[str, object]:
     """Open the configured Apple Music app, falling back to its web catalogue."""
 
-    result = open_app("apple_music")
+    try:
+        result = open_app("apple_music")
+    except AppsConfigError:
+        # A damaged or absent local allowlist must not turn a safe web fallback
+        # into an internal error. The fallback remains a fixed, validated URL.
+        result = {"success": False}
     if result.get("success"):
         return {
             **result,
