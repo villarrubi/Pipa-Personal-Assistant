@@ -237,6 +237,9 @@ public final class PipaSecureRecordLayer {
     public static let maxRecordBytes = 64 * 1024
     public static let maxFrameBytes = 96 * 1024
     public static let maxAdditionalDataBytes = 1024
+    private static let recordFields: Set<String> = [
+        "ciphertext", "protocol_version", "sequence", "session_id",
+    ]
 
     private let sessionID: String
     private let sendKey: SymmetricKey
@@ -371,7 +374,8 @@ public final class PipaSecureRecordLayer {
 
     /// Open a binary payload whose metadata was authenticated as AAD.
     public func openBinary(frame: [String: Any], additionalData: Data) throws -> Data {
-        try openRaw(frame: frame, additionalData: additionalData)
+        let recordFrame = frame.filter { Self.recordFields.contains($0.key) }
+        return try openRaw(frame: recordFrame, additionalData: additionalData)
     }
 
     private func openRaw(frame: [String: Any], additionalData: Data) throws -> Data {
@@ -399,7 +403,7 @@ public final class PipaSecureRecordLayer {
         } else {
             throw PipaMobileError.invalidRecord
         }
-        guard Set(frame.keys) == Set(["ciphertext", "protocol_version", "sequence", "session_id"]),
+        guard Set(frame.keys) == Self.recordFields,
               frame["protocol_version"] as? Int == 2,
               frame["session_id"] as? String == sessionID,
               sequence == receiveSequence,
