@@ -29,6 +29,10 @@ class CliTests(unittest.TestCase):
         arguments = pipa_cli._parser().parse_args(["local-self-test"])
         self.assertEqual(arguments.command, "local-self-test")
 
+    def test_local_capabilities_is_available_without_the_resident_agent(self):
+        arguments = pipa_cli._parser().parse_args(["local-capabilities"])
+        self.assertEqual(arguments.command, "local-capabilities")
+
     @patch("pipa_cli.get_self_test")
     def test_local_self_test_uses_current_source_and_no_gateway(self, self_test):
         self_test.return_value = {"success": True, "checks": {}}
@@ -37,6 +41,22 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         self_test.assert_called_once_with(
+            serial_gateway_configured=False,
+            serial_gateway_running=False,
+            serial_gateway_connected=False,
+            mobile_gateway_configured=False,
+            mobile_gateway_running=False,
+            mobile_gateway_connected=False,
+        )
+
+    @patch("pipa_cli.get_capabilities")
+    def test_local_capabilities_uses_current_source_and_no_gateway(self, capabilities):
+        capabilities.return_value = {"success": True, "integrations": {}}
+
+        result = pipa_cli.main(["local-capabilities"])
+
+        self.assertEqual(result, 0)
+        capabilities.assert_called_once_with(
             serial_gateway_configured=False,
             serial_gateway_running=False,
             serial_gateway_connected=False,

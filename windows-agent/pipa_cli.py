@@ -20,6 +20,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from tools.capabilities import get_capabilities  # noqa: E402
 from tools.diagnostics import get_self_test  # noqa: E402
 from tools.mobile_config import inspect_mobile_transport  # noqa: E402
 from tools.secure_diagnostics import (  # noqa: E402
@@ -101,6 +102,10 @@ def _parser() -> argparse.ArgumentParser:
         "mobile-config", help="Valida la configuración móvil sin abrir puertos ni modificar nada."
     )
     commands.add_parser("capabilities", help="Muestra integraciones y límites actuales.")
+    commands.add_parser(
+        "local-capabilities",
+        help="Muestra la matriz del código actual sin depender del agente residente.",
+    )
     commands.add_parser("integration-status", help="Muestra solo el estado de las integraciones.")
     commands.add_parser("commands", help="Muestra frases y acciones disponibles, sin ejecutar nada.")
     commands.add_parser("protocol", help="Muestra herramientas y estado del gateway.")
@@ -365,6 +370,19 @@ def _local_self_test() -> dict[str, object]:
     )
 
 
+def _local_capabilities() -> dict[str, object]:
+    """Read the current checkout's capability matrix without HTTP or side effects."""
+
+    return get_capabilities(
+        serial_gateway_configured=False,
+        serial_gateway_running=False,
+        serial_gateway_connected=False,
+        mobile_gateway_configured=False,
+        mobile_gateway_running=False,
+        mobile_gateway_connected=False,
+    )
+
+
 def _doctor(base_url: str) -> dict[str, object]:
     """Run read-only local health checks and return only bounded JSON data."""
 
@@ -447,6 +465,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if arguments.command == "local-self-test":
             result = _local_self_test()
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0 if result["success"] else 1
+        if arguments.command == "local-capabilities":
+            result = _local_capabilities()
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0 if result["success"] else 1
         if arguments.command == "mobile-test":

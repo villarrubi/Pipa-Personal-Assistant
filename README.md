@@ -100,6 +100,9 @@ que las solicitó y caducan si no se confirman.
   sin consultar al proceso residente. Es la opción adecuada justo después de
   actualizar el código, porque `self-test` puede reflejar un agente que aún no
   se haya recargado.
+- Ejecutar `python .\windows-agent\pipa_cli.py local-capabilities` para ver la
+  matriz completa que usaría la siguiente recarga del agente, sin depender del
+  proceso residente ni exponer contactos, teléfonos, IDs, URLs o tokens.
 - Ejecutar `python .\windows-agent\pipa_cli.py secure-test` para comprobar en
   memoria el handshake autenticado, el cifrado y el rechazo de manipulación
   del protocolo v2, sin hardware, red ni claves persistentes.

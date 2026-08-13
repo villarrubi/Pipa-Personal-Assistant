@@ -54,6 +54,7 @@ python .\windows-agent\pipa_cli.py status
 python .\windows-agent\pipa_cli.py doctor
 python .\windows-agent\pipa_cli.py self-test
 python .\windows-agent\pipa_cli.py local-self-test
+python .\windows-agent\pipa_cli.py local-capabilities
 python .\windows-agent\pipa_cli.py secure-test
 python .\windows-agent\pipa_cli.py mobile-test
 python .\windows-agent\pipa_cli.py mobile-config
@@ -90,6 +91,10 @@ puertos, tocar DPAPI ni ejecutar ninguna integración real.
 repositorio, sin hablar con el agente residente. Esto permite verificar una
 actualización antes de reiniciar el proceso y evita confundir un resultado
 antiguo con el código instalado.
+`local-capabilities` muestra la matriz completa de integraciones y límites del
+código actual, también sin hablar con el agente residente. No abre aplicaciones,
+no toca League y no incluye alias, teléfonos, IDs, URLs ni tokens; sirve para
+comprobar la configuración que usaría la siguiente recarga del agente.
 La prueba `windows-agent/tests/test_secure_tcp_gateway.py` repite ese recorrido
 sobre un socket loopback real, que es el camino de referencia para el cliente
 móvil.
