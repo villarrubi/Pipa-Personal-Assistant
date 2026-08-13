@@ -111,9 +111,9 @@ public struct PipaMobileRootView: View {
             if phase != .active {
                 model.disconnect()
                 localWakeOnLan.cancel()
-                pendingLocalIntegrationAction = nil
+                clearLocalIntegrationInputs()
 #if os(iOS)
-                speechRecognizer.stop()
+                speechRecognizer.cancel()
 #endif
             } else {
                 localAppleMusic.refreshPlaybackState()
@@ -137,7 +137,7 @@ public struct PipaMobileRootView: View {
                 get: { pendingLocalIntegrationAction != nil },
                 set: { isPresented in
                     if !isPresented {
-                        pendingLocalIntegrationAction = nil
+                        clearLocalIntegrationInputs()
                     }
                 }
             ),
@@ -147,7 +147,7 @@ public struct PipaMobileRootView: View {
                 performPendingLocalIntegrationAction()
             }
             Button("Cancelar", role: .cancel) {
-                pendingLocalIntegrationAction = nil
+                clearLocalIntegrationInputs()
             }
         } message: {
             Text(pendingLocalIntegrationAction?.message ?? "")
@@ -448,7 +448,9 @@ public struct PipaMobileRootView: View {
 
     private func performPendingLocalIntegrationAction() {
         guard let action = pendingLocalIntegrationAction else { return }
-        pendingLocalIntegrationAction = nil
+        // The enum owns the validated snapshot. Clear the editable fields
+        // before executing so sensitive values do not remain in view state.
+        clearLocalIntegrationInputs()
         switch action {
         case let .webSearch(query):
             guard let url = PipaMobileLocalIntegrationLinks.webSearchURL(query: query) else {
@@ -482,6 +484,20 @@ public struct PipaMobileRootView: View {
         case let .discordCall(channelID, guildID):
             performDiscordDestination(channelID: channelID, guildID: guildID, manualCall: true)
         }
+    }
+
+    /// Clear only ephemeral local integration inputs. The validated action is
+    /// copied into ``action`` before this method clears the editable form, so
+    /// execution still uses exactly what the user confirmed.
+    private func clearLocalIntegrationInputs() {
+        pendingLocalIntegrationAction = nil
+        localWebQuery = ""
+        localWakeOnLanMAC = ""
+        localMusicQuery = ""
+        localWhatsAppPhone = ""
+        localWhatsAppMessage = ""
+        localDiscordChannelID = ""
+        localDiscordGuildID = ""
     }
 
     private func performDiscordDestination(
