@@ -62,6 +62,7 @@ public enum PipaMobileLocalIntegrationLinks {
             digits = withoutFormatting
         }
         guard (7...15).contains(digits.utf8.count),
+              digits.first != "0",
               digits.utf8.allSatisfy({ (0x30...0x39).contains($0) }) else {
             return nil
         }
@@ -71,6 +72,7 @@ public enum PipaMobileLocalIntegrationLinks {
     private static func normalizeSnowflake(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard (17...20).contains(trimmed.utf8.count),
+              trimmed.first != "0",
               trimmed.utf8.allSatisfy({ (0x30...0x39).contains($0) }) else {
             return nil
         }

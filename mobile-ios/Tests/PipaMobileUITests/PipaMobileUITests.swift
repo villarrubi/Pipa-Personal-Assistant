@@ -118,6 +118,12 @@ final class PipaMobileUITests: XCTestCase {
                 message: "Hola\u{202E}Mamá"
             )
         )
+        XCTAssertNil(
+            PipaMobileLocalIntegrationLinks.whatsappComposeURL(
+                phone: "+01234567",
+                message: "Hola"
+            )
+        )
     }
 
     func testLocalDiscordLinkUsesDMByDefaultAndServerWhenProvided() throws {
@@ -141,6 +147,12 @@ final class PipaMobileUITests: XCTestCase {
             PipaMobileLocalIntegrationLinks.discordChannelURL(
                 channelID: "12345678901234567",
                 guildID: "not-a-server"
+            )
+        )
+        XCTAssertNil(
+            PipaMobileLocalIntegrationLinks.discordChannelURL(
+                channelID: "012345678901234567",
+                guildID: nil
             )
         )
     }

@@ -24,6 +24,8 @@ class DiscordTests(unittest.TestCase):
             build_discord_channel_url("not-an-id")
         with self.assertRaises(ValueError):
             build_discord_channel_url("00000000000000000")
+        with self.assertRaises(ValueError):
+            build_discord_channel_url("012345678901234567")
 
     @patch("tools.discord.webbrowser.open", return_value=True)
     def test_open_only_prepares_channel(self, open_browser):
