@@ -71,6 +71,17 @@ final class PipaMobileUITests: XCTestCase {
 #endif
     }
 
+    func testLocalAppleMusicRejectsUnsafeQueryBeforeAuthorizationOrTransport() {
+        let controller = PipaMobileAppleMusicController()
+
+        controller.search(term: "Pipa\u{202E}Music")
+
+        XCTAssertFalse(controller.isAuthorized)
+        XCTAssertFalse(controller.requestInProgress)
+        XCTAssertTrue(controller.searchResults.isEmpty)
+        XCTAssertEqual(controller.statusMessage, "Escribe una búsqueda musical válida y acotada.")
+    }
+
     func testConfirmationSummaryRejectsArgumentsAndAllowsFixedLabels() {
         XCTAssertTrue(
             PipaMobileViewModel.isSafeConfirmationSummary(

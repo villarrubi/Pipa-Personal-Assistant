@@ -13,6 +13,10 @@ de recuperación.
   `NSAppleMusicUsageDescription`, `NSLocalNetworkUsageDescription`,
   `NSMicrophoneUsageDescription` y `NSSpeechRecognitionUsageDescription`, y no
   añade dominios públicos ni excepciones ATS genéricas.
+- Para la ruta local de Apple Music, usar un Bundle ID explícito y activar
+  `MusicKit` en el App ID desde Certificates, Identifiers & Profiles de Apple
+  Developer antes de firmar el iPhone. El servicio queda asociado al Bundle ID
+  durante la ejecución; no se añade ninguna clave privada al proyecto.
 - Ejecutar las pruebas del paquete en un simulador iOS 16 o posterior.
 - Confirmar que no hay warnings de concurrencia, Keychain, Network o CryptoKit
   que se estén ignorando.
@@ -101,6 +105,8 @@ Validar una por una, siempre con confirmación visible:
 
 En el mismo iPhone, probar también la ruta local de Apple Music:
 
+- comprobar primero que el App ID tiene MusicKit activado y que el target está
+  firmado con ese Bundle ID explícito;
 - pulsar `Autorizar Apple Music` y comprobar que el permiso se solicita con el
   texto esperado;
 - buscar una canción conocida, elegir una coincidencia y comprobar que solo se

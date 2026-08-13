@@ -55,6 +55,13 @@ envía la búsqueda al PC, no guarda tokens y no cambia las confirmaciones del
 agente Windows. Requiere una cuenta/suscripción compatible y queda pendiente
 de validación física en Xcode/iPhone.
 
+Antes de probarla en un dispositivo, usa un Bundle ID explícito para el target
+y activa el servicio MusicKit en su App ID desde Certificates, Identifiers &
+Profiles de Apple Developer. MusicKit asocia ese servicio al Bundle ID durante
+la ejecución; no se debe copiar ninguna clave privada ni token al repositorio.
+La guía oficial está en
+<https://developer.apple.com/documentation/musickit/integrating-musickit-into-your-app>.
+
 La lista de comandos incluye un botón `Usar` para preparar una frase sin
 enviarla. Las acciones actuales sin parámetros muestran `Ejecutar` y usan el
 camino estructurado cifrado; las acciones peligrosas siguen deteniéndose en
