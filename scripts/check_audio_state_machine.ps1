@@ -9,9 +9,10 @@ $headerPath = Join-Path $repoRoot 'firmware/src/pipa_audio_state.h'
 $sourcePath = Join-Path $repoRoot 'firmware/src/pipa_audio_state.cpp'
 $audioHeaderPath = Join-Path $repoRoot 'firmware/src/pipa_audio.h'
 $audioSourcePath = Join-Path $repoRoot 'firmware/src/pipa_audio.cpp'
+$hostTestPath = Join-Path $repoRoot 'firmware/tests/pipa_audio_state_host_test.cpp'
 $mainPath = Join-Path $repoRoot 'firmware/src/main.cpp'
 
-foreach ($path in @($headerPath, $sourcePath, $audioHeaderPath, $audioSourcePath, $mainPath)) {
+foreach ($path in @($headerPath, $sourcePath, $audioHeaderPath, $audioSourcePath, $hostTestPath, $mainPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Falta un artefacto de la compuerta de audio: $path"
     }
@@ -21,6 +22,7 @@ $header = Get-Content -LiteralPath $headerPath -Raw
 $source = Get-Content -LiteralPath $sourcePath -Raw
 $audioHeader = Get-Content -LiteralPath $audioHeaderPath -Raw
 $audioSource = Get-Content -LiteralPath $audioSourcePath -Raw
+$hostTest = Get-Content -LiteralPath $hostTestPath -Raw
 $main = Get-Content -LiteralPath $mainPath -Raw
 
 foreach ($required in @(
@@ -47,6 +49,9 @@ if ($audioHeader.IndexOf('pipa_audio_state.h', [System.StringComparison]::Ordina
     $audioSource.IndexOf('state_machine_.beginProbe()', [System.StringComparison]::Ordinal) -lt 0 -or
     $audioSource.IndexOf('status_.state', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'La sonda física no está conectada a la compuerta de estado.'
+}
+if ($hostTest.IndexOf('PipaAudioStateMachine::vectorSelfTest()', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'Falta la ejecución host del vector de la compuerta de audio.'
 }
 
 $vectorGuard = '(?s)#if\s+defined\(PIPA_SECURE_SESSION_VECTOR_TEST\).*?PipaAudioStateMachine::vectorSelfTest\(\).*?#endif'

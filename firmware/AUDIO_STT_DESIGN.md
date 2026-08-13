@@ -10,7 +10,8 @@ La compuerta de software de esas transiciones está en
 prueba en el vector seguro: ningún futuro driver puede pasar de `PROBE_ONLY` a
 `CODEC_READY` sin declarar una inicialización física correcta, ni entrar en
 `LISTENING` sin pantalla, consentimiento y transporte seguro. La compuerta no
-captura audio por sí misma.
+captura audio por sí misma. Su `vectorSelfTest()` también se ejecuta en host en
+CI, para probar las transiciones sin necesitar una placa.
 
 ## Hardware objetivo
 
