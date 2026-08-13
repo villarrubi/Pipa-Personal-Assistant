@@ -19,9 +19,9 @@ recuperación segura.
 | Micrófono y altavoz | Sonda segura ES8311/ES7210 integrada; I²S y voz pendientes |
 | Voz Waveshare | El protocolo acepta texto reconocido; el firmware aún no tiene STT y el cierre de audio falla de forma explícita y segura |
 | Voz iPhone | Dictado local opcional que solo prepara el texto; requiere compilar y probar en Xcode |
-| Wake-on-LAN | Implementado en firmware; pendiente de prueba física y configuración de BIOS/red |
+| Wake-on-LAN | Paquete puro en firmware e iPhone; falta probar el broadcast y configurar BIOS/red |
 | Trusted Unlock | **Desactivado**: la tile existe, pero no autentica ni entrega credenciales a Windows |
-| iPhone/remoto | Proyecto Xcode, núcleo Swift CryptoKit/Keychain, TCP v2 y UI SwiftUI preparados; búsqueda web local y Apple Music local incluidos; falta probar el iPhone real |
+| iPhone/remoto | Proyecto Xcode, núcleo Swift CryptoKit/Keychain, TCP v2 y UI SwiftUI preparados; búsqueda web, Wake-on-LAN y Apple Music locales incluidos; falta probar el iPhone real |
 
 Pipα no sustituye ni desactiva contraseña, PIN, Windows Hello u otros
 Credential Providers. Hoy no permite entrar en Windows sin uno de esos métodos.
@@ -88,6 +88,9 @@ que las solicitó y caducan si no se confirman.
   manuales y esos datos no se guardan.
 - Desde el iPhone, abrir una búsqueda web local en Safari tras una confirmación
   visible; la consulta no pasa por el agente ni se almacena.
+- Desde el iPhone, despertar el PC con Wake-on-LAN tras una confirmación visible:
+  la MAC se valida localmente, el paquete va al broadcast UDP de la red local y
+  no pasa por el agente ni se guarda.
 - El parser también entiende frases naturales como `quiero buscar una partida
   en el LoL` y `manda un mensaje a ... por WhatsApp`; siguen pasando por la
   misma confirmación y nunca envían por sí solas.

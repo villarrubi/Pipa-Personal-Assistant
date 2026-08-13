@@ -6,11 +6,13 @@ import SwiftUI
 public struct PipaMobileRootView: View {
     @StateObject private var model: PipaMobileViewModel
     @StateObject private var localAppleMusic = PipaMobileAppleMusicController()
+    @StateObject private var localWakeOnLan = PipaMobileWakeOnLanController()
 #if os(iOS)
     @StateObject private var speechRecognizer = PipaMobileSpeechRecognizer()
 #endif
     @State private var commandToEdit: PipaMobileCommand?
     @State private var localWebQuery = ""
+    @State private var localWakeOnLanMAC = ""
     @State private var localMusicQuery = ""
     @State private var localWhatsAppPhone = ""
     @State private var localWhatsAppMessage = ""
@@ -23,6 +25,7 @@ public struct PipaMobileRootView: View {
 
     private enum LocalIntegrationAction: String, Identifiable, Equatable {
         case webSearch
+        case wakeOnLan
         case whatsappChat
         case whatsappMessage
         case discordChannel
@@ -34,6 +37,8 @@ public struct PipaMobileRootView: View {
             switch self {
             case .webSearch:
                 return "Buscar en Internet"
+            case .wakeOnLan:
+                return "Encender el PC"
             case .whatsappChat:
                 return "Abrir chat de WhatsApp"
             case .whatsappMessage:
@@ -49,6 +54,8 @@ public struct PipaMobileRootView: View {
             switch self {
             case .webSearch:
                 return "Se abrirá una búsqueda web en Safari; no se ejecutará ninguna acción en el PC."
+            case .wakeOnLan:
+                return "Se enviará un paquete mágico UDP solo a la red local para despertar el PC."
             case .whatsappChat:
                 return "Se abrirá el chat, sin preparar ni enviar ningún mensaje."
             case .whatsappMessage:
@@ -72,6 +79,7 @@ public struct PipaMobileRootView: View {
                 statusSection
                 integrationSection
                 localWebSearchSection
+                localWakeOnLanSection
                 localAppleMusicSection
                 localMessagingSection
                 commandSection
@@ -82,6 +90,7 @@ public struct PipaMobileRootView: View {
         .onChange(of: scenePhase) { phase in
             if phase != .active {
                 model.disconnect()
+                localWakeOnLan.cancel()
 #if os(iOS)
                 speechRecognizer.stop()
 #endif
@@ -322,6 +331,32 @@ public struct PipaMobileRootView: View {
         }
     }
 
+    private var localWakeOnLanSection: some View {
+        Section("Encender PC desde este iPhone") {
+            Text("Envía un paquete Wake-on-LAN únicamente por la red local. La MAC permanece en memoria y no se envía al agente.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("MAC del PC (AA:BB:CC:DD:EE:FF)", text: $localWakeOnLanMAC)
+#if os(iOS)
+                .textInputAutocapitalization(.characters)
+                .autocorrectionDisabled()
+#endif
+                .privacySensitive()
+            Button("Encender PC") {
+                guard localWakeOnLan.validate(mac: localWakeOnLanMAC) else { return }
+                pendingLocalIntegrationAction = .wakeOnLan
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(
+                localWakeOnLan.requestInProgress ||
+                    localWakeOnLanMAC.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            )
+            Text(localWakeOnLan.statusMessage)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var localMessagingSection: some View {
         Section("WhatsApp y Discord en este iPhone") {
             Text("Estos botones abren el destino mediante un enlace HTTPS. No envían mensajes ni inician llamadas automáticamente.")
@@ -396,6 +431,9 @@ public struct PipaMobileRootView: View {
             }
             openURL(url)
             localIntegrationStatus = "Búsqueda abierta en Safari."
+        case .wakeOnLan:
+            guard localWakeOnLan.validate(mac: localWakeOnLanMAC) else { return }
+            localWakeOnLan.wake(mac: localWakeOnLanMAC)
         case .whatsappChat:
             guard let url = PipaMobileLocalIntegrationLinks.whatsappChatURL(phone: localWhatsAppPhone) else {
                 localIntegrationStatus = "Introduce un teléfono internacional válido."

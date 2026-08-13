@@ -50,6 +50,13 @@ La pantalla incluye además una búsqueda web local: valida una consulta acotada
 muestra una confirmación visible y abre el resultado en Safari. La consulta
 no se envía al agente ni se usa para ejecutar acciones en el PC.
 
+La pantalla incluye también `Encender PC desde este iPhone`. Tras validar una
+MAC unicast y mostrar una confirmación visible, la app genera en memoria el
+paquete mágico estándar y lo envía únicamente al broadcast UDP `255.255.255.255`
+en el puerto 9. La MAC no se guarda, no viaja por el TCP de Pipa y la operación
+se cancela al pasar la app a segundo plano. El router, la BIOS y la tarjeta de
+red deben permitir Wake-on-LAN; la primera prueba física queda pendiente.
+
 La pantalla incluye además una sección independiente de Apple Music local para
 el propio iPhone. Al pulsar `Autorizar Apple Music`, MusicKit solicita el
 permiso del sistema; después `Buscar canciones` muestra hasta cinco

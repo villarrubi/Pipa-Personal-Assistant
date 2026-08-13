@@ -13,10 +13,12 @@ $requiredFiles = @(
     'mobile-ios/Sources/PipaMobileCore/PipaMobileSettingsStore.swift',
     'mobile-ios/Sources/PipaMobileCore/PipaMobileTCPClient.swift',
     'mobile-ios/Sources/PipaMobileCore/PipaMobileDestinationPolicy.swift',
+    'mobile-ios/Sources/PipaMobileCore/PipaMobileWakeOnLan.swift',
     'mobile-ios/Sources/PipaMobileUI/PipaMobileViewModel.swift',
     'mobile-ios/Sources/PipaMobileUI/PipaMobileCommandEditor.swift',
     'mobile-ios/Sources/PipaMobileUI/PipaMobileAppleMusicController.swift',
     'mobile-ios/Sources/PipaMobileUI/PipaMobileLocalIntegrationLinks.swift',
+    'mobile-ios/Sources/PipaMobileUI/PipaMobileWakeOnLanController.swift',
     'mobile-ios/Sources/PipaMobileUI/PipaMobileSpeechRecognizer.swift',
     'mobile-ios/Sources/PipaMobileUI/PipaMobileRootView.swift',
     'mobile-ios/App/PipaMobileApp.swift',
@@ -27,6 +29,7 @@ $requiredFiles = @(
     'mobile-ios/ARRIVAL_CHECKLIST.md',
     'MOBILE_PROTOCOL.md',
     'mobile-ios/Tests/PipaMobileCoreTests/PipaMobileProtocolTests.swift',
+    'mobile-ios/Tests/PipaMobileCoreTests/PipaMobileWakeOnLanTests.swift',
     'mobile-ios/Tests/Fixtures/mobile_record_v2.json',
     'mobile-ios/Tests/PipaMobileUITests/PipaMobileUITests.swift'
 )
@@ -48,10 +51,12 @@ $keychain = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobile
 $settingsStore = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileCore/PipaMobileSettingsStore.swift')
 $tcp = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileCore/PipaMobileTCPClient.swift')
 $destinationPolicy = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileCore/PipaMobileDestinationPolicy.swift')
+$wakeOnLan = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileCore/PipaMobileWakeOnLan.swift')
 $viewModel = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileViewModel.swift')
 $commandEditor = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileCommandEditor.swift')
 $appleMusic = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileAppleMusicController.swift')
 $localIntegrationLinks = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileLocalIntegrationLinks.swift')
+$wakeOnLanController = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileWakeOnLanController.swift')
 $speech = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileSpeechRecognizer.swift')
 $view = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Sources/PipaMobileUI/PipaMobileRootView.swift')
 $app = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/App/PipaMobileApp.swift')
@@ -62,6 +67,7 @@ $infoPlist = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/App/Info.plist.ex
 $arrivalChecklist = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/ARRIVAL_CHECKLIST.md')
 $mobileProtocol = Get-Content -Raw (Join-Path $repoRoot 'MOBILE_PROTOCOL.md')
 $coreTests = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Tests/PipaMobileCoreTests/PipaMobileProtocolTests.swift')
+$wakeOnLanTests = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Tests/PipaMobileCoreTests/PipaMobileWakeOnLanTests.swift')
 $uiTests = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Tests/PipaMobileUITests/PipaMobileUITests.swift')
 $vector = Get-Content -Raw (Join-Path $repoRoot 'mobile-ios/Tests/Fixtures/mobile_record_v2.json')
 $ignore = Get-Content -Raw (Join-Path $repoRoot '.gitignore')
@@ -72,20 +78,23 @@ $requiredPatterns = @(
     @($keychain, 'kSecAttrAccessibleWhenUnlockedThisDeviceOnly', 'kSecClassGenericPassword'),
     @($settingsStore, 'PipaMobileSettings', 'PipaMobileSettingsStoring', 'validateForStorage', 'SecItemCopyMatching', 'SecItemUpdate', 'updateAttributes', 'kSecAttrSynchronizable', 'kSecAttrAccessibleWhenUnlockedThisDeviceOnly'),
     @($destinationPolicy, 'PipaMobileDestinationPolicy', 'normalizePhone', 'normalizeSnowflake', 'first != "0"'),
+    @($wakeOnLan, 'PipaMobileWakeOnLan', 'packetSize', 'normalizeMAC', 'magicPacket', '0xFF', '0x01'),
     @($tcp, 'NWConnection', 'serverPublicKeyData', 'device_hello', 'catalog_request', 'PipaMobileCatalog', 'requestCatalogDetails', 'commands.count <= 64', 'parseCapabilities', 'capabilityGroups', 'booleanCapabilityFields', 'isCapabilityValue', 'isAllowedHost', 'first != "0"', 'first == 192', 'containsProtocolControl', 'maxArgumentsBytes', 'requestInFlight', 'requestInProgress', 'asyncAfter', 'connectionTimeout', 'ioTimeout', 'receiveBuffer'),
     @($viewModel, 'PipaMobileTCPClient', 'PipaKeychainIdentityStore', 'PipaMobileSettingsStoring', 'PipaMobileSettingsStore', 'PipaMobileIntegration', 'PipaMobileCommandParameter', 'guild_id', 'parameters', 'integrationCapabilities', 'requestCatalogDetails', 'pendingConfirmation', 'resolveConfirmation', 'prepareIdentity', 'identityFingerprint', 'serverFingerprint', 'serverFingerprintVerified', 'markServerFingerprintVerified', 'invalidateServerFingerprintVerification', 'useCommand', 'useCommandText', 'updateVoiceDraft', 'forgetConnectionSettings', 'sendStructuredCommand', 'operationTask', 'requestTask', 'requestInProgress', 'sessionGeneration', 'connectInProgress', 'Task.isCancelled', 'await newClient.disconnect()', 'closeAfterOperationFailure', 'requiresConfirmation == (safety == "unsafe")', 'parseCatalogCommands', 'Set(parsed.map(\.id)).count == parsed.count', 'isSafeConfirmationSummary', 'guard let expected = deviceConfirmationSummaries[toolName] else', 'whatsapp_phone_open', 'La respuesta del agente no es válida.'),
     @($commandEditor, 'placeholders', 'rendered(with values:', 'toolArguments(with values:', 'PipaMobileDestinationPolicy', 'normalizePhone', 'normalizeSnowflake', 'isSafeMessageText', '4000', 'Control', 'privacySensitive', 'Preparar en el editor', 'Enviar acción estructurada', 'without executing it'),
     @($appleMusic, 'MusicCatalogSearchRequest', 'MusicAuthorization', 'SystemMusicPlayer', 'search(term:', 'play(result:', 'skipToNextEntry', 'skipToPreviousEntry', 'player.stop()', 'previousTrack()', 'stopPlayback()', 'PipaMobileTextPolicy'),
     @($localIntegrationLinks, 'PipaMobileLocalIntegrationLinks', 'webSearchURL(query:', 'www.google.com', 'PipaMobileDestinationPolicy', 'wa.me', 'discord.com', 'isSafeDisplayText', 'isSafeMessageText', 'normalizeSnowflake', 'human'),
+    @($wakeOnLanController, 'PipaMobileWakeOnLanController', 'NWConnection', 'NWParameters.udp', '255.255.255.255', 'requestInProgress', 'DispatchQueue.main.async', 'magicPacket', 'validate(mac:', 'cancel()', '5'),
     @($speech, '#if os(iOS)', 'AVAudioEngine', 'SFSpeechRecognizer', 'requestRecordPermission', 'supportsOnDeviceRecognition', 'requiresOnDeviceRecognition', 'PipaMobileSpeechRecognizer', 'operationGeneration', 'generation:', 'invalidate: true', 'bounded(text)'),
-    @($view, 'PipaMobileRootView', 'LocalIntegrationAction', 'Equatable', 'pendingLocalIntegrationAction', '.confirmationDialog', 'performPendingLocalIntegrationAction', 'scenePhase', 'onChange', 'commandToEdit', '.sheet(item:', 'command.placeholders', 'integrationSection', 'integrationCapabilities', 'localWebSearchSection', 'Internet en este iPhone', 'localAppleMusic', 'Apple Music en este iPhone', 'Anterior', 'Detener', 'privacySensitive', 'Disponible', 'No disponible', 'Preparar identidad', 'Fingerprint:', 'Fingerprint del agente:', 'He comparado el fingerprint', 'Fingerprint verificado', 'Confirmar acción', 'Rechazar', 'Aceptar', 'Usar', 'PipaMobileSpeechRecognizer', 'Dictar comando', 'Parar dictado', 'updateVoiceDraft', 'speechRecognizer.cancel()', 'speechRecognizer.isListening', 'Borrar configuración guardada'),
+    @($view, 'PipaMobileRootView', 'LocalIntegrationAction', 'Equatable', 'pendingLocalIntegrationAction', '.confirmationDialog', 'performPendingLocalIntegrationAction', 'scenePhase', 'onChange', 'commandToEdit', '.sheet(item:', 'command.placeholders', 'integrationSection', 'integrationCapabilities', 'localWebSearchSection', 'Internet en este iPhone', 'localWakeOnLanSection', 'PipaMobileWakeOnLan', 'Encender PC', 'localAppleMusic', 'Apple Music en este iPhone', 'Anterior', 'Detener', 'privacySensitive', 'Disponible', 'No disponible', 'Preparar identidad', 'Fingerprint:', 'Fingerprint del agente:', 'He comparado el fingerprint', 'Fingerprint verificado', 'Confirmar acción', 'Rechazar', 'Aceptar', 'Usar', 'PipaMobileSpeechRecognizer', 'Dictar comando', 'Parar dictado', 'updateVoiceDraft', 'speechRecognizer.cancel()', 'speechRecognizer.isListening', 'Borrar configuración guardada'),
     @($app, '@main', 'PipaMobileRootView', 'WindowGroup'),
     @($appInfo, 'CFBundleDisplayName', 'LSRequiresIPhoneOS', 'NSAppleMusicUsageDescription', 'NSLocalNetworkUsageDescription', 'NSMicrophoneUsageDescription', 'NSSpeechRecognitionUsageDescription'),
     @($xcodeProject, 'PBXProject', 'PBXNativeTarget', 'PipaMobileApp.swift', 'PipaMobileUI', 'XCLocalSwiftPackageReference', 'relativePath = ..', 'INFOPLIST_FILE = ../App/Info.plist', 'IPHONEOS_DEPLOYMENT_TARGET = 16.0'),
     @($xcodeScheme, 'BlueprintName = "PipaMobile"', 'BuildableName = "PipaMobile.app"', 'container:PipaMobile.xcodeproj'),
     @($infoPlist, 'CFBundleDisplayName', 'LSRequiresIPhoneOS', 'NSAppleMusicUsageDescription', 'NSLocalNetworkUsageDescription', 'NSMicrophoneUsageDescription', 'NSSpeechRecognitionUsageDescription', 'red local'),
     @($coreTests, 'testRecordLayerEncryptsAuthenticatesAndRejectsReplay', 'testRecordLayerMatchesTheSharedPythonVector', 'testTCPClientRejectsInvalidTextAndOversizedArgumentsBeforeTransport', 'testMobileEndpointRejectsPublicAndWildcardHosts', '192.168.001.020', 'testMobileTextPolicyRejectsProtocolAndBidirectionalControls', 'testDestinationPolicyUsesCanonicalPhoneAndDiscordIDs', '01234567', 'testMobileSettingsRejectUnsafePersistedValuesBeforeTransport'),
-    @($uiTests, 'testConnectionRequiresEphemeralFingerprintAcknowledgement', 'testSavedSettingsNeverCountAsFingerprintAcknowledgement', 'testCatalogCommandEditorRendersBoundedArgumentsWithoutSending', 'testCatalogRejectsDuplicateAndOversizedCommandLists', 'testStructuredCatalogCommandAcceptsMessageLineFeedsAndTypedArguments', 'testStructuredCatalogCommandRejectsMalformedParameterMetadata', 'testVoiceDraftOnlyUpdatesTheEditorWithoutSending', 'testVoiceDraftRejectsControlCharactersAndOversizedInput', 'testCatalogRejectsBidirectionalFormattingControls', 'testIntegrationCapabilitiesShowOnlyCoarseManualActionStatus', 'testLocalAppleMusicControllerStartsWithoutAuthorizationOrTransport', 'testLocalWebSearchLinkIsFixedAndEncodesTheQuery', 'testLocalWebSearchLinkRejectsEmptyUnsafeOrOversizedQueries'),
+    @($wakeOnLanTests, 'testNormalizesAndBuildsTheStandardMagicPacket', 'testRejectsInvalidOrNonUnicastMACAddresses', 'PipaMobileWakeOnLan.packetSize'),
+    @($uiTests, 'testConnectionRequiresEphemeralFingerprintAcknowledgement', 'testSavedSettingsNeverCountAsFingerprintAcknowledgement', 'testCatalogCommandEditorRendersBoundedArgumentsWithoutSending', 'testCatalogRejectsDuplicateAndOversizedCommandLists', 'testStructuredCatalogCommandAcceptsMessageLineFeedsAndTypedArguments', 'testStructuredCatalogCommandRejectsMalformedParameterMetadata', 'testVoiceDraftOnlyUpdatesTheEditorWithoutSending', 'testVoiceDraftRejectsControlCharactersAndOversizedInput', 'testCatalogRejectsBidirectionalFormattingControls', 'testIntegrationCapabilitiesShowOnlyCoarseManualActionStatus', 'testLocalAppleMusicControllerStartsWithoutAuthorizationOrTransport', 'testLocalWakeOnLanStartsIdleAndDoesNotRequireAgentTransport', 'testLocalWebSearchLinkIsFixedAndEncodesTheQuery', 'testLocalWebSearchLinkRejectsEmptyUnsafeOrOversizedQueries'),
     @($arrivalChecklist, 'python .\windows-agent\trusted_unlock_admin.py pair-mobile', 'FINGERPRINT_COMPARADO'),
     @($mobileProtocol, 'python .\windows-agent\trusted_unlock_admin.py pair-mobile', 'python .\windows-agent\trusted_unlock_admin.py list-mobile', 'python .\windows-agent\trusted_unlock_admin.py revoke-mobile'),
     @($vector, 'vector-mobile', 'shared_secret', 'ciphertext_and_tag'),
@@ -129,7 +138,7 @@ $forbiddenPatterns = @(
 foreach ($pattern in $forbiddenPatterns) {
     if ($protocol.Contains($pattern) -or $keychain.Contains($pattern) -or $tcp.Contains($pattern) -or
         $settingsStore.Contains($pattern) -or $viewModel.Contains($pattern) -or
-        $appleMusic.Contains($pattern) -or $localIntegrationLinks.Contains($pattern) -or $speech.Contains($pattern) -or $view.Contains($pattern) -or $app.Contains($pattern) -or
+        $wakeOnLan.Contains($pattern) -or $appleMusic.Contains($pattern) -or $localIntegrationLinks.Contains($pattern) -or $wakeOnLanController.Contains($pattern) -or $speech.Contains($pattern) -or $view.Contains($pattern) -or $app.Contains($pattern) -or
         $appInfo.Contains($pattern) -or $xcodeProject.Contains($pattern) -or $xcodeScheme.Contains($pattern) -or
         $arrivalChecklist.Contains($pattern) -or $mobileProtocol.Contains($pattern)) {
         throw "El paquete iOS contiene un patrón no permitido: $pattern"

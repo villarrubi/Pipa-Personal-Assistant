@@ -89,6 +89,16 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertEqual(controller.statusMessage, "Escribe una búsqueda musical válida y acotada.")
     }
 
+    func testLocalWakeOnLanStartsIdleAndDoesNotRequireAgentTransport() {
+        let controller = PipaMobileWakeOnLanController()
+
+        XCTAssertFalse(controller.requestInProgress)
+        XCTAssertTrue(controller.statusMessage.contains("red local"))
+        XCTAssertFalse(controller.validate(mac: "not-a-mac"))
+        XCTAssertEqual(controller.statusMessage, "Introduce una MAC unicast válida.")
+        XCTAssertNotNil(PipaMobileWakeOnLan.magicPacket(for: "AA:BB:CC:DD:EE:F0"))
+    }
+
     func testLocalWhatsAppLinkPreparesMessageWithoutChangingItsContents() throws {
         let url = try XCTUnwrap(
             PipaMobileLocalIntegrationLinks.whatsappComposeURL(

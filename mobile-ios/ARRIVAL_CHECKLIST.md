@@ -96,6 +96,9 @@ Configurar en Windows una IP privada concreta y un puerto explícito:
 Validar una por una, siempre con confirmación visible:
 
 - web: abre una búsqueda acotada;
+- Wake-on-LAN local del iPhone: introduce una MAC unicast, confirma y comprueba
+  que el paquete despierta el PC solo en la red local; no pruebes con una MAC
+  de broadcast, multicast o todo ceros;
 - Apple Music remoto: abre resultados, pero la pista se selecciona manualmente;
 - WhatsApp: prepara el chat, pero el usuario pulsa `Enviar`;
 - Discord: abre el canal, pero el usuario inicia la llamada;
