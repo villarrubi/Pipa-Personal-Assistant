@@ -180,7 +180,8 @@ public actor PipaMobileTCPClient {
         let responses = try await send(type: "catalog_request", fields: [:], expectsUIState: false)
         guard responses.count == 1,
               responses[0]["type"] as? String == "catalog",
-              let commands = responses[0]["commands"] as? [[String: Any]] else {
+              let commands = responses[0]["commands"] as? [[String: Any]],
+              commands.count <= 64 else {
             throw PipaMobileError.invalidMessage
         }
         let capabilities = try Self.parseCapabilities(responses[0]["capabilities"])

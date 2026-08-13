@@ -163,7 +163,7 @@ final class PipaMobileUITests: XCTestCase {
                 summary: "Preparar WhatsApp para +34 600 123 456: mensaje secreto"
             )
         )
-        XCTAssertTrue(
+        XCTAssertFalse(
             PipaMobileViewModel.isSafeConfirmationSummary(
                 toolName: "future_external_tool",
                 summary: "Confirmar acción externa."
@@ -189,6 +189,24 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertEqual(model.textCommand, "busca en Apple Music <artista o canción>")
         XCTAssertFalse(model.requestInProgress)
         XCTAssertNil(model.pendingConfirmation)
+    }
+
+    func testCatalogRejectsDuplicateAndOversizedCommandLists() throws {
+        let payload: [String: Any] = [
+            "id": "music_open",
+            "tool_name": "music_open",
+            "phrase": "abre Apple Music",
+            "description": "Abre Apple Music.",
+            "safety": "unsafe",
+            "requires_confirmation": true,
+        ]
+
+        XCTAssertThrowsError(
+            try PipaMobileViewModel.parseCatalogCommands([payload, payload])
+        )
+        XCTAssertThrowsError(
+            try PipaMobileViewModel.parseCatalogCommands(Array(repeating: payload, count: 65))
+        )
     }
 
     func testCatalogCommandEditorRendersBoundedArgumentsWithoutSending() throws {

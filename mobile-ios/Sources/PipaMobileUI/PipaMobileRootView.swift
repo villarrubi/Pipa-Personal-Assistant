@@ -310,6 +310,7 @@ public struct PipaMobileRootView: View {
         Section("Comando") {
             TextField("Escribe un comando para Pipα", text: $model.textCommand, axis: .vertical)
                 .lineLimit(1...4)
+                .privacySensitive()
 #if os(iOS)
             HStack {
                 Button(speechRecognizer.isListening ? "Parar dictado" : "Dictar comando") {

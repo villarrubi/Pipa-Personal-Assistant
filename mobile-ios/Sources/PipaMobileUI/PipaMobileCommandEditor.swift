@@ -144,6 +144,7 @@ public struct PipaMobileCommandEditor: View {
                         Text(rendered)
                             .font(.body.monospaced())
                             .textSelection(.enabled)
+                            .privacySensitive()
                     } else {
                         Text("Completa los campos para preparar el comando.")
                             .foregroundStyle(.secondary)
@@ -190,6 +191,7 @@ public struct PipaMobileCommandEditor: View {
         if parameter?.kind == "message" || label.localizedCaseInsensitiveContains("mensaje") {
             TextEditor(text: binding)
                 .frame(minHeight: 90)
+                .privacySensitive()
                 .overlay(alignment: .topLeading) {
                     if binding.wrappedValue.isEmpty {
                         Text(label)

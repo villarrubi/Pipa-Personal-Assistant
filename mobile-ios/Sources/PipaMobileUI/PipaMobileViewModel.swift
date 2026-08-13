@@ -481,10 +481,7 @@ public final class PipaMobileViewModel: ObservableObject {
                         self?.connectInProgress = false
                         return
                     }
-                    let parsedCatalog = catalog.commands.compactMap(PipaMobileCommand.init(payload:))
-                    guard parsedCatalog.count == catalog.commands.count else {
-                        throw PipaMobileError.invalidMessage
-                    }
+                    let parsedCatalog = try Self.parseCatalogCommands(catalog.commands)
                     let parsedCapabilities = catalog.capabilities
                         .compactMap { PipaMobileIntegration(id: $0.key, payload: $0.value) }
                         .sorted { $0.id < $1.id }
@@ -576,8 +573,22 @@ public final class PipaMobileViewModel: ObservableObject {
     }
 
     static func isSafeConfirmationSummary(toolName: String, summary: String) -> Bool {
-        let expected = deviceConfirmationSummaries[toolName] ?? "Confirmar acción externa."
+        guard let expected = deviceConfirmationSummaries[toolName] else {
+            return false
+        }
         return summary == expected
+    }
+
+    static func parseCatalogCommands(_ rawCommands: [[String: Any]]) throws -> [PipaMobileCommand] {
+        guard rawCommands.count <= 64 else {
+            throw PipaMobileError.invalidMessage
+        }
+        let parsed = rawCommands.compactMap(PipaMobileCommand.init(payload:))
+        guard parsed.count == rawCommands.count,
+              Set(parsed.map(\.id)).count == parsed.count else {
+            throw PipaMobileError.invalidMessage
+        }
+        return parsed
     }
 
     private func startRequest(
