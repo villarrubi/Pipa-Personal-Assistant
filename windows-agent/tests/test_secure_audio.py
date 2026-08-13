@@ -9,10 +9,11 @@ from secure_audio import (  # noqa: E402
     MAX_AUDIO_CHUNK_BYTES,
     MAX_AUDIO_CHUNKS,
     AudioFrameError,
+    SecureAudioConsumer,
     SecureAudioReceiver,
     SecureAudioSender,
 )
-from secure_session import secure_session_from_shared_secret  # noqa: E402
+from secure_session import ClosedSessionError, secure_session_from_shared_secret  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "mobile-ios" / "Tests" / "Fixtures" / "secure_audio_v2.json"
@@ -94,6 +95,79 @@ class SecureAudioTests(unittest.TestCase):
         sender.cancel()
         with self.assertRaises(AudioFrameError):
             sender.seal_chunk(b"\x03\x04", final=True)
+
+    def test_consumer_delivers_ephemeral_chunks_and_returns_bounded_summary(self):
+        sender = SecureAudioSender(self._session("client"), "stream-consumer")
+        first = sender.seal_chunk(b"\x01\x02" * 4, final=False)
+        second = sender.seal_chunk(b"\x03\x04" * 4, final=True)
+        receiver = SecureAudioReceiver(self._session("server"))
+        received: list[bytes] = []
+        retained_views: list[memoryview] = []
+
+        def consume(view: memoryview, final: bool) -> None:
+            received.append(bytes(view))
+            retained_views.append(view)
+            self.assertEqual(final, len(received) == 2)
+
+        consumer = SecureAudioConsumer(receiver, consume)
+
+        self.assertFalse(consumer.consume_frame(first))
+        self.assertTrue(consumer.consume_frame(second))
+        summary = consumer.finalize()
+
+        self.assertEqual(received, [b"\x01\x02" * 4, b"\x03\x04" * 4])
+        self.assertEqual(summary.stream_bytes, 16)
+        self.assertEqual(summary.stream_duration_ms, 0)
+        self.assertTrue(consumer.complete)
+        with self.assertRaises(ValueError):
+            len(retained_views[0])
+
+    def test_consumer_callback_failure_closes_session_without_retrying(self):
+        sender = SecureAudioSender(self._session("client"), "stream-failure")
+        frame = sender.seal_chunk(b"\x01\x02" * 4, final=True)
+        receiver = SecureAudioReceiver(self._session("server"))
+
+        def fail(_view: memoryview, _final: bool) -> None:
+            raise RuntimeError("private transcriber detail")
+
+        consumer = SecureAudioConsumer(receiver, fail)
+        with self.assertRaises(AudioFrameError):
+            consumer.consume_frame(frame)
+
+        self.assertTrue(consumer.closed)
+        with self.assertRaises(ClosedSessionError):
+            receiver.session.seal(b"\x00\x00")
+        with self.assertRaises(AudioFrameError):
+            consumer.consume_frame(frame)
+
+    def test_consumer_finalize_rejects_truncated_stream_and_closes_session(self):
+        sender = SecureAudioSender(self._session("client"), "stream-truncated")
+        frame = sender.seal_chunk(b"\x01\x02" * 4, final=False)
+        receiver = SecureAudioReceiver(self._session("server"))
+        consumer = SecureAudioConsumer(receiver, lambda _view, _final: None)
+
+        self.assertFalse(consumer.consume_frame(frame))
+        with self.assertRaises(AudioFrameError):
+            consumer.finalize()
+
+        self.assertTrue(consumer.closed)
+        with self.assertRaises(ClosedSessionError):
+            receiver.session.seal(b"\x00\x00")
+
+    def test_consumer_cancel_reuses_control_session_for_a_new_stream(self):
+        first_sender = SecureAudioSender(self._session("client"), "stream-cancelled")
+        first = first_sender.seal_chunk(b"\x01\x02" * 4, final=False)
+        receiver = SecureAudioReceiver(self._session("server"))
+        received: list[bytes] = []
+        consumer = SecureAudioConsumer(receiver, lambda view, _final: received.append(bytes(view)))
+
+        self.assertFalse(consumer.consume_frame(first))
+        consumer.cancel()
+
+        second_sender = SecureAudioSender(first_sender.session, "stream-new")
+        second = second_sender.seal_chunk(b"\x03\x04" * 4, final=True)
+        self.assertTrue(consumer.consume_frame(second))
+        self.assertEqual(received, [b"\x01\x02" * 4, b"\x03\x04" * 4])
 
 
 if __name__ == "__main__":

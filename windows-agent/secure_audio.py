@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from secure_session import RecordError, SecureSession
@@ -47,6 +48,17 @@ _FRAME_FIELDS = _RECORD_FIELDS | _AUDIO_FIELDS
 
 class AudioFrameError(RecordError):
     """An encrypted audio frame violates the bounded audio contract."""
+
+
+@dataclass(frozen=True)
+class AudioStreamSummary:
+    """Bounded metadata returned after an audio stream reaches its final frame."""
+
+    stream_bytes: int
+    stream_duration_ms: int
+
+
+AudioChunkConsumer = Callable[[memoryview, bool], None]
 
 
 def _canonical(value: Mapping[str, Any]) -> bytes:
@@ -236,3 +248,105 @@ class SecureAudioReceiver:
         self._next_chunk = 0
         self._stream_bytes = 0
         self._finished = False
+
+
+class SecureAudioConsumer:
+    """Deliver authenticated PCM chunks to a future local transcriber.
+
+    The consumer never accumulates a recording. Each decrypted chunk is copied
+    into a short-lived mutable buffer, exposed as a memoryview for the
+    callback, and invalidated and zeroed immediately afterwards. A callback
+    failure closes the secure session so a partially consumed stream cannot be
+    reused accidentally.
+    """
+
+    def __init__(self, receiver: SecureAudioReceiver, on_chunk: AudioChunkConsumer) -> None:
+        if not isinstance(receiver, SecureAudioReceiver):
+            raise TypeError("receiver must be SecureAudioReceiver")
+        if not callable(on_chunk):
+            raise TypeError("on_chunk must be callable")
+        self.receiver = receiver
+        self._on_chunk: AudioChunkConsumer | None = on_chunk
+        self._closed = False
+        self._finished = False
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    @property
+    def complete(self) -> bool:
+        return self._finished
+
+    @property
+    def stream_bytes(self) -> int:
+        return self.receiver.stream_bytes
+
+    @property
+    def stream_duration_ms(self) -> int:
+        return self.receiver.stream_duration_ms
+
+    def consume_frame(self, frame: Mapping[str, object]) -> bool:
+        """Decrypt and deliver one frame; return whether it was the final one."""
+
+        if self._closed:
+            raise AudioFrameError("audio consumer is closed")
+        if self._finished:
+            self.close()
+            raise AudioFrameError("audio stream is already finished")
+        try:
+            samples = self.receiver.open_chunk(frame)
+        except AudioFrameError:
+            self._closed = True
+            self._on_chunk = None
+            raise
+
+        buffer = bytearray(samples)
+        del samples
+        view = memoryview(buffer)
+        final = self.receiver.complete
+        try:
+            callback = self._on_chunk
+            if callback is None:
+                raise AudioFrameError("audio consumer has no callback")
+            callback(view, final)
+        except AudioFrameError:
+            self.close()
+            raise
+        except Exception as error:
+            self.close()
+            raise AudioFrameError("audio consumer failed") from error
+        finally:
+            view.release()
+            buffer[:] = b"\x00" * len(buffer)
+
+        self._finished = final
+        return final
+
+    def finalize(self) -> AudioStreamSummary:
+        """Return only bounded counters after a final frame was consumed."""
+
+        if self._closed:
+            raise AudioFrameError("audio consumer is closed")
+        if not self._finished or not self.receiver.complete:
+            self.close()
+            raise AudioFrameError("audio stream ended before its final frame")
+        return AudioStreamSummary(self.stream_bytes, self.stream_duration_ms)
+
+    def cancel(self) -> None:
+        """Discard the current stream while retaining the control session."""
+
+        if self._closed:
+            return
+        self.receiver.cancel()
+        self._finished = False
+
+    def close(self) -> None:
+        """Close the secure session and drop the callback reference."""
+
+        if self._closed:
+            return
+        self.receiver.close()
+        self._closed = True
+        self._finished = False
+        self._on_chunk = None

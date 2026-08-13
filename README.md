@@ -142,6 +142,9 @@ que las solicitó y caducan si no se confirman.
 - Ejecutar desde la CLI una acción externa solo con `--confirm`; las consultas
   de estado siguen siendo de solo lectura.
 - Probar todo el protocolo de dispositivo con un simulador efímero.
+- El contrato de audio cifrado ya tiene un consumidor por chunks en Windows:
+  entrega memoria efímera a un futuro STT local, borra el buffer y cierra la
+  sesión ante errores o streams truncados; todavía no captura ni anuncia voz.
 - Compilar el firmware exacto sin tener la placa.
 - La app iPhone recuerda la configuración pública de conexión en Keychain y
   permite completar en un formulario local los parámetros de búsquedas,

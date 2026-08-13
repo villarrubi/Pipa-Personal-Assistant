@@ -55,7 +55,10 @@ nuevo.
 
 ## Implementaciones y pruebas
 
-- Windows: `windows-agent/secure_audio.py`.
+- Windows: `windows-agent/secure_audio.py`. `SecureAudioConsumer` entrega cada
+  bloque autenticado a un callback local mediante un `memoryview` efímero,
+  borra el buffer al devolverlo y solo devuelve contadores acotados al finalizar.
+  No acumula una grabación ni está conectado al agente residente.
 - iPhone: `mobile-ios/Sources/PipaMobileCore/PipaSecureAudio.swift`.
 - Firmware: `firmware/src/pipa_secure_audio.h/.cpp` contiene un primitive
   acotado de framing, cifrado y apertura, ejecutado únicamente por el vector
@@ -72,3 +75,18 @@ codec, Wi‑Fi, serie ni pantalla. No escribe muestras en logs, archivos, NVS o
 pantalla y no tiene ninguna ruta de captura conectada. La integración real del
 firmware queda deliberadamente para después de probar codec, I²S, buffers,
 cancelación e indicador en la placa.
+
+## Entrega al futuro STT
+
+El consumidor de Windows es la única pieza preparada para recibir audio antes
+de la integración física. El callback recibe `(memoryview, final)` y debe
+procesar el bloque localmente; la vista se invalida al volver del callback y el
+buffer temporal se pone a cero. El callback no debe conservar una copia ni
+escribir audio en disco. Si falla, el consumidor cierra la sesión segura. Si
+la secuencia termina sin `final`, también se cierra: una transcripción parcial
+no se interpreta como un comando.
+
+Todavía no existe un callback STT concreto, no se anuncia `voice`/`audio` en
+las capacidades y `hold_end`/`audio_end` siguen respondiendo
+`voice_unavailable`. Esa separación es intencionada hasta validar micrófono,
+indicador visible, cancelación y rendimiento en el Waveshare.
