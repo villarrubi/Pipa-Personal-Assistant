@@ -142,10 +142,12 @@ Poly1305, límites y framing que `SECURE_SESSION_PROTOCOL.md`. El record layer
 comparte el fixture determinista
 `Tests/Fixtures/mobile_record_v2.json` con las pruebas Python. El fixture
 `Tests/Fixtures/mobile_handshake_v2.json` añade un handshake completo
-determinista: claves sintéticas, firmas Ed25519, intercambio X25519, derivación
-HKDF, `ServerHello` y el primer record cifrado. Python y Swift comparan los
-mismos mensajes y ciphertext; sus semillas solo sirven para el test y nunca
-deben reutilizarse en una instalación. Este entorno es
+determinista: claves sintéticas, transcript Ed25519, intercambio X25519,
+derivación HKDF, `ServerHello` y el primer record cifrado. Python y Swift
+comparan los mismos campos/transcript, verifican las firmas y comparan el
+ciphertext; las firmas Ed25519 no se comparan byte a byte porque CryptoKit
+puede producir otra firma válida para el mismo mensaje. Sus semillas solo
+sirven para el test y nunca deben reutilizarse en una instalación. Este entorno es
 Windows y no tiene Xcode/Swift SDK, así que la compilación del paquete y las
 pruebas en iPhone quedan explícitamente pendientes para un Mac. Hasta que esa
 validación exista, no se debe distribuir la app ni activar el transporte TCP

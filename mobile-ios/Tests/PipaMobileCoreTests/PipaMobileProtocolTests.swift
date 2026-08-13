@@ -296,13 +296,29 @@ final class PipaMobileProtocolTests: XCTestCase {
             clientNonce: clientNonce
         )
         let expectedClientHello = try XCTUnwrap(fixture["client_hello"] as? [String: Any])
-        for key in context.hello.keys {
+        XCTAssertEqual(Set(context.hello.keys), Set(expectedClientHello.keys))
+        for key in context.hello.keys where key != "signature" && key != "protocol_version" {
             XCTAssertEqual(
                 context.hello[key] as? String ?? "<non-string>",
                 expectedClientHello[key] as? String ?? "<missing-or-non-string>",
                 "ClientHello field \(key)"
             )
         }
+        XCTAssertEqual(context.hello["protocol_version"] as? Int, 2)
+        let clientSignature = try PipaMobileCodec.decodeBase64URL(
+            try XCTUnwrap(context.hello["signature"] as? String),
+            expectedCount: 64
+        )
+        var unsignedClientHello = context.hello
+        unsignedClientHello.removeValue(forKey: "signature")
+        unsignedClientHello["role"] = "client"
+        let clientPublicKey = try Curve25519.Signing.PublicKey(rawRepresentation: identity.publicKeyData)
+        XCTAssertTrue(
+            clientPublicKey.isValidSignature(
+                clientSignature,
+                for: try PipaMobileCodec.canonicalJSON(unsignedClientHello)
+            )
+        )
 
         let serverHello = try XCTUnwrap(fixture["server_hello"] as? [String: Any])
         let layer = try PipaMobileHandshake.complete(
