@@ -164,7 +164,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     whatsapp_message = re.fullmatch(
         r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:para|a) "
-        r"([+\d][\d\s().-]{6,24}) (?:por|en) whatsapp "
+        r"([+\d][\d\s().-]{6,24}) (?:por|en|de) whatsapp "
         r"(?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
         original,
         flags=re.IGNORECASE,
@@ -176,7 +176,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         )
 
     whatsapp_message_prefix = re.fullmatch(
-        r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:por|en) whatsapp "
+        r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:por|en|de) whatsapp "
         r"(?:para|a) ([+\d][\d\s().-]{6,24}) "
         r"(?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
         original,
@@ -191,9 +191,43 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
             },
         )
 
+    # Spanish also commonly places the service before the recipient:
+    # "manda un mensaje de WhatsApp a mamá". Keep the phone branch separate
+    # so it continues to use the direct-phone tool contract.
+    whatsapp_message_service_first_phone = re.fullmatch(
+        r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:de|por|en) whatsapp "
+        r"(?:para|a) ([+\d][\d\s().-]{6,24}) "
+        r"(?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if whatsapp_message_service_first_phone:
+        return ParsedIntent(
+            "whatsapp_compose",
+            {
+                "phone": whatsapp_message_service_first_phone.group(1).strip(),
+                "message": whatsapp_message_service_first_phone.group(2).strip(),
+            },
+        )
+
+    whatsapp_message_service_first_contact = re.fullmatch(
+        r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:de|por|en) whatsapp "
+        r"(?:para|a) (.+?) (?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if whatsapp_message_service_first_contact:
+        return ParsedIntent(
+            "whatsapp_contact",
+            {
+                "contact": whatsapp_message_service_first_contact.group(1).strip(),
+                "message": whatsapp_message_service_first_contact.group(2).strip(),
+            },
+        )
+
     whatsapp_contact_alternative = re.fullmatch(
         r"(?:prepara|abre|escribe(?:le)?|manda|env[ií]a) (?:para|a) (.+?) "
-        r"(?:por|en) whatsapp (?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
+        r"(?:por|en|de) whatsapp (?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
         original,
         flags=re.IGNORECASE,
     )
@@ -208,7 +242,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     whatsapp_contact_message = re.fullmatch(
         r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:para|a) (.+?) "
-        r"(?:por|en) whatsapp (?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
+        r"(?:por|en|de) whatsapp (?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
         original,
         flags=re.IGNORECASE,
     )
@@ -222,7 +256,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         )
 
     whatsapp_contact_message_prefix = re.fullmatch(
-        r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:por|en) whatsapp "
+        r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:por|en|de) whatsapp "
         r"(?:para|a) (.+?) (?:y dile|dile|con el mensaje|diciendo|que diga) (.+)",
         original,
         flags=re.IGNORECASE,
@@ -274,7 +308,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     discord_call_contact = re.fullmatch(
         r"(?:llama(?:r)?|haz una llamada|inicia(?:r)? una llamada|empieza(?:r)? una llamada) "
-        r"(?:a|con) (?:el )?(.+?) (?:por|en) discord",
+        r"(?:a|con) (?:el )?(.+?) (?:por|en|de) discord",
         original,
         flags=re.IGNORECASE,
     )
@@ -283,7 +317,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     discord_call_contact_prefix = re.fullmatch(
         r"(?:llama(?:r)?|haz una llamada|inicia(?:r)? una llamada|empieza(?:r)? una llamada) "
-        r"(?:por|en) discord (?:a|al|con) (.+)",
+        r"(?:por|en|de) discord (?:a|al|con) (.+)",
         original,
         flags=re.IGNORECASE,
     )
@@ -536,7 +570,8 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         # Accept the natural context users add when addressing the game,
         # while keeping the actual queue strictly allowlisted below.
         queue_text = re.sub(
-            r"(?:^|\s+)(?:(?:en|dentro de)\s+(?:el\s+)?|(?:en el|dentro del)\s+)"
+            r"(?:^|\s+)(?:(?:en|dentro de|de)\s+(?:el\s+)?|"
+            r"(?:en el|dentro del|del)\s+)"
             r"(?:lol|league(?: of legends)?)$",
             "",
             queue_text,

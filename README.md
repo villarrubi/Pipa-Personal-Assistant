@@ -214,6 +214,10 @@ Hola`—, consultar el estado de League y cancelar una búsqueda con confirmaci�
 También entiende variantes naturales como `cancela la búsqueda del LoL` y
 `llama por Discord a amigo`; ambas conservan la confirmación y el último paso
 manual correspondiente.
+También acepta formas equivalentes como `busca una partida de LoL`, `manda un
+mensaje de WhatsApp a mamá diciendo llego` y `haz una llamada de Discord con
+amigo`; el parser solo cambia la forma de la petición, no la política de
+confirmación ni los pasos manuales.
 Desde una sesión autenticada, las acciones externas requieren confirmación y las
 interfaces que puedan enviar o llamar siguen requiriendo la acción final del
 usuario. Tras seleccionar una canción, el catálogo móvil ofrece reproducir/pausar

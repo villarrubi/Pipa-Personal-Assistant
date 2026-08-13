@@ -105,12 +105,27 @@ class IntegrationIntentTests(unittest.TestCase):
             {"phone": "+34 600 123 456", "message": "llego en diez minutos"},
         )
         self.assert_intent(
+            "manda un mensaje de WhatsApp a mamá diciendo llego en diez minutos",
+            "whatsapp_contact",
+            {"contact": "mamá", "message": "llego en diez minutos"},
+        )
+        self.assert_intent(
+            "manda un mensaje de WhatsApp a +34 600 123 456 diciendo llego en diez minutos",
+            "whatsapp_compose",
+            {"phone": "+34 600 123 456", "message": "llego en diez minutos"},
+        )
+        self.assert_intent(
             "inicia una llamada con amigo en Discord",
             "discord_call",
             {"contact": "amigo"},
         )
         self.assert_intent(
             "empieza una llamada por Discord con amigo",
+            "discord_call",
+            {"contact": "amigo"},
+        )
+        self.assert_intent(
+            "haz una llamada de Discord con amigo",
             "discord_call",
             {"contact": "amigo"},
         )
@@ -130,6 +145,11 @@ class IntegrationIntentTests(unittest.TestCase):
             "quiero jugar una partida de ARAM",
             "league_search",
             {"queue": "aram"},
+        )
+        self.assert_intent(
+            "busca una partida de LoL",
+            "league_search",
+            {"queue": "normal_draft"},
         )
 
     def test_league_cancel_accepts_natural_game_context(self):
