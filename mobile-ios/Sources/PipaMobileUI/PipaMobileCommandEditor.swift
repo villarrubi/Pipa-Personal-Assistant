@@ -117,9 +117,9 @@ public struct PipaMobileCommandEditor: View {
                 }
         } else {
             TextField(label, text: binding)
+#if os(iOS)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-#if os(iOS)
                 .keyboardType(label.localizedCaseInsensitiveContains("teléfono") ? .phonePad : .default)
 #endif
         }

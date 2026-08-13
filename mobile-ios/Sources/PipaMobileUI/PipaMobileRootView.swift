@@ -11,8 +11,8 @@ public struct PipaMobileRootView: View {
     @State private var commandToEdit: PipaMobileCommand?
     @Environment(\.scenePhase) private var scenePhase
 
-    public init(model: PipaMobileViewModel = PipaMobileViewModel()) {
-        _model = StateObject(wrappedValue: model)
+    public init(model: PipaMobileViewModel? = nil) {
+        _model = StateObject(wrappedValue: model ?? PipaMobileViewModel())
     }
 
     public var body: some View {
@@ -49,18 +49,24 @@ public struct PipaMobileRootView: View {
     private var connectionSection: some View {
         Section("Sesión segura") {
             TextField("IP privada del PC", text: $model.host)
+#if os(iOS)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+#endif
             TextField("Puerto", text: $model.port)
 #if os(iOS)
                 .keyboardType(.numberPad)
 #endif
             TextField("server_id", text: $model.serverID)
+#if os(iOS)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+#endif
             TextField("Clave pública Ed25519 (base64url)", text: $model.serverPublicKey)
+#if os(iOS)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+#endif
             if let serverFingerprint = model.serverFingerprint {
                 Text("Fingerprint del agente: \(serverFingerprint)")
                     .font(.caption2)
@@ -76,8 +82,10 @@ public struct PipaMobileRootView: View {
                 .accessibilityHint("Debes comparar esta huella con el agente por un canal externo antes de conectar.")
             }
             TextField("Identidad de este iPhone", text: $model.identityID)
+#if os(iOS)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+#endif
             Button("Preparar identidad y mostrar fingerprint") {
                 model.prepareIdentity()
             }
@@ -189,15 +197,7 @@ public struct PipaMobileRootView: View {
             Button("Enviar comando") {
                 model.sendTextCommand()
             }
-            .disabled(
-                !model.isConnected ||
-                    model.requestInProgress ||
-                    model.pendingConfirmation != nil ||
-#if os(iOS)
-                    speechRecognizer.isListening ||
-#endif
-                    model.textCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            )
+            .disabled(sendCommandDisabled)
 
             if let pending = model.pendingConfirmation {
                 VStack(alignment: .leading, spacing: 8) {
@@ -218,6 +218,18 @@ public struct PipaMobileRootView: View {
                 .accessibilityElement(children: .contain)
             }
         }
+    }
+
+    private var sendCommandDisabled: Bool {
+        let baseDisabled = !model.isConnected ||
+            model.requestInProgress ||
+            model.pendingConfirmation != nil ||
+            model.textCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+#if os(iOS)
+        return baseDisabled || speechRecognizer.isListening
+#else
+        return baseDisabled
+#endif
     }
 
     private var catalogSection: some View {
