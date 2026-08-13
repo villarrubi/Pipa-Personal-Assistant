@@ -117,7 +117,8 @@ public actor PipaMobileTCPClient {
     // Keep the mobile endpoint aligned with the Windows gateway policy: no
     // DNS names, wildcard binds, public addresses, or port-forwarded hosts.
     // IPv6 link-local/ULA support can be added once the app has a scoped
-    // interface model; the current product contract provisions a literal IPv4.
+    // interface model; the current product contract provisions a canonical
+    // literal IPv4 (no alternate/legacy octet spellings).
     static func isAllowedHost(_ host: String) -> Bool {
         guard host == host.trimmingCharacters(in: .whitespacesAndNewlines) else {
             return false
@@ -128,9 +129,11 @@ public actor PipaMobileTCPClient {
         let parts = host.split(separator: ".", omittingEmptySubsequences: false)
         guard parts.count == 4,
               parts.allSatisfy({
-                  !$0.isEmpty && $0.unicodeScalars.allSatisfy { scalar in
-                      scalar.value >= 0x30 && scalar.value <= 0x39
-                  }
+                  !$0.isEmpty &&
+                      ($0.count == 1 || $0.first != "0") &&
+                      $0.unicodeScalars.allSatisfy { scalar in
+                          scalar.value >= 0x30 && scalar.value <= 0x39
+                      }
               }) else {
             return false
         }

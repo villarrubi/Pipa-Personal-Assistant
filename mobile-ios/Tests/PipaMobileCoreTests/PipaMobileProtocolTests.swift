@@ -164,6 +164,8 @@ final class PipaMobileProtocolTests: XCTestCase {
         XCTAssertTrue(PipaMobileTCPClient.isAllowedHost("127.0.0.1"))
         XCTAssertTrue(PipaMobileTCPClient.isAllowedHost("169.254.1.10"))
         XCTAssertTrue(PipaMobileTCPClient.isAllowedHost("::1"))
+        XCTAssertFalse(PipaMobileTCPClient.isAllowedHost("192.168.001.020"))
+        XCTAssertFalse(PipaMobileTCPClient.isAllowedHost("010.0.0.1"))
         XCTAssertFalse(PipaMobileTCPClient.isAllowedHost("8.8.8.8"))
         XCTAssertFalse(PipaMobileTCPClient.isAllowedHost("0.0.0.0"))
         XCTAssertFalse(PipaMobileTCPClient.isAllowedHost("pipa.example"))
