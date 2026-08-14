@@ -24,6 +24,7 @@ $broker = Get-Content -LiteralPath $brokerPath -Raw
 $brokerClient = Get-Content -LiteralPath $brokerClientPath -Raw
 $brokerTests = Get-Content -LiteralPath $brokerTestsPath -Raw
 $uninstall = Get-Content -LiteralPath $uninstallPath -Raw
+$installer = Get-Content -LiteralPath (Join-Path $repoRoot 'trusted-unlock/install.ps1') -Raw
 
 foreach ($marker in @(
         'constexpr bool kTrustedUnlockEnabled = false;',
@@ -36,6 +37,27 @@ foreach ($marker in @(
     )) {
     if ($provider.IndexOf($marker, [System.StringComparison]::Ordinal) -lt 0) {
         throw "El Credential Provider no conserva el bloqueo requerido: $marker"
+    }
+}
+
+foreach ($marker in @(
+        'function Assert-NoReparsePoint',
+        'Assert-NoReparsePoint -Path $source',
+        'Assert-NoReparsePoint -Path $InstalledDllPath',
+        '$installedSha256 = (Get-FileHash -LiteralPath $InstalledDllPath -Algorithm SHA256).Hash.ToUpperInvariant()',
+        'La DLL instalada no coincide con el hash calculado antes de copiarla.'
+    )) {
+    if ($installer.IndexOf($marker, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El instalador no conserva la defensa de ruta/hash requerida: $marker"
+    }
+}
+foreach ($marker in @(
+        'function Assert-NoReparsePoint',
+        'Assert-NoReparsePoint -Path $InstalledDllPath',
+        'no se eliminara nada'
+    )) {
+    if ($uninstall.IndexOf($marker, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El rollback no conserva la defensa de ruta requerida: $marker"
     }
 }
 

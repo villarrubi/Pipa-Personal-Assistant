@@ -42,9 +42,26 @@ function Test-Administrator {
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+function Assert-NoReparsePoint {
+    param([Parameter(Mandatory)][string] $Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+
+    $item = Get-Item -LiteralPath $Path -Force
+    if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "La ruta no puede ser un enlace ni un reparse point; no se eliminara nada: $Path"
+    }
+}
+
 if (-not (Test-Administrator)) {
     throw 'Ejecuta uninstall.ps1 en PowerShell como administrador.'
 }
+
+Assert-NoReparsePoint -Path (Join-Path ${env:ProgramFiles} 'Pipa')
+Assert-NoReparsePoint -Path $InstallRoot
+Assert-NoReparsePoint -Path $InstalledDllPath
 
 $registryBase = [Microsoft.Win32.RegistryKey]::OpenBaseKey(
     [Microsoft.Win32.RegistryHive]::LocalMachine,

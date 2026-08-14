@@ -51,6 +51,19 @@ function Test-X64PeFile {
     }
 }
 
+function Assert-NoReparsePoint {
+    param([Parameter(Mandatory)][string] $Path)
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+
+    $item = Get-Item -LiteralPath $Path -Force
+    if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "La ruta no puede ser un enlace ni un reparse point: $Path"
+    }
+}
+
 if (-not (Test-Administrator)) {
     throw 'Ejecuta install.ps1 en PowerShell como administrador.'
 }
@@ -62,10 +75,16 @@ if (-not [Environment]::Is64BitOperatingSystem -or -not [Environment]::Is64BitPr
 $source = (Resolve-Path -LiteralPath $DllPath -ErrorAction Stop).Path
 $sourceItem = Get-Item -LiteralPath $source
 if (-not $sourceItem.PSIsContainer -and $sourceItem.Extension -ieq '.dll') {
+    Assert-NoReparsePoint -Path $source
     Test-X64PeFile -Path $source
 } else {
     throw "La ruta de la DLL no es valida: $source"
 }
+
+$pipaInstallParent = Join-Path ${env:ProgramFiles} 'Pipa'
+Assert-NoReparsePoint -Path $pipaInstallParent
+Assert-NoReparsePoint -Path $InstallRoot
+Assert-NoReparsePoint -Path $InstalledDllPath
 
 $actualSha256 = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToUpperInvariant()
 Write-Host "SHA-256:      $actualSha256"
@@ -109,7 +128,13 @@ try {
     $copyApproved = $PSCmdlet.ShouldProcess($InstalledDllPath, 'Copiar DLL x64')
     if ($copyApproved) {
         New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
+        Assert-NoReparsePoint -Path $pipaInstallParent
+        Assert-NoReparsePoint -Path $InstallRoot
         Copy-Item -LiteralPath $source -Destination $InstalledDllPath -Force:$false
+        $installedSha256 = (Get-FileHash -LiteralPath $InstalledDllPath -Algorithm SHA256).Hash.ToUpperInvariant()
+        if ($installedSha256 -ne $actualSha256) {
+            throw 'La DLL instalada no coincide con el hash calculado antes de copiarla.'
+        }
         $copiedDll = $true
     }
 

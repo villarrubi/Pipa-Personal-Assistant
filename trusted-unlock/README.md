@@ -52,8 +52,10 @@ cd trusted-unlock
 .\install.ps1
 ```
 
-El instalador muestra el SHA-256 de la DLL. En una distribución revisada se
-puede exigir una huella concreta:
+El instalador muestra el SHA-256 de la DLL. Rechaza DLL, carpeta de instalación
+o carpeta padre que sean enlaces/reparse points, y vuelve a calcular el hash
+después de copiar para detectar cambios entre la comprobación y la instalación.
+En una distribución revisada se puede exigir una huella concreta:
 
 ```powershell
 .\install.ps1 -ExpectedSha256 <64_HEX>
@@ -84,7 +86,8 @@ Para retirar Pipα:
 .\uninstall.ps1
 ```
 
-El rollback elimina solo las claves asociadas al CLSID de Pipα y la DLL bajo
+El rollback comprueba también que las rutas no sean enlaces/reparse points y
+elimina solo las claves asociadas al CLSID de Pipα y la DLL bajo
 `%ProgramFiles%\Pipa\TrustedUnlock`. No modifica contraseña, PIN, Windows
 Hello, políticas de inicio de sesión ni otros Credential Providers.
 Antes de borrar, comprueba también que las claves contienen exactamente los
