@@ -67,6 +67,10 @@ que las solicitó y caducan si no se confirman.
   mensaje sin pulsar `Enviar`.
 - Si existe una entrada local allowlisted `whatsapp`, abrir esa app; en caso
   contrario, usar el fallback web sin cambiar el límite de Enviar manual.
+- Configurar entradas locales de WhatsApp, Discord o Codex sin editar JSON a
+  mano con `python .\windows-agent\configure_apps.py --write`; el asistente
+  conserva las aplicaciones existentes, rechaza lanzadores de shell y nunca
+  publica `apps.json`.
 - Consultar si las integraciones y los alias locales están configurados con
   `python .\windows-agent\pipa_cli.py integration-status`.
 - Usar alias locales ignorados por Git para preparar WhatsApp sin dictar el

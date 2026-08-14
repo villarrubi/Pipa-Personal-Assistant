@@ -471,6 +471,21 @@ mantén el comando como una lista directa; si no existen, Pipα usa el fallback
 web. El agente no necesita ni almacena credenciales de ninguna de las dos
 aplicaciones.
 
+Para añadir o reemplazar una aplicación sin editar JSON a mano, usa el
+configurador local:
+
+```powershell
+python .\windows-agent\configure_apps.py --write
+```
+
+Solicita el identificador, alias, ejecutable directo y argumentos. Si no
+existe `config/apps.json`, conserva primero las aplicaciones del ejemplo; si
+ya existe, conserva todas las entradas y reemplaza solo el mismo identificador.
+Sin `--write` solo valida. La escritura es atómica, el archivo está ignorado
+por Git y se rechazan `cmd`, PowerShell, WScript, Bash y switches de shell.
+Para uso no interactivo, los argumentos se repiten con `--argument`; si uno
+empieza por `--`, usa la forma `--argument=--opción`.
+
 ## Alias locales de contactos
 
 Si quieres usar nombres en vez de teléfonos o IDs de Discord, copia
