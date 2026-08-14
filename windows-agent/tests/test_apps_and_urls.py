@@ -9,7 +9,13 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import tools.system as system  # noqa: E402
-from tools.apps import MAX_CONFIG_FILE_BYTES, load_apps, open_app, validate_apps_config  # noqa: E402
+from tools.apps import (  # noqa: E402
+    MAX_CONFIG_FILE_BYTES,
+    load_apps,
+    open_app,
+    resolve_launcher,
+    validate_apps_config,
+)
 from tools.browser import without_destination  # noqa: E402
 from tools.commands import (  # noqa: E402
     build_apple_music_search_url,
@@ -53,6 +59,10 @@ class AppsAndUrlsTests(unittest.TestCase):
             validate_apps_config({"demo": {"aliases": ["de\u2066mo"], "command": ["demo.exe"]}})
         with self.assertRaises(ValueError):
             validate_apps_config({"demo": {"aliases": ["demo"], "command": ["cmd.exe", "/c", "demo.exe"]}})
+        for script in ("demo.cmd", "demo.bat", "demo.ps1", "demo.vbs", "demo.wsf"):
+            with self.subTest(script=script):
+                with self.assertRaises(ValueError):
+                    validate_apps_config({"demo": {"aliases": ["demo"], "command": [script]}})
         with self.assertRaises(ValueError):
             validate_apps_config({"demo": {"aliases": ["demo"], "command": ["demo.exe", "/c"]}})
         with self.assertRaises(ValueError):
@@ -104,14 +114,26 @@ class AppsAndUrlsTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     load_apps()
 
+    @patch("tools.apps.shutil.which", return_value=r"C:\Tools\unsafe.cmd")
+    def test_launcher_resolution_rejects_a_script_found_on_path(self, _which):
+        self.assertIsNone(resolve_launcher("demo"))
+
+    @patch("tools.apps.shutil.which", return_value=r"C:\Tools\safe.exe")
+    def test_launcher_resolution_accepts_a_binary_found_on_path(self, _which):
+        self.assertEqual(resolve_launcher("demo"), r"C:\Tools\safe.exe")
+
     @patch("tools.apps.subprocess.Popen")
+    @patch("tools.apps.resolve_launcher", return_value=r"C:\Windows\System32\demo.exe")
     @patch("tools.apps.load_apps")
-    def test_windows_app_launch_suppresses_console_window(self, load_apps, popen):
+    def test_windows_app_launch_resolves_binary_and_suppresses_console_window(
+        self, load_apps, _resolve, popen
+    ):
         load_apps.return_value = {"demo": {"aliases": ["demo"], "command": ["demo.exe"]}}
 
         result = open_app("demo")
 
         self.assertTrue(result["success"])
+        self.assertEqual(popen.call_args.args[0], [r"C:\Windows\System32\demo.exe"])
         if sys.platform == "win32":
             self.assertIn("creationflags", popen.call_args.kwargs)
 

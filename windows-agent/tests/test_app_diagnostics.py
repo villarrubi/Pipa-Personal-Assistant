@@ -11,7 +11,7 @@ from tools.apps import AppsConfigError  # noqa: E402
 
 class AppDiagnosticsTests(unittest.TestCase):
     @patch(
-        "tools.app_diagnostics.shutil.which",
+        "tools.app_diagnostics.resolve_launcher",
         side_effect=lambda value: value if value == "codex.exe" else None,
     )
     @patch("tools.app_diagnostics.load_apps")

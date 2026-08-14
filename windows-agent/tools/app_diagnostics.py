@@ -2,20 +2,15 @@
 
 from __future__ import annotations
 
-import shutil
-from pathlib import Path
 from typing import Any
 
-from tools.apps import AppsConfigError, load_apps
+from tools.apps import AppsConfigError, load_apps, resolve_launcher
 
 
 def launcher_resolved(launcher: str) -> bool:
     """Check availability without starting the configured process."""
 
-    candidate = Path(launcher)
-    if candidate.is_absolute() or candidate.parent != Path("."):
-        return candidate.is_file()
-    return shutil.which(launcher) is not None
+    return resolve_launcher(launcher) is not None
 
 
 def inspect_apps() -> dict[str, Any]:

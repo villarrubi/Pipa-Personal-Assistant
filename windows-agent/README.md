@@ -474,8 +474,11 @@ Copia `config/apps.example.json` como `config/apps.json` y personaliza allí
 las rutas. `apps.json` está ignorado y no debe entrar en Git. Los comandos se
 ejecutan como una lista de argumentos, sin `shell=True`.
 El validador también rechaza lanzadores de shell (`cmd`, PowerShell, WScript,
-Bash) y switches como `/c` o `-Command`; configura el ejecutable real de la
-aplicación. Para aplicaciones MSIX se puede usar `explorer.exe` con un único
+Bash), extensiones de script (`.cmd`, `.bat`, `.ps1`, `.vbs`, `.wsf`, etc.) y
+switches como `/c` o `-Command`; configura el ejecutable binario real de la
+aplicación. El agente vuelve a resolver el primer argumento justo antes de
+abrirlo y rechaza incluso un nombre como `code` si el `PATH` lo resuelve a un
+script. Para aplicaciones MSIX se puede usar `explorer.exe` con un único
 argumento `shell:AppsFolder\\...`. El fichero se limita a 128 KiB, 64
 aplicaciones y argumentos acotados; un JSON demasiado grande o ambiguo se
 rechaza antes de abrir nada.
@@ -497,7 +500,7 @@ Solicita el identificador, alias, ejecutable directo y argumentos. Si no
 existe `config/apps.json`, conserva primero las aplicaciones del ejemplo; si
 ya existe, conserva todas las entradas y reemplaza solo el mismo identificador.
 Sin `--write` solo valida. La escritura es atómica, el archivo está ignorado
-por Git y se rechazan `cmd`, PowerShell, WScript, Bash y switches de shell.
+por Git y se rechazan intérpretes, extensiones de script y switches de shell.
 Para uso no interactivo, los argumentos se repiten con `--argument`; si uno
 empieza por `--`, usa la forma `--argument=--opción`.
 

@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import unicodedata
 from pathlib import Path
@@ -36,6 +37,9 @@ _BLOCKED_LAUNCHERS = frozenset(
     }
 )
 _BLOCKED_SHELL_SWITCHES = frozenset({"/c", "/k", "-command", "-encodedcommand", "-file"})
+_BLOCKED_SCRIPT_SUFFIXES = frozenset(
+    {".bat", ".cmd", ".hta", ".js", ".jse", ".ps1", ".psm1", ".sh", ".vbe", ".vbs", ".wsh", ".wsf"}
+)
 
 
 def _is_forbidden_label_character(character: str) -> bool:
@@ -54,10 +58,31 @@ def _uses_shell_launcher(command: list[str]) -> bool:
     with a ``shell:AppsFolder`` argument).
     """
 
-    launcher = Path(command[0]).name.casefold()
-    return launcher in _BLOCKED_LAUNCHERS or any(
-        argument.casefold() in _BLOCKED_SHELL_SWITCHES for argument in command[1:]
+    launcher_path = Path(command[0])
+    launcher = launcher_path.name.casefold()
+    return (
+        launcher in _BLOCKED_LAUNCHERS
+        or launcher_path.suffix.casefold() in _BLOCKED_SCRIPT_SUFFIXES
+        or any(argument.casefold() in _BLOCKED_SHELL_SWITCHES for argument in command[1:])
     )
+
+
+def resolve_launcher(launcher: str) -> str | None:
+    """Resolve a configured launcher to a non-script executable.
+
+    ``Popen(..., shell=False)`` is not enough to make Windows batch files a
+    non-shell boundary: Windows can dispatch ``.cmd``/``.bat`` files through a
+    command interpreter anyway. Resolve the executable first and reject both
+    explicitly configured scripts and names such as ``code`` that resolve to a
+    script on ``PATH``.
+    """
+
+    if not isinstance(launcher, str) or not launcher or _uses_shell_launcher([launcher]):
+        return None
+    resolved = shutil.which(launcher)
+    if resolved is None or _uses_shell_launcher([resolved]):
+        return None
+    return resolved
 
 
 class AppsConfigError(ValueError):
@@ -172,6 +197,14 @@ def open_app(app_name: str):
     if app_data is None:
         return {"success": False, "message": f"No conozco la aplicación '{app_name}'."}
 
+    launcher = resolve_launcher(app_data["command"][0])
+    if launcher is None:
+        return {
+            "success": False,
+            "app": app_id,
+            "message": f"No he podido resolver el lanzador de '{app_id}'.",
+        }
+
     try:
         popen_options = {}
         if os.name == "nt":
@@ -179,7 +212,7 @@ def open_app(app_name: str):
             # the agent runs invisibly. Prefer direct launchers in the example
             # configuration instead of routing through cmd.exe.
             popen_options["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        subprocess.Popen(app_data["command"], **popen_options)
+        subprocess.Popen([launcher, *app_data["command"][1:]], **popen_options)
 
         return {"success": True, "app": app_id, "message": f"Aplicación '{app_id}' abierta."}
 

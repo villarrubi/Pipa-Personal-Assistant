@@ -94,7 +94,11 @@ de recuperación y acceso.
   literales de loopback, nunca nombres resolubles como `localhost`.
 - Herramientas allowlisted y `subprocess` sin shell; la configuración de apps
   rechaza lanzadores `cmd`/PowerShell/WScript/Bash y switches de intérprete,
-  por lo que las aplicaciones deben arrancar mediante su ejecutable directo.
+  además de extensiones de scripts (`.cmd`, `.bat`, `.ps1`, `.vbs`, `.wsf`,
+  etc.). El agente vuelve a resolver el lanzador justo antes de abrirlo y
+  rechaza también un nombre aparentemente ejecutable que `PATH` resuelva a
+  un script, por lo que las aplicaciones deben arrancar mediante un binario
+  directo.
 - Los alias de contactos viven únicamente en `windows-agent/config/contacts.local.json`;
   se validan con destinos acotados, no se publican en capacidades, catálogo,
   respuestas ni resultados de acciones y solo preparan WhatsApp o abren Discord.
