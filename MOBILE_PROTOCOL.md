@@ -165,6 +165,9 @@ digest; el iPhone bloquea `Aceptar` si falta o no coincide con su vista local.
 Así un cambio de teléfono, mensaje, canal, cola o URL no puede quedar oculto
 tras una confirmación del mismo tipo de herramienta. Si un agente antiguo no
 publica `parameters`, la UI conserva el camino compatible de frase libre.
+El cliente Swift también aplica una allowlist de campos por tipo de respuesta:
+un campo adicional inesperado provoca el cierre de la sesión antes de que la
+UI o el catálogo lo procesen.
 El Core vuelve a validar ese contrato —incluidos campos extra, tipos, límites y
 allowlists— antes de crear una confirmación y al consumirla.
 

@@ -35,6 +35,21 @@ public actor PipaMobileTCPClient {
     private static let connectionTimeout: DispatchTimeInterval = .seconds(10)
     private static let ioTimeout: DispatchTimeInterval = .seconds(15)
     private static let maxArgumentsBytes = 4096
+    private static let serverFieldContract: [String: Set<String>] = [
+        "device_hello_ack": ["protocol_version", "type"],
+        "catalog": ["protocol_version", "type", "commands", "capabilities"],
+        "confirm_request": [
+            "protocol_version", "type", "confirmation_id", "tool_name", "summary",
+            "expires_at", "call_id", "request_digest",
+        ],
+        "tool_result": ["protocol_version", "type", "tool_name", "status", "success", "call_id"],
+        "ui_state": ["protocol_version", "type", "state", "caption", "focus_remaining"],
+        "error": ["protocol_version", "type", "code", "message"],
+        "pong": ["protocol_version", "type", "request_id"],
+        "status_ack": ["protocol_version", "type"],
+        "gesture_ack": ["protocol_version", "type", "gesture"],
+        "tts_aborted": ["protocol_version", "type"],
+    ]
 
     private var connection: NWConnection?
     private var recordLayer: PipaSecureRecordLayer?
@@ -310,6 +325,21 @@ public actor PipaMobileTCPClient {
         return parsed
     }
 
+    /// Reject unknown server fields before the UI or catalog parser can see
+    /// them. This is a second boundary after authenticated decryption: a
+    /// future agent regression must not silently smuggle private result data
+    /// through an otherwise valid response type.
+    static func validateServerMessage(_ message: [String: Any]) throws -> [String: Any] {
+        guard let version = message["protocol_version"] as? Int,
+              version == 1,
+              let type = message["type"] as? String,
+              let allowedFields = serverFieldContract[type],
+              Set(message.keys).isSubset(of: allowedFields) else {
+            throw PipaMobileError.invalidMessage
+        }
+        return message
+    }
+
     private static let capabilityGroups: Set<String> = [
         "web_search", "apple_music", "whatsapp", "discord", "league", "codex",
     ]
@@ -394,7 +424,8 @@ public actor PipaMobileTCPClient {
         guard let frame = try await receiveJSONObject(), let layer = recordLayer else {
             return nil
         }
-        return try layer.open(frame: frame)
+        let message = try layer.open(frame: frame)
+        return try Self.validateServerMessage(message)
     }
 
     private func sendJSONObject(_ object: [String: Any]) async throws {

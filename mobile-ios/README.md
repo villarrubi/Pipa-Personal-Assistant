@@ -201,7 +201,10 @@ las pruebas del núcleo; eso no convierte el cliente en una app de escritorio.
   que una reconexión no reutilice un cliente roto.
 - La UI acepta únicamente los resúmenes fijos definidos por el contrato; un
   servidor que intente incluir argumentos privados en `confirm_request` hace
-  fallar la respuesta antes de mostrarla.
+  fallar la respuesta antes de mostrarla. El cliente TCP aplica además una
+  allowlist de campos por tipo de mensaje y rechaza cualquier campo inesperado
+  o una versión de protocolo incorrecta antes de entregar la respuesta a
+  SwiftUI.
 - El propio actor TCP también rechaza peticiones concurrentes; la protección no
   depende únicamente de que la UI mantenga deshabilitado el botón.
 - El firmware Waveshare todavía no captura audio ni anuncia capacidades de

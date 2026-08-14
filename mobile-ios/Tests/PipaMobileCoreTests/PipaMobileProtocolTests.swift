@@ -63,6 +63,37 @@ final class PipaMobileProtocolTests: XCTestCase {
         XCTAssertFalse(PipaMobileRequestBinding.isValidDigest(digest.uppercased()))
     }
 
+    func testServerEnvelopeRejectsUnknownFieldsAndWrongVersions() throws {
+        XCTAssertNoThrow(
+            try PipaMobileTCPClient.validateServerMessage([
+                "protocol_version": 1,
+                "type": "confirm_request",
+                "confirmation_id": "confirmation-1",
+                "tool_name": "whatsapp_compose",
+                "summary": "Preparar un mensaje de WhatsApp; el envío será manual.",
+                "expires_at": 1_900_000_000,
+                "request_digest": String(repeating: "a", count: 64),
+            ])
+        )
+        XCTAssertThrowsError(
+            try PipaMobileTCPClient.validateServerMessage([
+                "protocol_version": 1,
+                "type": "confirm_request",
+                "confirmation_id": "confirmation-1",
+                "tool_name": "whatsapp_compose",
+                "summary": "Preparar un mensaje de WhatsApp; el envío será manual.",
+                "expires_at": 1_900_000_000,
+                "message": "dato privado inesperado",
+            ])
+        )
+        XCTAssertThrowsError(
+            try PipaMobileTCPClient.validateServerMessage([
+                "protocol_version": 2,
+                "type": "device_hello_ack",
+            ])
+        )
+    }
+
     func testStrictJSONRejectsDuplicateKeysIncludingEscapedDuplicates() {
         XCTAssertFalse(PipaMobileCodec.isStrictJSONObject(Data(#"{"a":1,"a":2}"#.utf8)))
         XCTAssertFalse(PipaMobileCodec.isStrictJSONObject(Data(#"{"a":1,"\u0061":2}"#.utf8)))
