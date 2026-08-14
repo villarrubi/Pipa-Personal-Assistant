@@ -7,6 +7,9 @@ elimina contraseña, PIN o Windows Hello.
 
 - Confirma que la placa es la variante `ESP32-S3-Touch-LCD-1.85C-BOX` (SKU
   30684).
+- La documentación oficial indica que la V1 está discontinuada y se sustituye
+  por V2 desde el 30 de enero de 2026; aun así, trata el SKU como insuficiente
+  y exige una comprobación física antes de elegir el firmware.
 - Busca `Rev2.0` en la serigrafía, el firmware de fábrica o la etiqueta `V2`.
 - Si no coincide, no flashees: selecciona el entorno V1 únicamente tras revisar
   el pinout oficial.
