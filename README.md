@@ -126,6 +126,10 @@ que las solicitó y caducan si no se confirman.
 - Ejecutar `python .\windows-agent\pipa_cli.py secure-test` para comprobar en
   memoria el handshake autenticado, el cifrado y el rechazo de manipulación
   del protocolo v2, sin hardware, red ni claves persistentes.
+- Ejecutar `python .\windows-agent\pipa_cli.py device-test` para simular el
+  flujo completo del Waveshare v1: autenticación, texto, confirmación táctil,
+  redacción de resultados y rechazo de acciones externas sin touch. No abre
+  aplicaciones, no contacta servicios y no requiere la placa.
 - Ejecutar `python .\windows-agent\pipa_cli.py secure-audio-test` para
   comprobar el contrato de audio cifrado con PCM sintético, consentimiento,
   orden y límites, sin activar micrófono, red, puerto serie ni claves

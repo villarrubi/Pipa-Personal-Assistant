@@ -26,6 +26,7 @@ from tools.integration_diagnostics import run_integration_self_test  # noqa: E40
 from tools.integration_protocol_diagnostics import run_integration_protocol_self_test  # noqa: E402
 from tools.mobile_config import inspect_mobile_transport  # noqa: E402
 from tools.secure_diagnostics import (  # noqa: E402
+    run_device_protocol_self_test,
     run_mobile_protocol_self_test,
     run_mobile_tcp_self_test,
     run_secure_audio_self_test,
@@ -99,6 +100,10 @@ def _parser() -> argparse.ArgumentParser:
         help="Valida el código actual sin depender del agente residente.",
     )
     commands.add_parser("secure-test", help="Valida el cifrado v2 en memoria, sin hardware ni red.")
+    commands.add_parser(
+        "device-test",
+        help="Simula el flujo Waveshare v1 con confirmación táctil, sin hardware ni efectos externos.",
+    )
     commands.add_parser(
         "secure-audio-test",
         help="Valida el contrato de audio cifrado con PCM sintético, sin hardware.",
@@ -522,6 +527,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if arguments.command == "secure-test":
             print(json.dumps(_secure_test(), ensure_ascii=False, indent=2))
+            return 0
+        if arguments.command == "device-test":
+            print(
+                json.dumps(
+                    {
+                        "success": True,
+                        "hardware_required": False,
+                        "checks": {"device_protocol": run_device_protocol_self_test()},
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
             return 0
         if arguments.command == "secure-audio-test":
             result = {

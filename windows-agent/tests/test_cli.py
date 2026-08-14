@@ -201,6 +201,23 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result, 0)
         secure_test.assert_called_once_with()
 
+    @patch("pipa_cli.run_device_protocol_self_test")
+    def test_device_test_is_local_and_does_not_require_hardware(self, device_test):
+        device_test.return_value = {
+            "authenticated": True,
+            "safe_text_command": True,
+            "confirmation_gated": True,
+            "missing_touch_rejected": True,
+            "result_redacted": True,
+            "external_actions_executed": False,
+            "persistent_keys_touched": False,
+        }
+
+        result = pipa_cli.main(["device-test"])
+
+        self.assertEqual(result, 0)
+        device_test.assert_called_once_with()
+
     @patch("pipa_cli.run_secure_audio_self_test")
     def test_secure_audio_test_is_local_and_does_not_require_hardware(self, audio_test):
         audio_test.return_value = {
