@@ -523,7 +523,10 @@ private struct PipaStrictJSONParser {
             if byte == 0x22 && !escaped {
                 index += 1
                 let token = Data(bytes[start..<index])
-                guard let object = try? JSONSerialization.jsonObject(with: token),
+                guard let object = try? JSONSerialization.jsonObject(
+                    with: token,
+                    options: [.fragmentsAllowed]
+                ),
                       let value = object as? String else {
                     return nil
                 }
