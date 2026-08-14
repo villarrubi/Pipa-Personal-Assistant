@@ -63,7 +63,7 @@ final class PipaMobileProtocolTests: XCTestCase {
         XCTAssertFalse(PipaMobileRequestBinding.isValidDigest(digest.uppercased()))
     }
 
-    func testServerEnvelopeRejectsUnknownFieldsAndWrongVersions() throws {
+    func testServerEnvelopeRejectsUnknownFieldsWrongVersionsAndMissingRequiredFields() throws {
         XCTAssertNoThrow(
             try PipaMobileTCPClient.validateServerMessage([
                 "protocol_version": 1,
@@ -90,6 +90,22 @@ final class PipaMobileProtocolTests: XCTestCase {
             try PipaMobileTCPClient.validateServerMessage([
                 "protocol_version": 2,
                 "type": "device_hello_ack",
+            ])
+        )
+        XCTAssertThrowsError(
+            try PipaMobileTCPClient.validateServerMessage([
+                "protocol_version": 1,
+                "type": "confirm_request",
+                "confirmation_id": "confirmation-1",
+                "tool_name": "whatsapp_compose",
+                "summary": "Preparar un mensaje de WhatsApp; el envío será manual.",
+            ])
+        )
+        XCTAssertThrowsError(
+            try PipaMobileTCPClient.validateServerMessage([
+                "protocol_version": 1,
+                "type": "catalog",
+                "capabilities": [:],
             ])
         )
     }

@@ -50,6 +50,20 @@ public actor PipaMobileTCPClient {
         "gesture_ack": ["protocol_version", "type", "gesture"],
         "tts_aborted": ["protocol_version", "type"],
     ]
+    private static let serverRequiredFields: [String: Set<String>] = [
+        "device_hello_ack": ["protocol_version", "type"],
+        "catalog": ["protocol_version", "type", "commands"],
+        "confirm_request": [
+            "protocol_version", "type", "confirmation_id", "tool_name", "summary", "expires_at",
+        ],
+        "tool_result": ["protocol_version", "type", "tool_name", "status", "success"],
+        "ui_state": ["protocol_version", "type", "state"],
+        "error": ["protocol_version", "type", "code"],
+        "pong": ["protocol_version", "type"],
+        "status_ack": ["protocol_version", "type"],
+        "gesture_ack": ["protocol_version", "type", "gesture"],
+        "tts_aborted": ["protocol_version", "type"],
+    ]
 
     private var connection: NWConnection?
     private var recordLayer: PipaSecureRecordLayer?
@@ -334,7 +348,9 @@ public actor PipaMobileTCPClient {
               version == 1,
               let type = message["type"] as? String,
               let allowedFields = serverFieldContract[type],
-              Set(message.keys).isSubset(of: allowedFields) else {
+              let requiredFields = serverRequiredFields[type],
+              Set(message.keys).isSubset(of: allowedFields),
+              requiredFields.isSubset(of: Set(message.keys)) else {
             throw PipaMobileError.invalidMessage
         }
         return message
