@@ -226,6 +226,41 @@ public struct PipaMobileIntegration: Identifiable {
     public let launcherResolved: Bool
     public let detail: String
 
+    /// Safety metadata is duplicated deliberately at this trust boundary.
+    /// The Windows catalog is the source of availability, but the iPhone
+    /// must not display or act on a capability response that silently crosses
+    /// a manual-action boundary because of a server regression.
+    private static let safetyContract: [String: [String: Bool]] = [
+        "web_search": [
+            "requires_confirmation": true,
+        ],
+        "apple_music": [
+            "playback": false,
+            "media_control": true,
+            "requires_manual_selection": true,
+            "requires_confirmation": true,
+        ],
+        "whatsapp": [
+            "send_message": false,
+            "requires_manual_send": true,
+            "requires_confirmation": true,
+        ],
+        "discord": [
+            "start_call": false,
+            "requires_manual_call": true,
+            "requires_confirmation": true,
+        ],
+        "league": [
+            "accept_match": false,
+            "requires_manual_accept": true,
+            "requires_confirmation": true,
+        ],
+        "codex": [
+            "writes_to_chat": false,
+            "requires_confirmation": true,
+        ],
+    ]
+
     init?(id: String, payload: [String: Any]) {
         let titles = [
             "web_search": "Internet",
@@ -237,7 +272,11 @@ public struct PipaMobileIntegration: Identifiable {
         ]
         guard let title = titles[id],
               let available = payload["available"] as? Bool,
-              id.utf8.count <= 64 else {
+              id.utf8.count <= 64,
+              let expectedSafety = Self.safetyContract[id],
+              expectedSafety.allSatisfy({ field, expected in
+                  (payload[field] as? Bool) == expected
+              }) else {
             return nil
         }
 

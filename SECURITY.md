@@ -166,6 +166,12 @@ de recuperación y acceso.
   públicas (`available`, límites manuales y colas). El Core rechaza grupos,
   campos desconocidos, valores anidados o tipos inesperados; un catálogo
   inválido se descarta completo.
+- El cliente iOS repite localmente el contrato de límites manuales: exige que
+  Apple Music mantenga `playback=false`, WhatsApp `send_message=false`, Discord
+  `start_call=false` y League `accept_match=false`, junto con sus flags de
+  confirmación/manualidad. Si falta uno de esos valores o cambia, cierra la
+  sesión; `check_mobile_safety_contract.py` compara el mapa Swift con el
+  contrato Python en cada preflight y en CI.
 - El canal JSON v2 cifra el objeto completo, autentica una AAD fija y exige un
   sobre estricto antes de entregar el contenido al parser del Core; permanece
   opt-in y aislado del WebSocket v1.

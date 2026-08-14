@@ -29,6 +29,7 @@ $requiredFragments = @(
     'python scripts/check_mobile_capability_contract.py',
     'python scripts/check_mobile_catalog_contract.py',
     'python scripts/check_mobile_confirmation_contract.py',
+    'python scripts/check_mobile_safety_contract.py',
     './scripts/check_waveshare_pinmap.ps1',
     './scripts/check_firmware_config.ps1',
     './scripts/check_firmware_flash_safety.ps1',

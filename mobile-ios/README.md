@@ -50,10 +50,14 @@ si falla. Esa matriz contiene solo flags y textos acotados, nunca configuración
 del PC.
 
 La matriz se valida como un bloque atómico al recibir el catálogo cifrado. Si
-falta el campo obligatorio `available`, aparece un grupo desconocido o se
-supera el límite de grupos, la app cierra la sesión en vez de mostrar una
-matriz parcial. También acepta los flags de alias locales de WhatsApp y
-Discord, pero solo como booleanos de disponibilidad: nunca recibe los alias,
+falta el campo obligatorio `available`, aparece un grupo desconocido, falta un
+flag de seguridad o se supera el límite de grupos, la app cierra la sesión en
+vez de mostrar una matriz parcial. El cliente comprueba localmente que
+Apple Music no anuncia reproducción automática, WhatsApp no anuncia envío,
+Discord no anuncia inicio de llamadas y League no anuncia aceptación automática;
+el gate `scripts/check_mobile_safety_contract.py` mantiene esos valores
+sincronizados con Python. También acepta los flags de alias locales de WhatsApp
+y Discord, pero solo como booleanos de disponibilidad: nunca recibe los alias,
 teléfonos o IDs concretos.
 
 La pantalla incluye además una búsqueda web local: valida una consulta acotada,

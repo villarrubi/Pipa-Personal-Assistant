@@ -38,8 +38,10 @@ final class PipaMobileUITests: XCTestCase {
             payload: [
                 "available": true,
                 "app_configured": false,
+                "playback": false,
                 "requires_manual_selection": true,
                 "media_control": true,
+                "requires_confirmation": true,
             ]
         )
         let league = PipaMobileIntegration(
@@ -47,7 +49,9 @@ final class PipaMobileUITests: XCTestCase {
             payload: [
                 "available": true,
                 "client_ready": false,
+                "accept_match": false,
                 "requires_manual_accept": true,
+                "requires_confirmation": true,
             ]
         )
 
@@ -70,7 +74,9 @@ final class PipaMobileUITests: XCTestCase {
                 "available": true,
                 "app_configured": true,
                 "launcher_resolved": false,
+                "start_call": false,
                 "requires_manual_call": true,
+                "requires_confirmation": true,
             ]
         )
         XCTAssertEqual(
@@ -84,10 +90,16 @@ final class PipaMobileUITests: XCTestCase {
         let valid: [String: [String: Any]] = [
             "apple_music": [
                 "available": true,
+                "playback": false,
+                "media_control": true,
                 "requires_manual_selection": true,
+                "requires_confirmation": true,
             ],
             "league": [
                 "available": false,
+                "accept_match": false,
+                "requires_manual_accept": true,
+                "requires_confirmation": true,
             ],
         ]
         let parsed = try PipaMobileViewModel.parseIntegrationCapabilities(valid)
@@ -96,6 +108,16 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertThrowsError(
             try PipaMobileViewModel.parseIntegrationCapabilities([
                 "apple_music": ["requires_manual_selection": true],
+            ])
+        )
+        XCTAssertThrowsError(
+            try PipaMobileViewModel.parseIntegrationCapabilities([
+                "whatsapp": [
+                    "available": true,
+                    "send_message": true,
+                    "requires_manual_send": true,
+                    "requires_confirmation": true,
+                ],
             ])
         )
         XCTAssertThrowsError(

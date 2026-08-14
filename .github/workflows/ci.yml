@@ -61,6 +61,8 @@ jobs:
         run: python scripts/check_mobile_catalog_contract.py
       - name: Check mobile confirmation contract
         run: python scripts/check_mobile_confirmation_contract.py
+      - name: Check mobile safety contract
+        run: python scripts/check_mobile_safety_contract.py
       - name: Check Waveshare V1/V2 pin map
         shell: pwsh
         run: ./scripts/check_waveshare_pinmap.ps1
