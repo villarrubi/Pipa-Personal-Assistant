@@ -382,6 +382,22 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
             {"contact": discord_call_contact_service_first.group(1).strip()},
         )
 
+    # Voice recognition often drops "una" and adds a short courtesy suffix.
+    # Keep those variants on the same manual-call boundary as the canonical
+    # forms above; this route still only opens the Discord destination.
+    discord_call_contact_flexible = re.fullmatch(
+        r"(?:(?:quiero|puedes) )?(?:llama(?:r)?|haz una llamada|"
+        r"inicia(?:r)?(?: una)? llamada|empieza(?:r)?(?: una)? llamada) "
+        r"(?:a|con) (?:el )?(.+?) (?:por|en|de) discord(?: (?:ahora|por favor))?",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if discord_call_contact_flexible:
+        return ParsedIntent(
+            "discord_call",
+            {"contact": discord_call_contact_flexible.group(1).strip()},
+        )
+
     discord_call_server_channel_suffix = re.fullmatch(
         r"(?:llama(?:r)?|haz una llamada) (?:al|a(?:l)? )?(?:canal )?([0-9]{17,20}) "
         r"(?:del|de|en el) (?:servidor|guild) ([0-9]{17,20}) (?:por|en) discord",
@@ -491,10 +507,18 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent("discord_open", {"channel_id": discord_channel.group(1)})
 
     if re.fullmatch(
-        r"cancela(?: la)? busqueda(?:(?: de(?:l)?| en el) (?:league|lol))?",
+        r"cancela(?: (?:la|el))? (?:busqueda|cola|matchmaking)"
+        r"(?:(?: de(?:l)?| en el) (?:league|lol))?",
         normalized,
     ):
         return ParsedIntent("league_cancel", {})
+
+    if re.fullmatch(
+        r"estado de la cola"
+        r"(?:(?: de(?:l)?| en el) (?:league|lol))?",
+        normalized,
+    ):
+        return ParsedIntent("league_search_status", {})
 
     if normalized in {
         "estado de busqueda de league",
@@ -541,7 +565,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     search = re.fullmatch(
         r"(?:b(?:u|ú)sca(?:me)?|buscar|consulta)(?: en| por)? "
-        r"(?:internet|la web|web|online) (.+)",
+        r"(?:internet|la web|web|online|google) (.+)",
         original,
         flags=re.IGNORECASE,
     )
@@ -550,12 +574,22 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     search_suffix = re.fullmatch(
         r"(?:b(?:u|ú)sca(?:me)?|buscar|consulta) (.+) "
-        r"(?:en|por) (?:internet|la web|web|online)",
+        r"(?:en|por) (?:internet|la web|web|online|google)",
         original,
         flags=re.IGNORECASE,
     )
     if search_suffix:
         return ParsedIntent("web_search", {"query": search_suffix.group(1).strip()})
+
+    search_subject = re.fullmatch(
+        r"(?:b(?:u|ú)sca(?:me)?|buscar|consulta) algo (?:en|por) "
+        r"(?:internet|la web|web|online|google) "
+        r"(?:(?:sobre|acerca de|de) )?(.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if search_subject:
+        return ParsedIntent("web_search", {"query": search_subject.group(1).strip()})
 
     music_search = re.fullmatch(
         r"(?:b(?:u|ú)sca(?:me)?|buscar) (?:en )?(?:apple music|música|musica) (.+)",
@@ -608,6 +642,31 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         term = _clean_music_term(music_request_without_service.group(1))
         if term.casefold() not in {"seleccionada", "seleccionado", "elegida", "elegido"}:
             return ParsedIntent("music_search", {"term": term})
+
+    music_deictic = re.fullmatch(
+        r"(?:pon(?:me)?|reproduce|reproducir) la de (.+?)"
+        r"(?: en (?:apple music|m[uú]sica|musica))?",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if music_deictic:
+        term = _clean_music_term(music_deictic.group(1))
+        if term.casefold() in {"seleccionada", "seleccionado", "elegida", "elegido"}:
+            return ParsedIntent("media_action", {"action": "play_pause"})
+        return ParsedIntent("music_search", {"term": term})
+
+    music_listen = re.fullmatch(
+        r"(?:quiero|me gustaría|me gustaria) escuchar "
+        r"(?:(?:la|una) )?(?:(?:canci[oó]n|tema) de )?(.+?)"
+        r"(?: en (?:apple music|m[uú]sica|musica))?",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if music_listen:
+        term = _clean_music_term(music_listen.group(1))
+        if term.casefold() in {"seleccionada", "seleccionado", "elegida", "elegido"}:
+            return ParsedIntent("media_action", {"action": "play_pause"})
+        return ParsedIntent("music_search", {"term": term})
 
     song_search = re.fullmatch(
         r"(?:b(?:u|ú)sca(?:me)?|buscar) (?:(?:la|una) )?(?:canción|cancion|tema) (?:de )?"

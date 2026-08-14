@@ -184,9 +184,25 @@ class IntegrationIntentTests(unittest.TestCase):
             "cancela la búsqueda del LoL",
             "cancela la búsqueda en el League",
             "cancela la búsqueda de lol",
+            "cancela la cola del lol",
+            "cancela el matchmaking",
         ):
             with self.subTest(phrase=phrase):
                 self.assert_intent(phrase, "league_cancel", {})
+
+    def test_voice_variants_keep_the_same_safe_tool_routes(self):
+        cases = (
+            ("busca algo en internet sobre el tiempo", "web_search", {"query": "el tiempo"}),
+            ("busca en Google documentación de Pipa", "web_search", {"query": "documentación de Pipa"}),
+            ("pon la de Daft Punk", "music_search", {"term": "Daft Punk"}),
+            ("quiero escuchar Daft Punk", "music_search", {"term": "Daft Punk"}),
+            ("inicia llamada con amigo en Discord", "discord_call", {"contact": "amigo"}),
+            ("llama a amigo en Discord ahora", "discord_call", {"contact": "amigo"}),
+            ("estado de la cola", "league_search_status", {}),
+        )
+        for phrase, tool_name, arguments in cases:
+            with self.subTest(phrase=phrase):
+                self.assert_intent(phrase, tool_name, arguments)
 
     def test_media_controls_do_not_select_or_send_external_content(self):
         self.assert_intent(

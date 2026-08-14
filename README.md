@@ -235,6 +235,9 @@ También acepta formas equivalentes como `busca una partida de LoL`, `manda un
 mensaje de WhatsApp a mamá diciendo llego` y `haz una llamada de Discord con
 amigo`; el parser solo cambia la forma de la petición, no la política de
 confirmación ni los pasos manuales.
+También reconoce `busca algo en internet sobre el tiempo`, `busca en Google
+documentación de Pipa`, `quiero escuchar Daft Punk`, `inicia llamada con amigo
+en Discord` y `cancela la cola del LoL`.
 Desde una sesión autenticada, las acciones externas requieren confirmación y las
 interfaces que puedan enviar o llamar siguen requiriendo la acción final del
 usuario. Tras seleccionar una canción, el catálogo móvil ofrece reproducir/pausar

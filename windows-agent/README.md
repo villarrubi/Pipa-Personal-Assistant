@@ -308,6 +308,10 @@ busca una partida de LoL
 busca una partida clasificatoria solo en League
 quiero buscar una partida en el LoL
 quiero jugar una partida de ARAM
+busca algo en internet sobre el tiempo
+busca en Google documentación de Pipa
+quiero escuchar Daft Punk
+cancela la cola del LoL
 prepara WhatsApp para +34 600 123 456 y dile Hola Mamá
 manda un mensaje a +34 600 123 456 por WhatsApp y dile Hola
 manda un mensaje a mama por WhatsApp y dile Hola
@@ -323,6 +327,7 @@ abre el canal 12345678901234567 en Discord
 abre Discord servidor 98765432109876543 canal 12345678901234567
 abre el chat de amigo en Discord
 llama a amigo por Discord
+inicia llamada con amigo en Discord
 quiero llamar a amigo por Discord
 puedes llamar a amigo por Discord
 haz una llamada a Discord con amigo
