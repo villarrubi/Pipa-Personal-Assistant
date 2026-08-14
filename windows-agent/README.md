@@ -70,6 +70,7 @@ python .\windows-agent\pipa_cli.py intent "pon la canción Bohemian Rhapsody"
 python .\windows-agent\pipa_cli.py preview "busca una partida clasificatoria solo"
 python .\windows-agent\pipa_cli.py intent "busca una partida de LoL"
 python .\windows-agent\pipa_cli.py intent "manda un mensaje de WhatsApp a mamá diciendo llego"
+python .\windows-agent\pipa_cli.py intent "manda un WhatsApp a mamá: llego"
 python .\windows-agent\pipa_cli.py intent "haz una llamada de Discord con amigo"
 python .\windows-agent\pipa_cli.py music-search "Daft Punk" --confirm
 python .\windows-agent\pipa_cli.py whatsapp-contact mama "Ya estoy en casa" --confirm

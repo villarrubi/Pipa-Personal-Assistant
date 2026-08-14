@@ -72,6 +72,21 @@ class IntegrationIntentTests(unittest.TestCase):
             {"contact": "mamá", "message": "llego en diez minutos"},
         )
         self.assert_intent(
+            "manda un WhatsApp a mamá: llego en diez minutos",
+            "whatsapp_contact",
+            {"contact": "mamá", "message": "llego en diez minutos"},
+        )
+        self.assert_intent(
+            "escribe a mamá por WhatsApp: llego en diez minutos",
+            "whatsapp_contact",
+            {"contact": "mamá", "message": "llego en diez minutos"},
+        )
+        self.assert_intent(
+            "manda un mensaje a +34 600 123 456 en WhatsApp: llego",
+            "whatsapp_compose",
+            {"phone": "+34 600 123 456", "message": "llego"},
+        )
+        self.assert_intent(
             "llama a amigo por Discord",
             "discord_call",
             {"contact": "amigo"},

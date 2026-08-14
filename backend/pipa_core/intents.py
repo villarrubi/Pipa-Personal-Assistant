@@ -49,6 +49,15 @@ def _clean_music_term(value: str) -> str:
     return term
 
 
+def _whatsapp_recipient_intent(recipient: str, message: str) -> ParsedIntent:
+    """Keep direct-phone and local-alias WhatsApp contracts distinct."""
+
+    recipient = recipient.strip()
+    if re.fullmatch(r"[+\d][\d\s().-]{6,24}", recipient):
+        return ParsedIntent("whatsapp_compose", {"phone": recipient, "message": message.strip()})
+    return ParsedIntent("whatsapp_contact", {"contact": recipient, "message": message.strip()})
+
+
 def parse_text_intent(text: str) -> ParsedIntent | None:
     original = " ".join(text.strip().split())
     normalized = _fold_phrase(original)
@@ -165,6 +174,36 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
             "whatsapp_compose",
             {"phone": whatsapp_compose.group(1).strip(), "message": whatsapp_compose.group(2).strip()},
         )
+
+    # A colon is a common voice-to-text separator: "manda un WhatsApp a
+    # mamá: llego". Keep these forms local to the parser and route them to
+    # the same phone/alias contracts as the longer "dile" forms above.
+    whatsapp_colon_direct = re.fullmatch(
+        r"(?:prepara|abre|escribe en|manda|env[ií]a)(?: un)? whatsapp "
+        r"(?:para|a|con) ([^:]+?)\s*:\s*(.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if whatsapp_colon_direct:
+        return _whatsapp_recipient_intent(whatsapp_colon_direct.group(1), whatsapp_colon_direct.group(2))
+
+    whatsapp_colon_message = re.fullmatch(
+        r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:para|a) (.+?) "
+        r"(?:por|en|de) whatsapp\s*:\s*(.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if whatsapp_colon_message:
+        return _whatsapp_recipient_intent(whatsapp_colon_message.group(1), whatsapp_colon_message.group(2))
+
+    whatsapp_colon_service = re.fullmatch(
+        r"(?:prepara|abre|escribe(?:le)?|manda|env[ií]a) (?:para|a) (.+?) "
+        r"(?:por|en|de) whatsapp\s*:\s*(.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if whatsapp_colon_service:
+        return _whatsapp_recipient_intent(whatsapp_colon_service.group(1), whatsapp_colon_service.group(2))
 
     whatsapp_message = re.fullmatch(
         r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:para|a) "
