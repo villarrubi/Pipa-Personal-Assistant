@@ -6,19 +6,7 @@ public extension PipaMobileCommand {
     /// Placeholders are presentation data from the non-sensitive catalog.
     /// They are never sent to the agent until the user completes the draft.
     var placeholders: [String] {
-        var labels: [String] = []
-        var cursor = phrase.startIndex
-        while let open = phrase[cursor...].firstIndex(of: "<") {
-            let afterOpen = phrase.index(after: open)
-            guard let close = phrase[afterOpen...].firstIndex(of: ">") else { break }
-            let label = String(phrase[afterOpen..<close])
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !label.isEmpty, label.utf8.count <= 80, !labels.contains(label) {
-                labels.append(label)
-            }
-            cursor = phrase.index(after: close)
-        }
-        return labels
+        PipaMobileCommand.catalogPlaceholders(in: phrase)
     }
 
     /// Render a completed catalog phrase without executing it.

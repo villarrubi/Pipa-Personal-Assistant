@@ -33,6 +33,7 @@ _COMMAND_FIELDS = frozenset(
 )
 _PARAMETER_FIELDS = frozenset({"name", "label", "kind", "max_length", "options"})
 _PARAMETER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
+_PHRASE_PLACEHOLDER = re.compile(r"<([^<>]+)>")
 _PARAMETER_KINDS = frozenset(
     {
         "text",
@@ -644,6 +645,17 @@ def _validate_default_arguments(value: object) -> dict[str, str]:
     return result
 
 
+def _phrase_placeholders(phrase: str) -> list[str]:
+    """Extract the bounded, visible fields used by the mobile editor."""
+
+    placeholders = [match.strip() for match in _PHRASE_PLACEHOLDER.findall(phrase)]
+    if any(not placeholder or len(placeholder.encode("utf-8")) > 80 for placeholder in placeholders) or len(
+        placeholders
+    ) != len(set(placeholders)):
+        raise ValueError("phrase contiene marcadores inválidos o duplicados")
+    return placeholders
+
+
 def validate_command_catalog(commands: object) -> list[dict[str, Any]]:
     """Validate the local public catalog before exposing it to any UI."""
 
@@ -669,10 +681,13 @@ def validate_command_catalog(commands: object) -> list[dict[str, Any]]:
         if requires_confirmation != (safety == "unsafe"):
             raise ValueError("command safety metadata is inconsistent")
         parameters = _validate_parameters(command.get("parameters", []))
+        placeholders = _phrase_placeholders(phrase)
+        if len(placeholders) != len(parameters):
+            raise ValueError("phrase y parameters deben describir el mismo número de campos")
         default_arguments = None
         if "default_arguments" in command:
             default_arguments = _validate_default_arguments(command["default_arguments"])
-            if parameters:
+            if parameters or placeholders:
                 raise ValueError("fixed arguments cannot accompany editable parameters")
         normalized: dict[str, Any] = {
             "id": command_id,

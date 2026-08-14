@@ -340,6 +340,37 @@ final class PipaMobileUITests: XCTestCase {
         )
     }
 
+    func testCatalogRejectsPlaceholderParameterDrift() {
+        let parameter: [String: Any] = [
+            "name": "channel_id",
+            "label": "ID del canal",
+            "kind": "channel_id",
+            "max_length": 20,
+        ]
+        let common: [String: Any] = [
+            "id": "discord_open",
+            "tool_name": "discord_open",
+            "description": "Abre un canal.",
+            "safety": "unsafe",
+            "requires_confirmation": true,
+        ]
+
+        var missingPlaceholder = common
+        missingPlaceholder["phrase"] = "abre Discord"
+        missingPlaceholder["parameters"] = [parameter]
+        XCTAssertNil(PipaMobileCommand(payload: missingPlaceholder))
+
+        var missingParameter = common
+        missingParameter["phrase"] = "abre Discord canal <id>"
+        missingParameter["parameters"] = []
+        XCTAssertNil(PipaMobileCommand(payload: missingParameter))
+
+        var invalidDefaults = common
+        invalidDefaults["phrase"] = "abre <aplicación>"
+        invalidDefaults["default_arguments"] = ["app": "discord"]
+        XCTAssertNil(PipaMobileCommand(payload: invalidDefaults))
+    }
+
     func testCatalogCommandEditorRendersBoundedArgumentsWithoutSending() throws {
         let command = try XCTUnwrap(
             PipaMobileCommand(payload: [

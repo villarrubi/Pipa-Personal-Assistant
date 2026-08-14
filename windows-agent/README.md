@@ -499,6 +499,10 @@ contienen datos de esta máquina. El catálogo cifrado del dispositivo añade la
 misma matriz de capacidades en formato plano, validada por el Core; el iPhone
 la usa para mostrar disponibilidad y pasos manuales sin recibir configuración
 privada.
+El validador exige además que cada marcador de una frase tenga exactamente un
+parámetro tipado en la misma posición; los comandos con argumentos fijos no
+pueden publicar marcadores. Así, una UI móvil no puede acabar mostrando un
+formulario distinto de la acción estructurada que va a enviar.
 
 ## Configuración de aplicaciones
 

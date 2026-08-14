@@ -102,6 +102,35 @@ class IntegrationContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_command_catalog([malformed_parameter])
 
+        malformed_placeholders = dict(valid)
+        malformed_placeholders["phrase"] = "abre <aplicación>"
+        with self.assertRaises(ValueError):
+            validate_command_catalog([malformed_placeholders])
+
+        malformed_parameter_count = dict(valid)
+        malformed_parameter_count["phrase"] = "abre <aplicación>"
+        malformed_parameter_count["parameters"] = [
+            {"name": "first", "label": "Primero", "kind": "text", "max_length": 10},
+            {"name": "second", "label": "Segundo", "kind": "text", "max_length": 10},
+        ]
+        with self.assertRaises(ValueError):
+            validate_command_catalog([malformed_parameter_count])
+
+        malformed_duplicate_placeholder = dict(valid)
+        malformed_duplicate_placeholder["phrase"] = "abre <aplicación> y confirma <aplicación>"
+        malformed_duplicate_placeholder["parameters"] = [
+            {"name": "first", "label": "Primero", "kind": "text", "max_length": 10},
+            {"name": "second", "label": "Segundo", "kind": "text", "max_length": 10},
+        ]
+        with self.assertRaises(ValueError):
+            validate_command_catalog([malformed_duplicate_placeholder])
+
+        malformed_fixed_placeholder = dict(valid)
+        malformed_fixed_placeholder["phrase"] = "abre <aplicación>"
+        malformed_fixed_placeholder["default_arguments"] = {"app": "calculadora"}
+        with self.assertRaises(ValueError):
+            validate_command_catalog([malformed_fixed_placeholder])
+
     def test_remote_capabilities_never_claim_automatic_private_actions(self):
         capabilities = build_integration_capabilities(
             apple_music_configured=True,

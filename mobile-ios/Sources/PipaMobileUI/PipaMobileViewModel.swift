@@ -140,7 +140,8 @@ public struct PipaMobileCommand: Identifiable {
             }
             let parsed = rawList.compactMap(PipaMobileCommandParameter.init(payload:))
             guard parsed.count == rawList.count,
-                  Set(parsed.map(\.id)).count == parsed.count else {
+                  Set(parsed.map(\.id)).count == parsed.count,
+                  parsed.count == Self.catalogPlaceholders(in: phrase).count else {
                 return nil
             }
             parameters = parsed
@@ -161,7 +162,8 @@ public struct PipaMobileCommand: Identifiable {
                               PipaMobileTextPolicy.isSafeDisplayText($0, maxBytes: 128) && $0.utf8.count <= 128
                           } == true
                   }),
-                  parameters.isEmpty else {
+                  parameters.isEmpty,
+                  Self.catalogPlaceholders(in: phrase).isEmpty else {
                 return nil
             }
             defaultArguments = defaults.compactMapValues { $0 as? String }
@@ -179,6 +181,24 @@ public struct PipaMobileCommand: Identifiable {
         self.parameters = parameters
         self.supportsStructuredArguments = supportsStructuredArguments
         self.defaultArguments = defaultArguments
+    }
+
+    /// Keep the mobile editor and the structured transport on the same
+    /// positional placeholder contract as the Windows catalog validator.
+    static func catalogPlaceholders(in phrase: String) -> [String] {
+        var labels: [String] = []
+        var cursor = phrase.startIndex
+        while let open = phrase[cursor...].firstIndex(of: "<") {
+            let afterOpen = phrase.index(after: open)
+            guard let close = phrase[afterOpen...].firstIndex(of: ">") else { break }
+            let label = String(phrase[afterOpen..<close])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !label.isEmpty, label.utf8.count <= 80, !labels.contains(label) {
+                labels.append(label)
+            }
+            cursor = phrase.index(after: close)
+        }
+        return labels
     }
 
     private static func isValidDefaultArgumentName(_ value: String) -> Bool {
