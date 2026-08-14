@@ -83,7 +83,7 @@ def open_apple_music() -> dict[str, object]:
             **result,
             "target": "desktop_app",
             "playback_started": False,
-            "requires_manual_selection": False,
+            "requires_manual_selection": True,
         }
 
     url = build_apple_music_browse_url()
@@ -97,7 +97,7 @@ def open_apple_music() -> dict[str, object]:
         **without_destination(opened),
         "target": "web",
         "playback_started": False,
-        "requires_manual_selection": False,
+        "requires_manual_selection": True,
     }
 
 

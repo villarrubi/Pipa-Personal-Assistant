@@ -60,6 +60,15 @@ class ContactsTests(unittest.TestCase):
                     "mama": {"discord_channel_id": "12345678901234567"},
                 }
             )
+        with self.assertRaises(ContactsConfigError):
+            validate_contacts(
+                {
+                    "amiga": {
+                        "aliases": ["amiga", "AMIGA"],
+                        "whatsapp_phone": "+34600123456",
+                    }
+                }
+            )
 
     def test_resolution_reads_only_the_local_ignored_file(self):
         with tempfile.TemporaryDirectory() as directory:

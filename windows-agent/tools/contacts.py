@@ -90,7 +90,8 @@ def validate_contacts(payload: Any) -> dict[str, Contact]:
         ):
             raise ContactsConfigError(f"Aliases inválidos para '{name}'.")
         aliases = tuple(_text(alias, "El alias", maximum=MAX_ALIAS_LENGTH) for alias in aliases_value)
-        aliases = tuple(dict.fromkeys(aliases))
+        if len({_fold(alias) for alias in aliases}) != len(aliases):
+            raise ContactsConfigError(f"El alias está repetido para '{name}'.")
 
         phone_value = raw_data.get("whatsapp_phone")
         whatsapp_phone = None

@@ -555,6 +555,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["target"], "web")
         self.assertFalse(result["playback_started"])
+        self.assertTrue(result["requires_manual_selection"])
         self.assertNotIn("url", result)
         open_app.assert_called_once_with("apple_music")
         open_browser.assert_called_once_with("https://music.apple.com/es/browse")
@@ -567,9 +568,20 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["target"], "web")
         self.assertFalse(result["playback_started"])
+        self.assertTrue(result["requires_manual_selection"])
         self.assertNotIn("url", result)
         open_app.assert_called_once_with("apple_music")
         open_browser.assert_called_once_with("https://music.apple.com/es/browse")
+
+    @patch("tools.commands.open_app", return_value={"success": True, "app": "apple_music"})
+    def test_apple_music_app_open_still_requires_manual_selection(self, open_app):
+        result = open_apple_music()
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["target"], "desktop_app")
+        self.assertFalse(result["playback_started"])
+        self.assertTrue(result["requires_manual_selection"])
+        open_app.assert_called_once_with("apple_music")
 
     @patch("tools.commands.webbrowser.open", return_value=True)
     def test_web_search_adapter_redacts_its_destination(self, open_browser):
