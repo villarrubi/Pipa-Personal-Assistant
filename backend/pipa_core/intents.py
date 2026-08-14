@@ -50,6 +50,30 @@ def _clean_music_term(value: str) -> str:
     return term
 
 
+def _music_intent(value: str) -> ParsedIntent:
+    """Route a music request without turning service filler into a query.
+
+    Voice recognition often produces a request such as ``busca música en
+    Apple Music`` without naming a track.  Treating ``en Apple Music`` as a
+    search term is misleading and makes the UI look as if a real query was
+    received.  In that case opening the configured catalogue is the useful,
+    bounded action; a named artist/title remains a normal manual-selection
+    search.
+    """
+
+    term = _clean_music_term(value)
+    folded = _fold_phrase(term)
+    if folded in {
+        "",
+        "musica",
+        "apple music",
+        "en musica",
+        "en apple music",
+    }:
+        return ParsedIntent("music_open", {})
+    return ParsedIntent("music_search", {"term": term})
+
+
 def _whatsapp_recipient_intent(recipient: str, message: str) -> ParsedIntent:
     """Keep direct-phone and local-alias WhatsApp contracts distinct."""
 
@@ -638,13 +662,25 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     if search_subject:
         return ParsedIntent("web_search", {"query": search_subject.group(1).strip()})
 
+    if normalized in {
+        "busca musica",
+        "buscar musica",
+        "busca la musica",
+        "buscar la musica",
+        "busca una cancion",
+        "buscar una cancion",
+        "busca la cancion",
+        "buscar la cancion",
+    }:
+        return ParsedIntent("music_open", {})
+
     music_search = re.fullmatch(
         r"(?:b(?:u|ú)sca(?:me)?|buscar) (?:en )?(?:apple music|música|musica) (.+)",
         original,
         flags=re.IGNORECASE,
     )
     if music_search:
-        return ParsedIntent("music_search", {"term": _clean_music_term(music_search.group(1))})
+        return _music_intent(music_search.group(1))
 
     music_search_natural = re.fullmatch(
         r"(?:b(?:u|ú)sca(?:me)?|buscar) (?:la )?m[uú]sica (?:de )?"
@@ -653,7 +689,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         flags=re.IGNORECASE,
     )
     if music_search_natural:
-        return ParsedIntent("music_search", {"term": _clean_music_term(music_search_natural.group(1))})
+        return _music_intent(music_search_natural.group(1))
 
     music_request = re.fullmatch(
         r"(?:pon(?:me)?|reproduce|reproducir) "
@@ -663,7 +699,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         flags=re.IGNORECASE,
     )
     if music_request:
-        return ParsedIntent("music_search", {"term": _clean_music_term(music_request.group(1))})
+        return _music_intent(music_request.group(1))
 
     music_request_natural = re.fullmatch(
         r"(?:pon(?:me)?|reproduce|reproducir) (?:la )?m[uú]sica (?:de )?"
@@ -672,7 +708,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         flags=re.IGNORECASE,
     )
     if music_request_natural:
-        return ParsedIntent("music_search", {"term": _clean_music_term(music_request_natural.group(1))})
+        return _music_intent(music_request_natural.group(1))
 
     # When the user names the media type but omits the service, keep the same
     # safe behavior as the Apple Music form: open a bounded search and leave
@@ -688,7 +724,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     if music_request_without_service:
         term = _clean_music_term(music_request_without_service.group(1))
         if term.casefold() not in {"seleccionada", "seleccionado", "elegida", "elegido"}:
-            return ParsedIntent("music_search", {"term": term})
+            return _music_intent(term)
 
     music_deictic = re.fullmatch(
         r"(?:pon(?:me)?|reproduce|reproducir) la de (.+?)"
@@ -700,7 +736,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         term = _clean_music_term(music_deictic.group(1))
         if term.casefold() in {"seleccionada", "seleccionado", "elegida", "elegido"}:
             return ParsedIntent("media_action", {"action": "play_pause"})
-        return ParsedIntent("music_search", {"term": term})
+        return _music_intent(term)
 
     music_listen = re.fullmatch(
         r"(?:quiero|me gustaría|me gustaria) escuchar "
@@ -713,7 +749,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         term = _clean_music_term(music_listen.group(1))
         if term.casefold() in {"seleccionada", "seleccionado", "elegida", "elegido"}:
             return ParsedIntent("media_action", {"action": "play_pause"})
-        return ParsedIntent("music_search", {"term": term})
+        return _music_intent(term)
 
     song_search = re.fullmatch(
         r"(?:b(?:u|ú)sca(?:me)?|buscar) (?:(?:la|una) )?(?:canción|cancion|tema) (?:de )?"
@@ -722,7 +758,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         flags=re.IGNORECASE,
     )
     if song_search:
-        return ParsedIntent("music_search", {"term": song_search.group(1).strip()})
+        return _music_intent(song_search.group(1).strip())
 
     music_search_suffix = re.fullmatch(
         r"(?:b(?:u|ú)sca(?:me)?|buscar) (.+?) (?:en )?(?:apple music|m[uú]sica|musica)",
@@ -730,7 +766,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         flags=re.IGNORECASE,
     )
     if music_search_suffix:
-        return ParsedIntent("music_search", {"term": _clean_music_term(music_search_suffix.group(1))})
+        return _music_intent(music_search_suffix.group(1))
 
     league_search = re.fullmatch(
         r"(?:(?:quiero(?: que)? )?(?:busca(?:me)?|buscar|encuentra|inicia(?:r)?|empieza(?:r)?|comienza(?:r)?|juega|jugar)) "

@@ -153,6 +153,10 @@ valida el contrato local: por ejemplo, avisa si el alias de WhatsApp o
 Discord no existe en `contacts.local.json`, sin mostrar el destino ni llamar
 al adaptador.
 
+En Apple Music, una frase con artista o título (`busca una canción de Daft Punk`)
+abre la búsqueda; una frase genérica (`busca música` o `busca una canción en
+Apple Music`) abre el catálogo sin fabricar un término de búsqueda.
+
 Para una búsqueda web explícita:
 
 ```powershell

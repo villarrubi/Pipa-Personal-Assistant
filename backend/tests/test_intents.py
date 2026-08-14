@@ -65,6 +65,17 @@ class IntegrationIntentTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assert_intent(phrase, "media_action", {"action": "play_pause"})
 
+    def test_music_requests_without_a_track_open_the_catalogue(self):
+        for phrase in (
+            "busca música",
+            "busca una canción",
+            "busca música en Apple Music",
+            "busca una canción en Apple Music",
+            "quiero escuchar música",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assert_intent(phrase, "music_open", {})
+
     def test_whatsapp_and_discord_contact_phrases_keep_manual_boundaries(self):
         self.assert_intent(
             "manda un whatsapp para mamá y dile llego en diez minutos",

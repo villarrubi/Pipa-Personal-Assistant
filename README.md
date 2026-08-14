@@ -54,6 +54,8 @@ que las solicitó y caducan si no se confirman.
   de elegir una pista, controlar reproducción/pausa, anterior, siguiente o
   parada con el reproductor activo (`music-play`, `music-next`,
   `music-previous`, `music-stop`).
+- Una frase musical con título o artista abre la búsqueda; una petición
+  genérica como `busca música` abre el catálogo sin inventar una consulta.
 - Controlar volumen y teclas multimedia.
 - Crear y consultar temporizadores en memoria.
 - Abrir una URL validada desde una frase, siempre con confirmación.
