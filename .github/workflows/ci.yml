@@ -37,6 +37,9 @@ jobs:
       - name: Check PowerShell syntax
         shell: pwsh
         run: ./scripts/check_powershell_syntax.ps1
+      - name: Check workflow action pins
+        shell: pwsh
+        run: ./scripts/check_workflow_security.ps1
       - name: Check CI coverage
         shell: pwsh
         run: ./scripts/check_ci_coverage.ps1

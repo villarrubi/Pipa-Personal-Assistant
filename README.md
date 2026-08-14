@@ -309,6 +309,7 @@ python -m compileall -q backend windows-agent scripts
 .\scripts\check_repo_hygiene.ps1
 .\scripts\check_git_history.ps1
 .\scripts\check_powershell_syntax.ps1
+.\scripts\check_workflow_security.ps1
 .\scripts\check_trusted_unlock_safety.ps1
 
 # Comprobacion unificada del estado local. Incluye el checkout actual y el
@@ -316,7 +317,8 @@ python -m compileall -q backend windows-agent scripts
 .\scripts\pipa_preflight.ps1
 ```
 
-La CI repite esas comprobaciones, ejecuta Ruff, audita dependencias, compila
+La CI repite esas comprobaciones, verifica que las actions externas estén
+fijadas a SHA inmutable, ejecuta Ruff, audita dependencias, compila
 el firmware y construye/prueba el Credential Provider x64.
 
 La comprobación de higiene también prueba con rutas ficticias que `.gitignore`

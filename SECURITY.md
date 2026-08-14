@@ -212,6 +212,9 @@ de recuperación y acceso.
   caducidad de 30 minutos; no puede crecer indefinidamente por conexiones USB.
 - CI con tests Python, Ruff, auditoría de dependencias, build de firmware y
   smoke test del Credential Provider.
+- Las actions externas del workflow se fijan a commits SHA de 40 caracteres y
+  `check_workflow_security.ps1` impide introducir tags mutables o referencias
+  sin revisión inmutable.
 - Una prueba de contrato cruza el catálogo público, el router real, las rutas
   de confirmación local y las etiquetas fijas del dispositivo para evitar que
   una integración nueva quede expuesta sin sus barreras.

@@ -19,6 +19,7 @@ $requiredFragments = @(
     'timeout-minutes: 45',
     'timeout-minutes: 30',
     'timeout-minutes: 10',
+    './scripts/check_workflow_security.ps1',
     './scripts/check_ci_coverage.ps1',
     './scripts/check_powershell_syntax.ps1',
     './scripts/check_agent_startup.ps1',

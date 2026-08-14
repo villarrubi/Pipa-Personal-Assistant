@@ -103,6 +103,7 @@ $python = Find-Python
 Write-Host ("Python: {0}" -f $python) -ForegroundColor DarkCyan
 
 Invoke-RepoScriptCheck -Name 'PowerShell syntax' -RelativePath 'scripts/check_powershell_syntax.ps1'
+Invoke-RepoScriptCheck -Name 'Workflow action pinning' -RelativePath 'scripts/check_workflow_security.ps1'
 Invoke-RepoScriptCheck -Name 'CI coverage' -RelativePath 'scripts/check_ci_coverage.ps1'
 Invoke-RepoScriptCheck -Name 'Agent startup lifecycle' -RelativePath 'scripts/check_agent_startup.ps1'
 Invoke-RepoScriptCheck -Name 'Repository hygiene and ignore policy' -RelativePath 'scripts/check_repo_hygiene.ps1'
