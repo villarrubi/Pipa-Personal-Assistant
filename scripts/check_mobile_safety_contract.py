@@ -35,11 +35,9 @@ def _swift_contract(source: str) -> dict[str, dict[str, bool]]:
     body = source[start + len(marker) : end]
     for match in _ENTRY.finditer(body):
         group = match.group("group")
-        fields = {
-            field.group("field"): field.group("value") == "true"
-            for field in _FIELD.finditer(match.group("body"))
-        }
-        if not fields or group in result:
+        field_matches = list(_FIELD.finditer(match.group("body")))
+        fields = {field.group("field"): field.group("value") == "true" for field in field_matches}
+        if not fields or group in result or len(field_matches) != len(fields):
             raise ValueError("El contrato Swift de seguridad móvil contiene una entrada inválida.")
         result[group] = fields
     if not result:
