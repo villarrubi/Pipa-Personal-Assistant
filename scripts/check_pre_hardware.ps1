@@ -104,6 +104,9 @@ if ($null -eq $python) {
     Invoke-PipaJsonCheck -Name 'Secure protocol self-test' -Python $python -Arguments @(
         '-B', $cli, 'secure-test'
     )
+    Invoke-PipaJsonCheck -Name 'Synthetic voice transcript preview' -Python $python -Arguments @(
+        '-B', $cli, 'voice-preview', 'estado', 'de', 'integraciones'
+    )
     Invoke-PipaJsonCheck -Name 'Mobile protocol self-test' -Python $python -Arguments @(
         '-B', $cli, 'mobile-test'
     )

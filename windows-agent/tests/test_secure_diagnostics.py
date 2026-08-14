@@ -8,6 +8,7 @@ sys.path.insert(0, str(ROOT / "windows-agent"))
 
 from tools.integration_diagnostics import run_integration_self_test  # noqa: E402
 from tools.secure_diagnostics import (  # noqa: E402
+    preview_secure_audio_transcript,
     run_mobile_protocol_self_test,
     run_mobile_tcp_self_test,
     run_secure_audio_self_test,
@@ -65,6 +66,22 @@ class SecureDiagnosticsTests(unittest.TestCase):
         self.assertTrue(result["intent_routed"])
         self.assertFalse(result["external_actions_executed"])
         self.assertFalse(result["persistent_keys_touched"])
+
+    def test_voice_preview_uses_secure_audio_without_dispatching_tools(self):
+        result = preview_secure_audio_transcript("busca una partida en el LoL")
+
+        self.assertEqual(result["transcript"], "busca una partida en el LoL")
+        self.assertEqual(result["stream_bytes"], 32)
+        self.assertEqual(result["stream_duration_ms"], 1)
+        self.assertTrue(result["secure_audio_round_trip"])
+        self.assertFalse(result["audio_captured"])
+        self.assertTrue(result["hardware_required"])
+        self.assertFalse(result["side_effects"])
+        self.assertFalse(result["external_actions_executed"])
+
+    def test_voice_preview_rejects_unsafe_transcript_text(self):
+        with self.assertRaises(ValueError):
+            preview_secure_audio_transcript("texto\u202eoculto")
 
     def test_secure_self_test_only_reports_successful_bounded_checks(self):
         result = run_secure_self_test()

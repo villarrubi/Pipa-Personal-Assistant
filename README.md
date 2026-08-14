@@ -142,6 +142,11 @@ que las solicitó y caducan si no se confirman.
   comprobar el contrato de audio cifrado con PCM sintético, consentimiento,
   orden y límites, sin activar micrófono, red, puerto serie ni claves
   persistentes.
+- Ejecutar `python .\windows-agent\pipa_cli.py voice-preview <frase>` para
+  simular una transcripción de voz sobre ese transporte cifrado y revisar el
+  parser, los argumentos y la confirmación que tendría; no captura audio ni
+  ejecuta la integración. La salida marca explícitamente que el hardware
+  sigue siendo necesario.
 - Ejecutar `python .\windows-agent\pipa_cli.py integration-test` para validar
   los constructores de búsqueda/WhatsApp/Discord, las colas de League y los
   límites de selección, envío, llamada y aceptación; no abre aplicaciones ni

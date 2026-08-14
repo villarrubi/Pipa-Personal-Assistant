@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Callable
 from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -39,6 +40,7 @@ from secure_tcp_gateway import SecureTcpGateway
 from backend.pipa_core.core import PipaCore
 from backend.pipa_core.simulator import create_simulator
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter
+from tools.text_policy import validate_bounded_text
 
 _MOBILE_INTEGRATION_CASES = (
     (
@@ -303,14 +305,17 @@ def run_secure_self_test() -> dict[str, object]:
     }
 
 
-def run_secure_audio_self_test() -> dict[str, object]:
-    """Exercise bounded encrypted audio with synthetic samples only.
+def _run_synthetic_audio_bridge(
+    transcript: str,
+    dispatch_transcript: Callable[[str], object],
+) -> dict[str, object]:
+    """Run one bounded transcript through the real encrypted audio bridge.
 
-    The check proves the future capture path still needs codec readiness,
-    visible consent and an ordered encrypted stream, without opening a
-    microphone, socket or serial port.
+    The PCM is synthetic and the dispatcher is injected so diagnostics can
+    exercise the transport without importing or invoking outward handlers.
     """
 
+    validated_transcript = validate_bounded_text(transcript, "La transcripción", 4000).strip()
     shared_secret = bytes(range(1, 33))
     transcript_hash = bytes(range(32, 64))
     sender_session = secure_session_from_shared_secret(
@@ -325,7 +330,96 @@ def run_secure_audio_self_test() -> dict[str, object]:
         transcript_hash,
         role="server",
     )
+    routed_transcripts: list[str] = []
     bridge: SecureAudioCommandBridge | None = None
+    try:
+        sender = SecureAudioSender(sender_session, "diagnostic-stream")
+        first = sender.seal_chunk(b"\x01\x02" * 8, final=False)
+        final = sender.seal_chunk(b"\x03\x04" * 8, final=True)
+        gate = AudioCaptureGate()
+        if not gate.mark_codec_ready(True):
+            raise ValueError("secure audio diagnostic could not enter codec-ready state")
+
+        received_bytes = 0
+
+        def transcribe(chunk: memoryview, is_final: bool) -> str | None:
+            nonlocal received_bytes
+            received_bytes += len(chunk)
+            return validated_transcript if is_final else None
+
+        transcriber = SecureAudioTranscriber(
+            SecureAudioReceiver(receiver_session),
+            transcribe,
+            gate,
+        )
+
+        def route_transcript(transcript: str) -> list[dict[str, object]]:
+            routed_transcripts.append(transcript)
+            dispatch_transcript(transcript)
+            return []
+
+        bridge = SecureAudioCommandBridge(transcriber, route_transcript)
+        bridge.begin_capture(
+            display_ready=True,
+            consented=True,
+            secure_transport_ready=True,
+        )
+        if bridge.consume_frame(first):
+            raise ValueError("secure audio diagnostic marked a non-final chunk as final")
+        if not bridge.consume_frame(final):
+            raise ValueError("secure audio diagnostic did not finish the stream")
+        summary, routed = bridge.finalize()
+        if (
+            received_bytes != 32
+            or summary.stream_bytes != 32
+            or summary.stream_duration_ms != 1
+            or gate.can_capture
+            or routed_transcripts != [validated_transcript]
+            or routed != []
+        ):
+            raise ValueError("secure audio diagnostic returned an invalid transcript path")
+    finally:
+        if bridge is not None:
+            bridge.close()
+        sender_session.close()
+        receiver_session.close()
+
+    return {
+        "transcript": validated_transcript,
+        "stream_bytes": summary.stream_bytes,
+        "stream_duration_ms": summary.stream_duration_ms,
+        "transcript_count": len(routed_transcripts),
+        "external_actions_executed": False,
+        "persistent_keys_touched": False,
+    }
+
+
+def preview_secure_audio_transcript(transcript: str) -> dict[str, object]:
+    """Validate one synthetic voice transcript without dispatching a tool."""
+
+    result = _run_synthetic_audio_bridge(transcript, lambda _transcript: None)
+    return {
+        "transcript": result["transcript"],
+        "stream_bytes": result["stream_bytes"],
+        "stream_duration_ms": result["stream_duration_ms"],
+        "secure_audio_round_trip": True,
+        "audio_captured": False,
+        "hardware_required": True,
+        "side_effects": False,
+        "external_actions_executed": False,
+        "persistent_keys_touched": False,
+    }
+
+
+def run_secure_audio_self_test() -> dict[str, object]:
+    """Exercise bounded encrypted audio with synthetic samples only.
+
+    The check proves the future capture path still needs codec readiness,
+    visible consent and an ordered encrypted stream, without opening a
+    microphone, socket or serial port. It also routes a safe transcript
+    through the Core so the voice bridge cannot drift from text handling.
+    """
+
     core = PipaCore(
         verifier=object(),
         router=ToolRouter(
@@ -344,63 +438,20 @@ def run_secure_audio_self_test() -> dict[str, object]:
         capabilities=("display", "touch"),
         capabilities_initialized=True,
     )
-    routed_transcripts: list[str] = []
+    routed: list[list[dict[str, object]]] = []
     try:
-        sender = SecureAudioSender(sender_session, "diagnostic-stream")
-        first = sender.seal_chunk(b"\x01\x02" * 8, final=False)
-        final = sender.seal_chunk(b"\x03\x04" * 8, final=True)
-        gate = AudioCaptureGate()
-        if not gate.mark_codec_ready(True):
-            raise ValueError("secure audio diagnostic could not enter codec-ready state")
-
-        received_bytes = 0
-
-        def transcribe(chunk: memoryview, is_final: bool) -> str | None:
-            nonlocal received_bytes
-            received_bytes += len(chunk)
-            return "estado de integraciones" if is_final else None
-
-        transcriber = SecureAudioTranscriber(
-            SecureAudioReceiver(receiver_session),
-            transcribe,
-            gate,
+        _run_synthetic_audio_bridge(
+            "estado de integraciones",
+            lambda transcript: routed.append(core.handle_transcript(session.session_id, transcript)),
         )
-
-        def dispatch(transcript: str) -> list[dict[str, object]]:
-            routed_transcripts.append(transcript)
-            return core.handle_transcript(session.session_id, transcript)
-
-        bridge = SecureAudioCommandBridge(transcriber, dispatch)
-        bridge.begin_capture(
-            display_ready=True,
-            consented=True,
-            secure_transport_ready=True,
-        )
-        if bridge.consume_frame(first):
-            raise ValueError("secure audio diagnostic marked a non-final chunk as final")
-        if not bridge.consume_frame(final):
-            raise ValueError("secure audio diagnostic did not finish the stream")
-        summary, routed = bridge.finalize()
         routed_result = next(
-            (item for item in routed if item.get("type") == "tool_result"),
+            (item for item in routed[0] if item.get("type") == "tool_result"),
             None,
         )
-        if (
-            received_bytes != 32
-            or summary.stream_bytes != 32
-            or summary.stream_duration_ms != 1
-            or gate.can_capture
-            or routed_transcripts != ["estado de integraciones"]
-            or routed_result is None
-            or routed_result.get("tool_name") != "integration_status"
-        ):
-            raise ValueError("secure audio diagnostic returned an invalid transcript path")
+        if routed_result is None or routed_result.get("tool_name") != "integration_status":
+            raise ValueError("secure audio diagnostic did not route the transcript through Core")
     finally:
-        if bridge is not None:
-            bridge.close()
         core.close(session.session_id)
-        sender_session.close()
-        receiver_session.close()
 
     return {
         "encrypted_round_trip": True,

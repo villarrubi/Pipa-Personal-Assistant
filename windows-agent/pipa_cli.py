@@ -28,6 +28,7 @@ from tools.integration_protocol_diagnostics import run_integration_protocol_self
 from tools.mobile_config import inspect_mobile_transport  # noqa: E402
 from tools.readiness import inspect_readiness  # noqa: E402
 from tools.secure_diagnostics import (  # noqa: E402
+    preview_secure_audio_transcript,
     run_device_protocol_self_test,
     run_mobile_protocol_self_test,
     run_mobile_tcp_self_test,
@@ -110,6 +111,11 @@ def _parser() -> argparse.ArgumentParser:
         "secure-audio-test",
         help="Valida el contrato de audio cifrado con PCM sintético, sin hardware.",
     )
+    voice_preview = commands.add_parser(
+        "voice-preview",
+        help="Simula una transcripción de voz cifrada y muestra su ruta, sin efectos.",
+    )
+    voice_preview.add_argument("text", nargs="+", help="Frase que se simulará como transcripción.")
     commands.add_parser("mobile-test", help="Valida el flujo móvil v2 en memoria, sin hardware ni red.")
     commands.add_parser("mobile-tcp-test", help="Valida el transporte móvil TCP v2 solo en loopback.")
     commands.add_parser(
@@ -571,6 +577,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             }
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0
+        if arguments.command == "voice-preview":
+            audio_result = preview_secure_audio_transcript(" ".join(arguments.text))
+            preview = _preview_intent(str(audio_result["transcript"]))
+            preview["voice_simulation"] = {
+                "secure_audio_round_trip": audio_result["secure_audio_round_trip"],
+                "audio_captured": audio_result["audio_captured"],
+                "hardware_required": audio_result["hardware_required"],
+                "stream_bytes": audio_result["stream_bytes"],
+                "stream_duration_ms": audio_result["stream_duration_ms"],
+            }
+            preview["success"] = preview.get("recognized") is True
+            preview["hardware_required"] = True
+            preview["side_effects"] = False
+            print(json.dumps(preview, ensure_ascii=False, indent=2))
+            return 0 if preview.get("recognized") is True else 1
         if arguments.command == "integration-test":
             result = {
                 "success": True,

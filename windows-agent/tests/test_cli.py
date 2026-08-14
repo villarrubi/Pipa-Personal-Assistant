@@ -33,6 +33,27 @@ class CliTests(unittest.TestCase):
         arguments = pipa_cli._parser().parse_args(["local-capabilities"])
         self.assertEqual(arguments.command, "local-capabilities")
 
+    def test_voice_preview_is_available_without_hardware(self):
+        arguments = pipa_cli._parser().parse_args(["voice-preview", "busca", "una", "partida"])
+        self.assertEqual(arguments.command, "voice-preview")
+
+    def test_voice_preview_routes_through_secure_audio_and_never_executes(self):
+        with patch(
+            "pipa_cli.preview_secure_audio_transcript",
+            return_value={
+                "transcript": "busca una partida",
+                "stream_bytes": 32,
+                "stream_duration_ms": 1,
+                "secure_audio_round_trip": True,
+                "audio_captured": False,
+                "hardware_required": True,
+            },
+        ) as preview_audio:
+            result = pipa_cli.main(["voice-preview", "busca", "una", "partida"])
+
+        self.assertEqual(result, 0)
+        preview_audio.assert_called_once_with("busca una partida")
+
     @patch("pipa_cli.get_self_test")
     def test_local_self_test_uses_current_source_and_no_gateway(self, self_test):
         self_test.return_value = {"success": True, "checks": {}}

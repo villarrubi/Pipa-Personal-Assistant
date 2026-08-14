@@ -72,6 +72,7 @@ python .\windows-agent\pipa_cli.py local-self-test
 python .\windows-agent\pipa_cli.py local-capabilities
 python .\windows-agent\pipa_cli.py secure-test
 python .\windows-agent\pipa_cli.py secure-audio-test
+python .\windows-agent\pipa_cli.py voice-preview "busca una partida en el LoL"
 python .\windows-agent\pipa_cli.py integration-test
 python .\windows-agent\pipa_cli.py device-test
 python .\windows-agent\pipa_cli.py mobile-test
@@ -405,6 +406,12 @@ el orden cifrado de los chunks, el puente de transcript final hasta el Core y el
 `SecureAudioCommandBridge` garantiza un único dispatch tras el frame final y cierra el transcriptor ante
 éxito, error o cancelación. No abre micrófono,
 puertos, navegador ni aplicaciones, y no guarda las muestras.
+
+`voice-preview` añade una comprobación de extremo a extremo sin hardware: cifra
+PCM sintético, valida la transcripción, la pasa por el mismo parser y catálogo
+que usaría la voz del Waveshare y muestra la confirmación prevista. Nunca abre
+aplicaciones, no contacta con League, no crea una confirmación ejecutable y no
+captura audio real; `hardware_required` queda explícitamente en `true`.
 
 `mobile-test` prueba además el cliente móvil de referencia, su anuncio de
 pantalla/touch, la confirmación y la reducción de resultados para las cinco

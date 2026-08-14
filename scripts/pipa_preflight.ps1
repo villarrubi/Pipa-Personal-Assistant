@@ -227,6 +227,9 @@ Invoke-ExternalCheck -Name 'Current-source integration self-test' -FilePath $pyt
 Invoke-ExternalCheck -Name 'Device protocol self-test' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'device-test'
 )
+Invoke-ExternalCheck -Name 'Synthetic voice transcript preview' -FilePath $python -Arguments @(
+    (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'voice-preview', 'estado', 'de', 'integraciones'
+)
 Invoke-ExternalCheck -Name 'Current-source capabilities' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'local-capabilities'
 )
