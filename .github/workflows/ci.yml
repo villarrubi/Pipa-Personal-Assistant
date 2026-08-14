@@ -43,6 +43,8 @@ jobs:
       - name: Check iOS package structure
         shell: pwsh
         run: ./scripts/check_mobile_ios_package.ps1
+      - name: Check mobile confirmation contract
+        run: python scripts/check_mobile_confirmation_contract.py
       - name: Check Waveshare V1/V2 pin map
         shell: pwsh
         run: ./scripts/check_waveshare_pinmap.ps1
@@ -64,6 +66,9 @@ jobs:
       - name: Check audio state machine isolation
         shell: pwsh
         run: ./scripts/check_audio_state_machine.ps1
+      - name: Check display text isolation
+        shell: pwsh
+        run: ./scripts/check_display_text.ps1
       - name: Check Trusted Unlock safety
         shell: pwsh
         run: ./scripts/check_trusted_unlock_safety.ps1
