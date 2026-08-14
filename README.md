@@ -405,6 +405,9 @@ forma explícita.
 El mismo preflight comprueba que los tipos de campos estructurados del
 catálogo (`phone`, `channel_id`, `queue`, etc.) estén sincronizados entre el
 validador Python y el formulario Swift.
+También comprueba el contrato estricto de `ServerHello` entre C++, Python y
+Swift, y que las etiquetas de confirmación del agente y de la app iOS sigan
+siendo idénticas.
 
 ## Cuando llegue el Waveshare
 

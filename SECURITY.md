@@ -233,6 +233,9 @@ de recuperación y acceso.
 - Una prueba de contrato cruza el catálogo público, el router real, las rutas
   de confirmación local y las etiquetas fijas del dispositivo para evitar que
   una integración nueva quede expuesta sin sus barreras.
+- El preflight comprueba además que el `ServerHello` conserve exactamente sus
+  nueve campos y la autenticación Ed25519/X25519 en C++, Python y Swift; un
+  campo adicional o una deriva entre implementaciones bloquea la validación.
 - Comprobaciones separadas del árbol actual y de toda la historia Git.
 - La auditoría de higiene prueba además patrones `.gitignore` con rutas
   ficticias de configuraciones, claves, builds, logs, capturas, grabaciones y
