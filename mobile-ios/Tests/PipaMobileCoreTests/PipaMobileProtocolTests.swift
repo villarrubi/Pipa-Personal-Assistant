@@ -67,6 +67,75 @@ final class PipaMobileProtocolTests: XCTestCase {
         XCTAssertFalse(PipaMobileTextPolicy.isSafeMessageText("mensaje\u{0000}", maxBytes: 64))
     }
 
+    @available(iOS 16.0, macOS 13.0, *)
+    func testCatalogCapabilitiesAcceptTheRealIntegrationMatrix() throws {
+        let raw: [String: Any] = [
+            "web_search": [
+                "available": true,
+                "requires_confirmation": true,
+                "execution": "opens_browser",
+            ],
+            "apple_music": [
+                "available": true,
+                "app_configured": false,
+                "launcher_resolved": false,
+                "search": true,
+                "playback": false,
+                "media_control": true,
+                "requires_manual_selection": true,
+                "requires_confirmation": true,
+            ],
+            "whatsapp": [
+                "available": true,
+                "app_configured": false,
+                "launcher_resolved": false,
+                "open_web": true,
+                "open_contact": true,
+                "contact_aliases_configured": true,
+                "prepare_message": true,
+                "send_message": false,
+                "requires_manual_send": true,
+                "requires_confirmation": true,
+            ],
+            "discord": [
+                "available": true,
+                "app_configured": false,
+                "launcher_resolved": false,
+                "open_app": true,
+                "open_channel": true,
+                "contact_aliases_configured": true,
+                "start_call": false,
+                "requires_manual_call": true,
+                "requires_confirmation": true,
+            ],
+            "league": [
+                "available": true,
+                "client_ready": true,
+                "launcher_resolved": true,
+                "open_client": true,
+                "matchmaking": true,
+                "cancel_matchmaking": true,
+                "accept_match": false,
+                "requires_manual_accept": true,
+                "requires_confirmation": true,
+                "queues": ["aram", "normal_draft"],
+            ],
+            "codex": [
+                "available": false,
+                "open_app": false,
+                "launcher_resolved": false,
+                "writes_to_chat": false,
+                "requires_confirmation": true,
+            ],
+        ]
+
+        let parsed = try PipaMobileTCPClient.parseCapabilities(raw)
+        XCTAssertEqual(Set(parsed.keys), ["web_search", "apple_music", "whatsapp", "discord", "league", "codex"])
+        XCTAssertEqual(parsed["whatsapp"]?["contact_aliases_configured"] as? Bool, true)
+        XCTAssertEqual(parsed["discord"]?["contact_aliases_configured"] as? Bool, true)
+        XCTAssertEqual(parsed["league"]?["queues"] as? [String], ["aram", "normal_draft"])
+    }
+
     func testDestinationPolicyUsesCanonicalPhoneAndDiscordIDs() {
         XCTAssertEqual(
             PipaMobileDestinationPolicy.normalizePhone("+34 600-123-456"),
