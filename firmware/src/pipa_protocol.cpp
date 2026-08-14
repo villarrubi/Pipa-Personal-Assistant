@@ -2,6 +2,7 @@
 
 #include <WiFi.h>
 
+#include "pipa_json_policy.h"
 #include "pipa_text_policy.h"
 
 namespace pipa {
@@ -125,6 +126,10 @@ void PipaProtocol::readTransport() {
 }
 
 void PipaProtocol::handleLine(const String& line) {
+  if (!isDuplicateFreeJson(line.c_str(), line.length())) {
+    log("incoming message discarded: duplicate or invalid JSON");
+    return;
+  }
   JsonDocument document;
   if (deserializeJson(document, line) != DeserializationError::Ok) {
     log("incoming message discarded: invalid JSON");

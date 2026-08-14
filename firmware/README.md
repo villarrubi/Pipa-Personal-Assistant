@@ -12,6 +12,9 @@ CDC. La referencia física está en la
 - Logs serie operacionales sin IP local, credenciales, MAC de destino ni errores
   dinámicos recibidos del servidor; `scripts/check_firmware_log_safety.ps1`
   comprueba esta política antes de compilar.
+- El parser de los dos transportes rechaza JSON inválido y objetos con claves
+  duplicadas, igual que el Core Python; el vector host está en
+  `tests/pipa_json_policy_host_test.cpp`.
 - Fallo cerrado si la identidad NVS existe pero está corrupta.
 - Desafío/respuesta firmado y JSON por líneas sobre USB CDC.
 - Diagnósticos separados del protocolo mediante líneas que empiezan por `#`.

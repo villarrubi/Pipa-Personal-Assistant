@@ -1,6 +1,7 @@
 #include "pipa_secure_protocol.h"
 
 #include "pipa_text_policy.h"
+#include "pipa_json_policy.h"
 
 #include <memory>
 #include <new>
@@ -142,6 +143,10 @@ void PipaSecureProtocol::readTransport() {
 }
 
 void PipaSecureProtocol::handleLine(const String& line) {
+  if (!isDuplicateFreeJson(line.c_str(), line.length())) {
+    log("secure incoming message discarded: duplicate or invalid JSON");
+    return;
+  }
   JsonDocument document;
   if (deserializeJson(document, line) != DeserializationError::Ok) {
     log("secure incoming message discarded: invalid JSON");
@@ -220,6 +225,13 @@ void PipaSecureProtocol::handleEncryptedFrame(JsonObjectConst object) {
     clean(ciphertext_bytes.get(), kMaxCiphertext);
     clean(plaintext.get(), kMaxPlaintext);
     rejectEncryptedFrame("authentication failed");
+    return;
+  }
+  if (!isDuplicateFreeJson(
+          reinterpret_cast<const char*>(plaintext.get()), plaintext_length)) {
+    clean(ciphertext_bytes.get(), kMaxCiphertext);
+    clean(plaintext.get(), kMaxPlaintext);
+    rejectEncryptedFrame("duplicate or invalid JSON");
     return;
   }
   JsonDocument document;
