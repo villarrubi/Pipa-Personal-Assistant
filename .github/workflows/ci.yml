@@ -31,6 +31,9 @@ jobs:
       - name: Check PowerShell syntax
         shell: pwsh
         run: ./scripts/check_powershell_syntax.ps1
+      - name: Check CI coverage
+        shell: pwsh
+        run: ./scripts/check_ci_coverage.ps1
       - name: Check agent startup lifecycle
         shell: pwsh
         run: ./scripts/check_agent_startup.ps1
