@@ -475,53 +475,43 @@ private struct PipaStrictJSONParser {
     }
 
     mutating func parseRootObject() -> Bool {
-        guard parseObject() else { return false }
-        skipWhitespace()
-        return index == bytes.count
-    }
+        // Foundation owns JSON syntax validation. This scanner only adds the
+        // missing duplicate-key check; keeping those responsibilities separate
+        // avoids maintaining a second, subtly incomplete JSON implementation.
+        guard let root = try? JSONSerialization.jsonObject(with: Data(bytes)),
+              root is [String: Any] else {
+            return false
+        }
 
-    private mutating func parseObject() -> Bool {
-        guard consume(0x7B) else { return false } // {
-        skipWhitespace()
-        if consume(0x7D) { return true } // }
-
-        var keys = Set<String>()
+        var objectKeys = [[String: Void]]()
         while true {
             skipWhitespace()
-            guard let key = parseString(), keys.insert(key).inserted else { return false }
-            skipWhitespace()
-            guard consume(0x3A), parseValue() else { return false } // :
-            skipWhitespace()
-            if consume(0x7D) { return true } // }
-            guard consume(0x2C) else { return false } // ,
-        }
-    }
+            guard index < bytes.count else { break }
 
-    private mutating func parseArray() -> Bool {
-        guard consume(0x5B) else { return false } // [
-        skipWhitespace()
-        if consume(0x5D) { return true } // ]
-
-        while true {
-            guard parseValue() else { return false }
-            skipWhitespace()
-            if consume(0x5D) { return true } // ]
-            guard consume(0x2C) else { return false } // ,
+            switch bytes[index] {
+            case 0x22: // "
+                guard let key = parseString() else { return false }
+                skipWhitespace()
+                if consume(0x3A) { // : — a string followed by this is an object key
+                    guard !objectKeys.isEmpty,
+                          objectKeys[objectKeys.count - 1][key] == nil else {
+                        return false
+                    }
+                    objectKeys[objectKeys.count - 1][key] = ()
+                }
+            case 0x7B: // {
+                objectKeys.append([:])
+                index += 1
+            case 0x7D: // }
+                guard !objectKeys.isEmpty else { return false }
+                objectKeys.removeLast()
+                index += 1
+            default:
+                index += 1
+            }
         }
-    }
 
-    private mutating func parseValue() -> Bool {
-        skipWhitespace()
-        guard index < bytes.count else { return false }
-        switch bytes[index] {
-        case 0x22: return parseString() != nil // "
-        case 0x7B: return parseObject() // {
-        case 0x5B: return parseArray() // [
-        case 0x74: return parseLiteral([0x74, 0x72, 0x75, 0x65]) // true
-        case 0x66: return parseLiteral([0x66, 0x61, 0x6C, 0x73, 0x65]) // false
-        case 0x6E: return parseLiteral([0x6E, 0x75, 0x6C, 0x6C]) // null
-        default: return parseNumber()
-        }
+        return objectKeys.isEmpty
     }
 
     private mutating func parseString() -> String? {
@@ -547,29 +537,6 @@ private struct PipaStrictJSONParser {
             index += 1
         }
         return nil
-    }
-
-    private mutating func parseLiteral(_ literal: [UInt8]) -> Bool {
-        guard index + literal.count <= bytes.count,
-              bytes[index..<(index + literal.count)].elementsEqual(literal) else {
-            return false
-        }
-        index += literal.count
-        return true
-    }
-
-    private mutating func parseNumber() -> Bool {
-        let start = index
-        while index < bytes.count {
-            let byte = bytes[index]
-            guard byte == 0x2D || byte == 0x2B || byte == 0x2E ||
-                    byte == 0x45 || byte == 0x65 ||
-                    (byte >= 0x30 && byte <= 0x39) else {
-                break
-            }
-            index += 1
-        }
-        return index > start
     }
 
     private mutating func consume(_ byte: UInt8) -> Bool {
