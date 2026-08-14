@@ -76,7 +76,17 @@ def validate_mobile_bind_host(value: str) -> str:
         # The current iOS client has no scoped IPv6 interface model yet. Keep
         # the server contract aligned with it until that support is designed.
         raise ValueError("PIPA_MOBILE_BIND must use IPv4 outside loopback")
-    if not (address.is_loopback or address.is_private or address.is_link_local):
+    if address.version == 4:
+        octets = address.packed
+        is_rfc1918 = (
+            octets[0] == 10
+            or (octets[0] == 172 and 16 <= octets[1] <= 31)
+            or (octets[0] == 192 and octets[1] == 168)
+        )
+        is_allowed_bind = address.is_loopback or address.is_link_local or is_rfc1918
+    else:
+        is_allowed_bind = address.is_loopback
+    if not is_allowed_bind:
         raise ValueError("PIPA_MOBILE_BIND must be a loopback or private address")
     return host
 

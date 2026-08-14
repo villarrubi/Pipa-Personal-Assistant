@@ -341,6 +341,12 @@ class SecureTcpGatewayTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_mobile_bind_host("8.8.8.8")
         with self.assertRaises(ValueError):
+            validate_mobile_bind_host("192.0.0.1")
+        with self.assertRaises(ValueError):
+            validate_mobile_bind_host("198.18.0.1")
+        with self.assertRaises(ValueError):
+            validate_mobile_bind_host("100.64.0.1")
+        with self.assertRaises(ValueError):
             validate_mobile_bind_host("fd00::20")
 
     def test_reference_client_rejects_non_private_hosts_before_connecting(self):

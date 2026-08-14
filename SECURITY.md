@@ -47,6 +47,9 @@ de recuperación y acceso.
   solo se consulta de forma no destructiva y la salida reduce el resultado a
   indicadores booleanos. La identidad DPAPI se valida contra el `server_id`,
   pero nunca se exporta ni se incluye en la salida.
+  Las direcciones IPv4 aceptadas se limitan a loopback, RFC1918 y link-local;
+  no se consideran válidas redes especiales solo porque la librería las marque
+  como `private`.
  - **Named Pipe experimental:** ACL para usuario y `SYSTEM`, rechazo de clientes
   remotos y primera instancia exclusiva del pipe, más firma del dispositivo.
   No desbloquea.
