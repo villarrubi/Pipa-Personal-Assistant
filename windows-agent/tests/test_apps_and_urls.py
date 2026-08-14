@@ -73,6 +73,8 @@ class AppsAndUrlsTests(unittest.TestCase):
             "mshta.exe",
             "rundll32.exe",
             "regsvr32.exe",
+            "command.com",
+            "csi.exe",
         ):
             with self.subTest(interpreter=interpreter):
                 with self.assertRaises(ValueError):

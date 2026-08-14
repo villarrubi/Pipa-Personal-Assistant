@@ -93,7 +93,7 @@ de recuperación y acceso.
   `preview` solo inspecciona y no ejecuta. Su URL opcional acepta únicamente
   literales de loopback, nunca nombres resolubles como `localhost`.
 - Herramientas allowlisted y `subprocess` sin shell; la configuración de apps
-  rechaza lanzadores `cmd`/PowerShell/WScript/Bash, intérpretes de código y
+  rechaza lanzadores `cmd`/`command.com`/PowerShell/WScript/Bash, intérpretes de código y
   proxies de ejecución habituales (Python, Node, Java, `dotnet`, `wsl`,
   `mshta`, `rundll32`, `regsvr32`) y switches de intérprete, además de
   extensiones de scripts (`.cmd`, `.bat`, `.ps1`, `.vbs`, `.wsf`, etc.). El

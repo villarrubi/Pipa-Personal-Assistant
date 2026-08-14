@@ -22,6 +22,7 @@ _BLOCKED_LAUNCHERS = frozenset(
     {
         "cmd",
         "cmd.exe",
+        "command.com",
         "powershell",
         "powershell.exe",
         "pwsh",
@@ -69,6 +70,8 @@ _BLOCKED_LAUNCHERS = frozenset(
         "regsvr32.exe",
         "installutil",
         "installutil.exe",
+        "csi",
+        "csi.exe",
     }
 )
 _BLOCKED_SHELL_SWITCHES = frozenset({"/c", "/k", "-command", "-encodedcommand", "-file"})
