@@ -84,6 +84,12 @@ python .\windows-agent\pipa_cli.py codex-open --confirm
 python .\windows-agent\pipa_cli.py lock --confirm
 ```
 
+La política de logs del runtime también puede auditarse de forma independiente
+con `powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File
+.\scripts\check_log_safety.ps1`. El agente no escribe trazas ni textos de
+excepción, rutas de configuración, puertos ni destinos dinámicos en sus logs;
+el gate forma parte de `check_pre_hardware.ps1` y de CI.
+
 La prueba `windows-agent/tests/test_secure_serial_gateway.py` recorre también
 en memoria el transporte cifrado completo para web, Apple Music, WhatsApp,
 Discord y League: anuncia `display`/`touch`, exige `confirm`, ejecuta solo

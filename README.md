@@ -107,7 +107,8 @@ que las solicitó y caducan si no se confirman.
 - Ejecutar `powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File
   .\scripts\check_pre_hardware.ps1` para pasar la compuerta previa al
   hardware. Solo ejecuta pruebas inertes de protocolo, seguridad, móvil y
-  configuración: no abre aplicaciones, no envía mensajes y no toca League.
+  configuración, incluida la política de logs: no abre aplicaciones, no
+  envía mensajes y no toca League.
   En CI o en un PC sin agente residente puede añadirse `-SkipResidentAgent`.
 - Ejecutar `python .\windows-agent\pipa_cli.py self-test` para validar la
   configuración de aplicaciones, URLs, rutas de voz, colas de League y

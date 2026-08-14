@@ -325,7 +325,9 @@ def _build_pipa_core() -> PipaCore:
             store = WindowsRegistryDeviceStore()
             verifier = verifier_from_store(store)
         except Exception:
-            LOGGER.exception("Windows device registry unavailable; no persistent device is trusted")
+            # The exception may contain a local registry path or configuration
+            # detail. Keep the log useful without persisting that input.
+            LOGGER.error("Windows device registry unavailable; no persistent device is trusted")
             verifier = verifier_from_store(InMemoryDeviceStore())
     else:
         verifier = verifier_from_store(InMemoryDeviceStore())
@@ -755,7 +757,7 @@ if __name__ == "__main__":
     print("Pipa Windows Agent")
     print("Listening on http://127.0.0.1:8765")
     if LOG_PATH is not None:
-        LOGGER.info("Pipa Windows Agent starting; log=%s", LOG_PATH)
+        LOGGER.info("Pipa Windows Agent starting")
 
     server = uvicorn.Server(
         uvicorn.Config(

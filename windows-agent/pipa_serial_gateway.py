@@ -90,7 +90,7 @@ class SerialGateway:
             except Exception:
                 self._connected.clear()
                 if not warned:
-                    LOGGER.warning("Could not open Pipa serial port %s; retrying", self.port)
+                    LOGGER.warning("Could not open configured Pipa serial port; retrying")
                     warned = True
                 self._stop.wait(5)
                 continue
@@ -128,7 +128,7 @@ class SerialGateway:
                             close=protocol_errors >= MAX_PROTOCOL_ERRORS,
                         )
                     except Exception:
-                        LOGGER.exception("Unexpected serial gateway error")
+                        LOGGER.error("Unexpected serial gateway error")
                         result = ConnectionResult(
                             [server_message("error", code="internal_error")], close=True
                         )
@@ -175,8 +175,8 @@ def start_configured_gateway(core: PipaCore) -> SerialGateway | None:
         baudrate = int(os.environ.get("PIPA_SERIAL_BAUDRATE", "115200"))
         gateway = SerialGateway(core, port, baudrate=baudrate)
         gateway.start()
-        LOGGER.info("Pipa USB serial gateway enabled on %s", port)
+        LOGGER.info("Pipa USB serial gateway enabled")
         return gateway
     except (TypeError, ValueError):
-        LOGGER.exception("Invalid Pipa serial gateway configuration")
+        LOGGER.error("Invalid Pipa serial gateway configuration")
         return None

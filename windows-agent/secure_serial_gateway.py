@@ -137,7 +137,7 @@ class SecureSerialGateway(SerialGateway):
                 for response in responses:
                     self._send(connection, response)
         except Exception:
-            LOGGER.exception("unexpected secure serial gateway error")
+            LOGGER.error("unexpected secure serial gateway error")
         finally:
             secure_core.close()
 
@@ -188,13 +188,13 @@ def start_configured_secure_gateway(core: PipaCore) -> SecureSerialGateway | Non
             trusted_devices_provider=device_store.trusted_public_keys,
         )
         gateway.start()
-        LOGGER.info("Pipa secure serial gateway enabled on %s", gateway.port)
+        LOGGER.info("Pipa secure serial gateway enabled")
         return gateway
-    except (SecureIdentityStoreError, TypeError, ValueError) as error:
-        LOGGER.error("Could not configure the secure Pipa serial gateway: %s", error)
+    except (SecureIdentityStoreError, TypeError, ValueError):
+        LOGGER.error("Could not configure the secure Pipa serial gateway")
         return None
     except Exception:
-        LOGGER.exception("Could not configure the secure Pipa serial gateway")
+        LOGGER.error("Could not configure the secure Pipa serial gateway")
         return None
 
 

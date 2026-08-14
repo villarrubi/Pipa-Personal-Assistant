@@ -71,9 +71,10 @@ de recuperación y acceso.
   `Content-Length`.
 - Timeout de autenticación, inactividad y heartbeat; el límite exacto de
   inactividad cierra la sesión y el cleanup ocurre al desconectar.
-- Las excepciones inesperadas de la API se registran solo en el log local con
-  un nombre de tipo acotado y la respuesta HTTP siempre es genérica; no se
-  devuelven rutas, mensajes, tokens ni detalles del adaptador.
+- Las excepciones inesperadas de la API y de los gateways se registran solo
+  como eventos y nombres de tipo acotados en el log local; no se conservan
+  trazas, textos de excepción, rutas ni puertos dinámicos. La respuesta HTTP
+  siempre es genérica y no devuelve mensajes, tokens ni detalles del adaptador.
 - Confirmaciones de 30 segundos, de un solo uso y ligadas a sesión.
 - Confirmaciones acotadas globalmente y por sesión para evitar acumulación o
   agotamiento de memoria.

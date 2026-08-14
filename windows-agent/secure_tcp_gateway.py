@@ -338,7 +338,7 @@ class SecureTcpGateway:
         except (ConnectionError, asyncio.IncompleteReadError, OSError):
             return
         except Exception:
-            LOGGER.exception("Unexpected secure mobile TCP connection error")
+            LOGGER.error("Unexpected secure mobile TCP connection error")
         finally:
             secure_core.close()
             with self._writers_lock:
@@ -416,11 +416,11 @@ def start_configured_mobile_gateway(core: PipaCore) -> SecureTcpGateway | None:
             trusted_devices_provider=mobile_store.trusted_public_keys,
         )
         gateway.start()
-        LOGGER.info("Secure mobile TCP gateway enabled on %s:%s", gateway.bind_host, gateway.port)
+        LOGGER.info("Secure mobile TCP gateway enabled")
         return gateway
-    except (DeviceStoreError, SecureIdentityStoreError, TypeError, ValueError, OSError) as error:
-        LOGGER.error("Could not configure secure mobile TCP gateway: %s", error)
+    except (DeviceStoreError, SecureIdentityStoreError, TypeError, ValueError, OSError):
+        LOGGER.error("Could not configure secure mobile TCP gateway")
         return None
     except Exception:
-        LOGGER.exception("Could not configure secure mobile TCP gateway")
+        LOGGER.error("Could not configure secure mobile TCP gateway")
         return None

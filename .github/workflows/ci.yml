@@ -34,6 +34,9 @@ jobs:
       - name: Check agent startup lifecycle
         shell: pwsh
         run: ./scripts/check_agent_startup.ps1
+      - name: Check log safety
+        shell: pwsh
+        run: ./scripts/check_log_safety.ps1
       - name: Check iOS package structure
         shell: pwsh
         run: ./scripts/check_mobile_ios_package.ps1

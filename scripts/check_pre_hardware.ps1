@@ -68,6 +68,14 @@ function Invoke-PipaJsonCheck {
 Write-Host 'Pipa pre-hardware gate' -ForegroundColor Cyan
 Write-Host ("Repository: {0}" -f $repoRoot)
 
+$logSafetyScript = Join-Path $repoRoot 'scripts/check_log_safety.ps1'
+try {
+    & $logSafetyScript
+    Write-CheckResult -Name 'Runtime log safety' -Success ($LASTEXITCODE -eq 0)
+} catch {
+    Write-CheckResult -Name 'Runtime log safety' -Success $false
+}
+
 $python = Find-Python
 if ($null -eq $python) {
     Write-CheckResult -Name 'Python runtime' -Success $false -Detail ' (python not found)'
