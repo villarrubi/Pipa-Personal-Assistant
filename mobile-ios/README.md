@@ -49,6 +49,11 @@ configurada de una ruta que ya no existe; la app solo muestra un aviso genérico
 si falla. Esa matriz contiene solo flags y textos acotados, nunca configuración
 del PC.
 
+La matriz se valida como un bloque atómico al recibir el catálogo cifrado. Si
+falta el campo obligatorio `available`, aparece un grupo desconocido o se
+supera el límite de grupos, la app cierra la sesión en vez de mostrar una
+matriz parcial.
+
 La pantalla incluye además una búsqueda web local: valida una consulta acotada,
 muestra una confirmación visible y abre el resultado en Safari. La consulta
 no se envía al agente ni se usa para ejecutar acciones en el PC.

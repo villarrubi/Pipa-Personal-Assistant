@@ -80,6 +80,33 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertFalse(brokenLauncher?.launcherResolved ?? true)
     }
 
+    func testIntegrationCapabilitiesRejectMalformedGroupsAtomically() throws {
+        let valid: [String: [String: Any]] = [
+            "apple_music": [
+                "available": true,
+                "requires_manual_selection": true,
+            ],
+            "league": [
+                "available": false,
+            ],
+        ]
+        let parsed = try PipaMobileViewModel.parseIntegrationCapabilities(valid)
+        XCTAssertEqual(parsed.map(\.id), ["apple_music", "league"])
+
+        XCTAssertThrowsError(
+            try PipaMobileViewModel.parseIntegrationCapabilities([
+                "apple_music": ["requires_manual_selection": true],
+            ])
+        )
+        XCTAssertThrowsError(
+            try PipaMobileViewModel.parseIntegrationCapabilities([
+                "unexpected": ["available": true],
+            ])
+        )
+        let empty: [String: [String: Any]] = [:]
+        XCTAssertEqual(try PipaMobileViewModel.parseIntegrationCapabilities(empty), [])
+    }
+
     func testLocalAppleMusicControllerStartsWithoutAuthorizationOrTransport() {
         let controller = PipaMobileAppleMusicController()
 

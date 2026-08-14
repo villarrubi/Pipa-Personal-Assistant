@@ -507,9 +507,7 @@ public final class PipaMobileViewModel: ObservableObject {
                         return
                     }
                     let parsedCatalog = try Self.parseCatalogCommands(catalog.commands)
-                    let parsedCapabilities = catalog.capabilities
-                        .compactMap { PipaMobileIntegration(id: $0.key, payload: $0.value) }
-                        .sorted { $0.id < $1.id }
+                    let parsedCapabilities = try Self.parseIntegrationCapabilities(catalog.capabilities)
                     self?.commands = parsedCatalog
                     self?.integrationCapabilities = parsedCapabilities
                     self?.connectInProgress = false
@@ -631,6 +629,26 @@ public final class PipaMobileViewModel: ObservableObject {
             throw PipaMobileError.invalidMessage
         }
         return parsed
+    }
+
+    /// Capability groups are display metadata, but they arrive inside the
+    /// authenticated catalog and must still be parsed atomically. Silently
+    /// dropping an invalid group could make the UI show a partial, stale
+    /// capability matrix while the rest of the session remains active.
+    static func parseIntegrationCapabilities(
+        _ rawCapabilities: [String: [String: Any]]
+    ) throws -> [PipaMobileIntegration] {
+        guard rawCapabilities.count <= 6 else {
+            throw PipaMobileError.invalidMessage
+        }
+        let parsed = rawCapabilities.compactMap { key, value in
+            PipaMobileIntegration(id: key, payload: value)
+        }
+        guard parsed.count == rawCapabilities.count,
+              Set(parsed.map(\.id)).count == parsed.count else {
+            throw PipaMobileError.invalidMessage
+        }
+        return parsed.sorted { $0.id < $1.id }
     }
 
     private func startRequest(
