@@ -171,8 +171,8 @@ que las solicitó y caducan si no se confirman.
   `scripts/configure_mobile_firewall.ps1 -WhatIf` antes de aplicarla.
 - Preparar la configuración de transporte móvil sin escribirla a mano con
   `scripts/configure_mobile_transport.ps1 -LocalAddress <IP_PRIVADA> -WhatIf`;
-  el script valida la IP y solo modifica variables de usuario cuando se ejecuta
-  sin `-WhatIf`.
+  el script valida la IP, comprueba que esté asignada al PC y solo modifica
+  variables de usuario cuando se ejecuta sin `-WhatIf`.
 - Preparar la identidad pública del agente v2 sin exponer la clave privada:
   `python .\windows-agent\secure_identity_admin.py init` y después
   `firmware-snippet` cuando se vaya a provisionar la placa.

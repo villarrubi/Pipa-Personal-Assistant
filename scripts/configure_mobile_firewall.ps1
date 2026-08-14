@@ -45,6 +45,35 @@ function Test-PrivateIPv4 {
     return $address.IPAddressToString
 }
 
+function Test-AssignedIPv4 {
+    param(
+        [Parameter(Mandatory = $true)] [string]$Value
+    )
+
+    if ($Value -eq '127.0.0.1') {
+        return $true
+    }
+    try {
+        foreach ($networkInterface in [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()) {
+            try {
+                foreach ($unicast in $networkInterface.GetIPProperties().UnicastAddresses) {
+                    if (
+                        $unicast.Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork -and
+                        $unicast.Address.IPAddressToString -eq $Value
+                    ) {
+                        return $true
+                    }
+                }
+            } catch {
+                continue
+            }
+        }
+    } catch {
+        return $false
+    }
+    return $false
+}
+
 function Test-RemoteAddress {
     param(
         [Parameter(Mandatory)] [string]$Value
@@ -61,6 +90,9 @@ if (-not $Remove) {
         throw 'LocalAddress es obligatorio al crear la regla.'
     }
     $validatedLocalAddress = Test-PrivateIPv4 -Value $LocalAddress -FieldName 'LocalAddress'
+    if (-not (Test-AssignedIPv4 -Value $validatedLocalAddress)) {
+        throw 'LocalAddress no esta asignada a este PC.'
+    }
     $validatedRemoteAddress = Test-RemoteAddress -Value $RemoteAddress
 }
 

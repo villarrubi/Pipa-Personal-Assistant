@@ -43,6 +43,35 @@ function Test-PrivateIPv4 {
     return $address.IPAddressToString
 }
 
+function Test-AssignedIPv4 {
+    param(
+        [Parameter(Mandatory = $true)] [string]$Value
+    )
+
+    if ($Value -eq '127.0.0.1') {
+        return $true
+    }
+    try {
+        foreach ($networkInterface in [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()) {
+            try {
+                foreach ($unicast in $networkInterface.GetIPProperties().UnicastAddresses) {
+                    if (
+                        $unicast.Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork -and
+                        $unicast.Address.IPAddressToString -eq $Value
+                    ) {
+                        return $true
+                    }
+                }
+            } catch {
+                continue
+            }
+        }
+    } catch {
+        return $false
+    }
+    return $false
+}
+
 if ($Disable) {
     if ($PSCmdlet.ShouldProcess('Variables de usuario Pipa Mobile TCP v2', 'Desactivar')) {
         [Environment]::SetEnvironmentVariable($transportName, $null, 'User')
@@ -58,6 +87,9 @@ if ([string]::IsNullOrWhiteSpace($LocalAddress)) {
     throw 'LocalAddress es obligatorio al activar el transporte.'
 }
 $validatedAddress = Test-PrivateIPv4 -Value $LocalAddress
+if (-not (Test-AssignedIPv4 -Value $validatedAddress)) {
+    throw 'LocalAddress no esta asignada a este PC.'
+}
 
 if ($PSCmdlet.ShouldProcess(
         "Configuracion de usuario Pipa Mobile TCP v2 ($validatedAddress`:$Port)",

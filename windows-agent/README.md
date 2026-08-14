@@ -450,6 +450,10 @@ inválido, una IP privada que no esté asignada a este PC, ausencia de la identi
 protegida o ausencia de emparejamiento. No devuelve IDs, interfaces ni claves
 del almacén.
 
+Los scripts que preparan el transporte y el firewall aplican también esa
+comprobación de dirección local antes de escribir variables o reglas; `-WhatIf`
+permite revisar la operación sin modificar el sistema.
+
 Cuando llegue el iPhone, el firewall se puede preparar de forma explícita
 desde una consola elevada. Primero usa `-WhatIf`; la regla queda limitada a la
 IP local concreta, al perfil de red `Private` y a `LocalSubnet` o a una IP
