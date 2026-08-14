@@ -445,6 +445,12 @@ def _doctor(base_url: str) -> dict[str, object]:
             return result.get("pc") == "online"
         if name == "capabilities":
             return isinstance(result.get("integrations"), dict)
+        if name == "readiness":
+            return (
+                isinstance(result.get("apps"), dict)
+                and isinstance(result.get("contacts"), dict)
+                and isinstance(result.get("integrations"), dict)
+            )
         if name == "commands":
             return isinstance(result.get("commands"), list)
         if name == "protocol":
@@ -457,6 +463,7 @@ def _doctor(base_url: str) -> dict[str, object]:
     requests = (
         ("agent", "GET", "/status"),
         ("capabilities", "GET", "/capabilities"),
+        ("readiness", "GET", "/readiness"),
         ("commands", "GET", "/commands"),
         ("protocol", "GET", "/pipa/protocol"),
         ("self_test", "GET", "/self-test"),

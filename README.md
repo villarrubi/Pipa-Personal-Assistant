@@ -110,7 +110,8 @@ que las solicitó y caducan si no se confirman.
   en el LoL` y `manda un mensaje a ... por WhatsApp`; siguen pasando por la
   misma confirmación y nunca envían por sí solas.
 - Ejecutar `python .\windows-agent\pipa_cli.py doctor` para comprobar en una
-  sola operación la salud local, capacidades, protocolo e integraciones.
+  sola operación la salud local, capacidades, readiness, protocolo e
+  integraciones.
 - Ejecutar `powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File
   .\scripts\check_pre_hardware.ps1` para pasar la compuerta previa al
   hardware. Solo ejecuta pruebas inertes de protocolo, seguridad, móvil y
@@ -173,6 +174,9 @@ que las solicitó y caducan si no se confirman.
 - Consultar en una sola salida los lanzadores, alias e integraciones que están
   listos, sin abrir nada ni revelar datos privados, con
   `python .\windows-agent\pipa_cli.py readiness`.
+- El catálogo seguro que recibe el futuro iPhone también indica, solo con
+  booleanos, si el lanzador local de cada aplicación configurada sigue
+  resolviendo; no transmite rutas ni comandos.
 - Consultar el catálogo de frases y sus confirmaciones con
   `python .\windows-agent\pipa_cli.py commands`.
 - Inspeccionar cómo se interpreta una frase con `pipa_cli.py intent` sin

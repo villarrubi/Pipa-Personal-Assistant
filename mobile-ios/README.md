@@ -43,8 +43,11 @@ Tras conectar, la app muestra también una matriz resumida de integraciones
 (`Disponible`/`No disponible`) y sus pasos manuales para el PC: Apple Music
 requiere seleccionar la pista y permite controlar reproducción/pausa del
 reproductor activo, WhatsApp requiere pulsar `Enviar` y Discord requiere
-iniciar la llamada. Esa matriz contiene solo flags y textos acotados, nunca
-configuración del PC.
+iniciar la llamada. Cuando el agente conoce una entrada local, la matriz
+incluye además un flag de lanzador resuelto para distinguir una aplicación
+configurada de una ruta que ya no existe; la app solo muestra un aviso genérico
+si falla. Esa matriz contiene solo flags y textos acotados, nunca configuración
+del PC.
 
 La pantalla incluye además una búsqueda web local: valida una consulta acotada,
 muestra una confirmación visible y abre el resultado en Safari. La consulta

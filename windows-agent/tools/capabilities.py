@@ -9,31 +9,39 @@ from __future__ import annotations
 
 from typing import Any
 
+from tools.app_diagnostics import launcher_resolved
 from tools.apps import AppsConfigError, load_apps
 from tools.contacts import ContactsConfigError, load_contacts
 from tools.integration_catalog import build_integration_capabilities, get_command_catalog
 from tools.league import LeagueClientError, find_client_connection
 
 
-def _configured_apps() -> dict[str, bool]:
+def _configured_apps() -> tuple[dict[str, bool], dict[str, bool]]:
     try:
         apps = load_apps()
     except AppsConfigError:
-        return {
+        configured = {
             "apple_music": False,
             "league_of_legends": False,
             "codex": False,
             "whatsapp": False,
             "discord": False,
         }
+        return configured, dict(configured)
     app_ids = {app_id.strip().lower() for app_id in apps}
-    return {
+    configured = {
         "apple_music": "apple_music" in app_ids,
         "league_of_legends": "league_of_legends" in app_ids,
         "codex": "codex" in app_ids,
         "whatsapp": "whatsapp" in app_ids,
         "discord": "discord" in app_ids,
     }
+    resolved = {
+        integration: configured[integration] and launcher_resolved(apps[integration]["command"][0])
+        for integration in configured
+        if integration in apps
+    }
+    return configured, {integration: resolved.get(integration, False) for integration in configured}
 
 
 def _league_client_ready() -> bool:
@@ -63,16 +71,21 @@ def _configured_contact_destinations() -> tuple[bool, bool]:
 def get_integration_capabilities() -> dict[str, dict[str, Any]]:
     """Return only the public integration matrix shared with local UIs."""
 
-    configured = _configured_apps()
+    configured, resolved = _configured_apps()
     league_ready = configured["league_of_legends"] and _league_client_ready()
     whatsapp_contacts_configured, discord_contacts_configured = _configured_contact_destinations()
     return build_integration_capabilities(
         apple_music_configured=configured["apple_music"],
+        apple_music_launcher_resolved=resolved["apple_music"],
         league_available=configured["league_of_legends"],
+        league_launcher_resolved=resolved["league_of_legends"],
         league_ready=league_ready,
         codex_configured=configured["codex"],
+        codex_launcher_resolved=resolved["codex"],
         whatsapp_app_configured=configured["whatsapp"],
+        whatsapp_launcher_resolved=resolved["whatsapp"],
         discord_app_configured=configured["discord"],
+        discord_launcher_resolved=resolved["discord"],
         whatsapp_contacts_configured=whatsapp_contacts_configured,
         discord_contacts_configured=discord_contacts_configured,
     )

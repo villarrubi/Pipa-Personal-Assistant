@@ -128,15 +128,25 @@ def _parameter(
 def build_integration_capabilities(
     *,
     apple_music_configured: bool,
+    apple_music_launcher_resolved: bool | None = None,
     league_available: bool,
+    league_launcher_resolved: bool | None = None,
     league_ready: bool,
     codex_configured: bool,
+    codex_launcher_resolved: bool | None = None,
     whatsapp_app_configured: bool = False,
+    whatsapp_launcher_resolved: bool | None = None,
     discord_app_configured: bool = False,
+    discord_launcher_resolved: bool | None = None,
     whatsapp_contacts_configured: bool = False,
     discord_contacts_configured: bool = False,
 ) -> dict[str, dict[str, Any]]:
     """Build the stable feature matrix without exposing local configuration."""
+
+    def launcher_state(configured: bool, resolved: bool | None) -> bool:
+        """Keep readiness false when no corresponding app is configured."""
+
+        return configured and (configured if resolved is None else resolved)
 
     capabilities = {
         "web_search": {
@@ -147,6 +157,7 @@ def build_integration_capabilities(
         "apple_music": {
             "available": True,
             "app_configured": apple_music_configured,
+            "launcher_resolved": launcher_state(apple_music_configured, apple_music_launcher_resolved),
             "search": True,
             "playback": False,
             "media_control": True,
@@ -156,6 +167,7 @@ def build_integration_capabilities(
         "whatsapp": {
             "available": True,
             "app_configured": whatsapp_app_configured,
+            "launcher_resolved": launcher_state(whatsapp_app_configured, whatsapp_launcher_resolved),
             "open_web": True,
             "open_contact": True,
             "contact_aliases_configured": whatsapp_contacts_configured,
@@ -167,6 +179,7 @@ def build_integration_capabilities(
         "discord": {
             "available": True,
             "app_configured": discord_app_configured,
+            "launcher_resolved": launcher_state(discord_app_configured, discord_launcher_resolved),
             "open_app": True,
             "open_channel": True,
             "contact_aliases_configured": discord_contacts_configured,
@@ -177,6 +190,7 @@ def build_integration_capabilities(
         "league": {
             "available": league_available,
             "client_ready": league_ready,
+            "launcher_resolved": launcher_state(league_available, league_launcher_resolved),
             "open_client": league_available,
             "matchmaking": league_available,
             "cancel_matchmaking": league_ready,
@@ -188,6 +202,7 @@ def build_integration_capabilities(
         "codex": {
             "available": codex_configured,
             "open_app": codex_configured,
+            "launcher_resolved": launcher_state(codex_configured, codex_launcher_resolved),
             "writes_to_chat": False,
             "requires_confirmation": True,
         },

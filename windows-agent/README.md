@@ -447,8 +447,8 @@ La salida de `firmware-snippet` se copia únicamente a
 se debe publicar el fichero de identidad de `%LOCALAPPDATA%\Pipa`.
 
 `doctor` combina esas comprobaciones con `/status`, `/capabilities`,
-`/commands`, `/pipa/protocol` y `/self-test` en una única operación de
-diagnóstico.
+`/readiness`, `/commands`, `/pipa/protocol` y `/self-test` en una única
+operación de diagnóstico.
 
 `GET /capabilities` y el comando `capabilities` son de solo lectura. Informan si
 Apple Music, League o Codex están configurados y si el cliente de League está

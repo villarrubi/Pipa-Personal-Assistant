@@ -85,6 +85,7 @@ _CAPABILITY_BOOLEAN_FIELDS = frozenset(
     {
         "available",
         "app_configured",
+        "launcher_resolved",
         "search",
         "playback",
         "media_control",

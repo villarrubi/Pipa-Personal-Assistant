@@ -201,6 +201,7 @@ public struct PipaMobileIntegration: Identifiable {
     public let title: String
     public let available: Bool
     public let appConfigured: Bool
+    public let launcherResolved: Bool
     public let detail: String
 
     init?(id: String, payload: [String: Any]) {
@@ -222,8 +223,11 @@ public struct PipaMobileIntegration: Identifiable {
         self.title = title
         self.available = available
         self.appConfigured = payload["app_configured"] as? Bool ?? false
+        self.launcherResolved = payload["launcher_resolved"] as? Bool ?? self.appConfigured
         if !available {
             detail = "No configurado o no disponible en el PC."
+        } else if appConfigured && !launcherResolved {
+            detail = "Está configurado, pero no se encuentra el lanzador local; revisa la configuración del PC."
         } else if id == "apple_music", payload["requires_manual_selection"] as? Bool == true {
             if payload["media_control"] as? Bool == true {
                 if appConfigured {

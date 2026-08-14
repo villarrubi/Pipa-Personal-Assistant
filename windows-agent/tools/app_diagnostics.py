@@ -9,7 +9,7 @@ from typing import Any
 from tools.apps import AppsConfigError, load_apps
 
 
-def _launcher_resolved(launcher: str) -> bool:
+def launcher_resolved(launcher: str) -> bool:
     """Check availability without starting the configured process."""
 
     candidate = Path(launcher)
@@ -36,7 +36,7 @@ def inspect_apps() -> dict[str, Any]:
     statuses: dict[str, dict[str, object]] = {}
     unresolved = 0
     for app_id, app_data in apps.items():
-        resolved = _launcher_resolved(app_data["command"][0])
+        resolved = launcher_resolved(app_data["command"][0])
         if not resolved:
             unresolved += 1
         statuses[app_id] = {

@@ -57,11 +57,27 @@ final class PipaMobileUITests: XCTestCase {
             "Apple Music Web disponible; busca y selecciona la pista y controla reproducción/pausa manualmente."
         )
         XCTAssertFalse(music?.appConfigured ?? true)
+        XCTAssertFalse(music?.launcherResolved ?? true)
         XCTAssertEqual(
             league?.detail,
             "El cliente está configurado, pero no está listo ahora; aceptar la partida será manual."
         )
         XCTAssertNil(PipaMobileIntegration(id: "unknown", payload: ["available": true]))
+
+        let brokenLauncher = PipaMobileIntegration(
+            id: "discord",
+            payload: [
+                "available": true,
+                "app_configured": true,
+                "launcher_resolved": false,
+                "requires_manual_call": true,
+            ]
+        )
+        XCTAssertEqual(
+            brokenLauncher?.detail,
+            "Está configurado, pero no se encuentra el lanzador local; revisa la configuración del PC."
+        )
+        XCTAssertFalse(brokenLauncher?.launcherResolved ?? true)
     }
 
     func testLocalAppleMusicControllerStartsWithoutAuthorizationOrTransport() {

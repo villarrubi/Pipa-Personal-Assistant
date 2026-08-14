@@ -122,6 +122,27 @@ class IntegrationContractTests(unittest.TestCase):
         self.assertTrue(capabilities["discord"]["requires_manual_call"])
         self.assertFalse(capabilities["codex"]["writes_to_chat"])
 
+    def test_capability_matrix_reports_launcher_readiness_without_paths(self):
+        capabilities = build_integration_capabilities(
+            apple_music_configured=True,
+            apple_music_launcher_resolved=False,
+            league_available=True,
+            league_launcher_resolved=True,
+            league_ready=False,
+            codex_configured=False,
+            whatsapp_app_configured=True,
+            whatsapp_launcher_resolved=False,
+            discord_app_configured=True,
+            discord_launcher_resolved=True,
+        )
+
+        self.assertFalse(capabilities["apple_music"]["launcher_resolved"])
+        self.assertFalse(capabilities["whatsapp"]["launcher_resolved"])
+        self.assertTrue(capabilities["discord"]["launcher_resolved"])
+        self.assertTrue(capabilities["league"]["launcher_resolved"])
+        self.assertNotIn("command", str(capabilities).lower())
+        self.assertNotIn("path", str(capabilities).lower())
+
     def test_capability_validator_rejects_a_crossed_manual_boundary(self):
         capabilities = {
             "web_search": {"requires_confirmation": True},

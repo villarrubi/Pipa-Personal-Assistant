@@ -118,6 +118,9 @@ class CliTests(unittest.TestCase):
         arguments = pipa_cli._parser().parse_args(["integration-status"])
         self.assertEqual(pipa_cli._route(arguments), ("GET", "/integrations/status", None))
 
+        arguments = pipa_cli._parser().parse_args(["readiness"])
+        self.assertEqual(arguments.command, "readiness")
+
         arguments = pipa_cli._parser().parse_args(["commands"])
         self.assertEqual(pipa_cli._route(arguments), ("GET", "/commands", None))
 
@@ -303,6 +306,7 @@ class CliTests(unittest.TestCase):
         side_effect=[
             {"success": True, "pc": "online"},
             {"success": True, "integrations": {}},
+            {"success": True, "apps": {}, "contacts": {}, "integrations": {}},
             {"success": True, "commands": []},
             {"success": True, "protocol_version": 1, "tool_names": []},
             {"success": True, "checks": {}},
@@ -313,13 +317,14 @@ class CliTests(unittest.TestCase):
 
         self.assertTrue(result["success"])
         self.assertTrue(all(check["ok"] for check in result["checks"].values()))
-        self.assertEqual(request.call_count, 5)
+        self.assertEqual(request.call_count, 6)
         self.assertTrue(all(call.args[1] == "GET" for call in request.call_args_list))
 
     @patch(
         "pipa_cli._request",
         side_effect=[
             {"success": True, "pc": "online"},
+            {"success": True},
             {"success": True},
             {"success": True},
             {"success": True, "protocol_version": 1, "tool_names": []},
@@ -332,7 +337,7 @@ class CliTests(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertFalse(result["checks"]["capabilities"]["ok"])
         self.assertFalse(result["checks"]["self_test"]["ok"])
-        self.assertEqual(request.call_count, 5)
+        self.assertEqual(request.call_count, 6)
 
     def test_external_commands_require_explicit_cli_confirmation(self):
         arguments = pipa_cli._parser().parse_args(["music-search", "Daft Punk"])

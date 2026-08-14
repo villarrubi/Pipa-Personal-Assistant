@@ -207,6 +207,27 @@ class IntegrationTests(unittest.TestCase):
         self.assertNotIn("WhatsApp.exe", str(result))
         self.assertNotIn("Discord.exe", str(result))
 
+    @patch(
+        "tools.capabilities.launcher_resolved",
+        side_effect=lambda launcher: launcher == "WhatsApp.exe",
+    )
+    @patch(
+        "tools.capabilities.load_apps",
+        return_value={
+            "whatsapp": {"aliases": ["whatsapp"], "command": ["WhatsApp.exe"]},
+            "discord": {"aliases": ["discord"], "command": ["Discord.exe"]},
+        },
+    )
+    def test_capabilities_distinguish_configured_from_resolved_launcher(self, _load_apps, _resolved):
+        result = get_integration_capabilities()
+
+        self.assertTrue(result["whatsapp"]["app_configured"])
+        self.assertTrue(result["whatsapp"]["launcher_resolved"])
+        self.assertTrue(result["discord"]["app_configured"])
+        self.assertFalse(result["discord"]["launcher_resolved"])
+        self.assertNotIn("WhatsApp.exe", str(result))
+        self.assertNotIn("Discord.exe", str(result))
+
     def test_browser_failure_is_reported(self):
         result = open_validated_url(
             "https://example.com",
