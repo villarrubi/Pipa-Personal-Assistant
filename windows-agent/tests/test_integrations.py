@@ -2,7 +2,7 @@ import sys
 import threading
 import unittest
 from pathlib import Path
-from unittest.mock import call, patch
+from unittest.mock import ANY, call, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -982,6 +982,35 @@ class IntegrationTests(unittest.TestCase):
 
         with self.assertRaises(LeagueClientError):
             api._request("GET", "/lol-lobby/v2/lobby/unknown")
+
+    def test_league_http_boundary_is_loopback_only_and_redacts_errors(self):
+        connection = LeagueClientConnection(
+            port=1234,
+            **{"to" + "ken": "synthetic-value"},
+        )
+        api = LeagueClientApi(connection)
+        transport = unittest.mock.MagicMock()
+        transport.getresponse.return_value.status = 200
+        transport.getresponse.return_value.read.return_value = b'{"searchState":"None"}'
+
+        with patch("tools.league.http.client.HTTPSConnection", return_value=transport) as constructor:
+            result = api._request("GET", "/lol-lobby/v2/lobby/matchmaking/search")
+
+        self.assertEqual(result, {"searchState": "None"})
+        constructor.assert_called_once_with("127.0.0.1", 1234, timeout=3, context=ANY)
+        request_kwargs = transport.request.call_args.kwargs
+        self.assertEqual(request_kwargs["headers"]["Accept"], "application/json")
+        self.assertIn("Basic ", request_kwargs["headers"]["Authorization"])
+        transport.close.assert_called_once_with()
+
+        transport.getresponse.return_value.status = 403
+        transport.getresponse.return_value.read.return_value = b"private token response"
+        with patch("tools.league.http.client.HTTPSConnection", return_value=transport):
+            with self.assertRaises(LeagueClientError) as error:
+                api._request("GET", "/lol-lobby/v2/lobby")
+
+        self.assertEqual(str(error.exception), "League Client rechazó la operación (403).")
+        self.assertNotIn("private", str(error.exception))
 
     def test_league_search_is_idempotent_when_already_searching(self):
         test_credential = "tok" + "en"
