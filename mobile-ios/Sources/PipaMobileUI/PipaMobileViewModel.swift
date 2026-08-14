@@ -781,8 +781,18 @@ public final class PipaMobileViewModel: ObservableObject {
                       confirmationID.utf8.count <= 128,
                       toolName.utf8.count <= 80,
                       summary.utf8.count <= 512,
+                      let expiresAt = response["expires_at"] as? Int,
+                      expiresAt > 0,
                       Self.isSafeConfirmationSummary(toolName: toolName, summary: summary) else {
                     return false
+                }
+                if let rawCallID = response["call_id"], !(rawCallID is NSNull) {
+                    guard let callID = rawCallID as? String,
+                          !callID.isEmpty,
+                          PipaMobileTextPolicy.isSafeDisplayText(callID, maxBytes: 128),
+                          callID.utf8.count <= 128 else {
+                        return false
+                    }
                 }
                 let serverRequestDigest: String?
                 if let rawDigest = response["request_digest"], !(rawDigest is NSNull) {
