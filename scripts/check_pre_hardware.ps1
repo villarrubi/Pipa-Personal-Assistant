@@ -76,6 +76,14 @@ try {
     Write-CheckResult -Name 'Runtime log safety' -Success $false
 }
 
+$firmwareLogSafetyScript = Join-Path $repoRoot 'scripts/check_firmware_log_safety.ps1'
+try {
+    & $firmwareLogSafetyScript
+    Write-CheckResult -Name 'Firmware log safety' -Success ($LASTEXITCODE -eq 0)
+} catch {
+    Write-CheckResult -Name 'Firmware log safety' -Success $false
+}
+
 $python = Find-Python
 if ($null -eq $python) {
     Write-CheckResult -Name 'Python runtime' -Success $false -Detail ' (python not found)'

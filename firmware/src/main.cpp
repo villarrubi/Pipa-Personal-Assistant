@@ -76,7 +76,10 @@ void maintainWifi() {
     if (!wifi_online) {
       wifi_online = true;
       udp.begin(9);
-      log(String("Wi-Fi ready: ") + WiFi.localIP().toString());
+      // The serial monitor is an operational channel, not a network
+      // diagnostic. Do not expose the local address in logs or captured
+      // boot output.
+      log("Wi-Fi ready");
     }
     return;
   }

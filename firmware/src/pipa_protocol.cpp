@@ -204,7 +204,10 @@ void PipaProtocol::handleMessage(JsonDocument& document) {
       last_challenge_request_ = millis();
       sendChallengeRequest();
     }
-    log(String("server error: ") + code);
+    // Error codes are server-controlled input. Keep the serial channel
+    // limited to a static event; the authenticated UI handles the bounded
+    // error state without echoing the code.
+    log("server error received");
   } else {
     log("unknown server message discarded");
   }

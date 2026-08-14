@@ -125,6 +125,9 @@ de recuperación y acceso.
   lanzador de Pipa, con sus argumentos, usuario interactivo y trigger de
   inicio; una tarea arbitraria de PowerShell no se considera válida.
 - Logs locales rotativos que no registran cuerpos, firmas, claves ni tokens.
+- El firmware mantiene el monitor serie como un canal operacional: no registra
+  IPs locales, credenciales, MAC de destino ni códigos de error controlados por
+  el servidor; una compuerta estática comprueba esta frontera antes del build.
 - Los JSON recibidos por los transportes y los ficheros locales de apps/contactos
   rechazan claves duplicadas, incluidas claves equivalentes mediante escapes
   Unicode, para evitar interpretaciones ambiguas entre capas.

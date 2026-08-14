@@ -37,6 +37,9 @@ jobs:
       - name: Check log safety
         shell: pwsh
         run: ./scripts/check_log_safety.ps1
+      - name: Check firmware log safety
+        shell: pwsh
+        run: ./scripts/check_firmware_log_safety.ps1
       - name: Check iOS package structure
         shell: pwsh
         run: ./scripts/check_mobile_ios_package.ps1

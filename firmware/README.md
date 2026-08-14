@@ -9,6 +9,9 @@ CDC. La referencia física está en la
 
 - Definición PlatformIO propia para la variante N16R8.
 - Identidad Ed25519 generada en el dispositivo y persistida en NVS.
+- Logs serie operacionales sin IP local, credenciales, MAC de destino ni errores
+  dinámicos recibidos del servidor; `scripts/check_firmware_log_safety.ps1`
+  comprueba esta política antes de compilar.
 - Fallo cerrado si la identidad NVS existe pero está corrupta.
 - Desafío/respuesta firmado y JSON por líneas sobre USB CDC.
 - Diagnósticos separados del protocolo mediante líneas que empiezan por `#`.

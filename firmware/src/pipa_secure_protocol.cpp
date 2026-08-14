@@ -241,7 +241,10 @@ void PipaSecureProtocol::rejectEncryptedFrame(const char* reason) {
   // corrupted transport into an indefinitely live authenticated channel.
   resetHandshake();
   last_handshake_ = millis();
-  log(String("secure session reset: ") + (reason == nullptr ? "frame rejected" : reason));
+  (void)reason;
+  // Keep untrusted or implementation-specific rejection details out of the
+  // serial channel. The transport is reset regardless of the reason.
+  log("secure session reset");
 }
 
 void PipaSecureProtocol::handleMessage(JsonObjectConst object) {
@@ -271,7 +274,7 @@ void PipaSecureProtocol::handleMessage(JsonObjectConst object) {
         strcmp(code, "unknown_session") == 0) {
       resetHandshake();
       last_handshake_ = millis();
-      log(String("secure session reset: ") + code);
+      log("secure authentication error; handshake restarted");
     }
   }
 }
