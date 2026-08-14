@@ -169,6 +169,9 @@ de recuperación y acceso.
 - El canal JSON v2 cifra el objeto completo, autentica una AAD fija y exige un
   sobre estricto antes de entregar el contenido al parser del Core; permanece
   opt-in y aislado del WebSocket v1.
+- El record layer v2 del firmware borra la sesión y sus claves antes de cada
+  reinicialización; material de reemplazo inválido no puede dejar reutilizable
+  una sesión autenticada anterior.
 - El cliente iOS exige también un sobre exacto en los records binarios y cierra
   la sesión ante campos desconocidos; valida localmente firmware y capacidades
   antes de enviar device_hello, en lugar de esperar al rechazo del servidor.

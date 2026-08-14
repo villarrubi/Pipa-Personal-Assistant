@@ -75,6 +75,9 @@ bool PipaSecureSession::beginFromSharedSecret(
     const uint8_t shared_secret[kKeyBytes],
     const uint8_t transcript_hash[kTranscriptHashBytes],
     bool client_role) {
+  // Reinitialisation is fail-closed: invalid replacement material must never
+  // leave an older authenticated session usable by the caller.
+  clear();
   if (!validSessionId(session_id) || shared_secret == nullptr || transcript_hash == nullptr) return false;
 
   bool shared_secret_is_zero = true;
@@ -223,6 +226,13 @@ bool PipaSecureSession::vectorSelfTest() {
   uint8_t zero_secret[kKeyBytes] = {};
   PipaSecureSession invalid;
   if (invalid.beginFromSharedSecret("vector-session", zero_secret, transcript_hash, true)) {
+    return false;
+  }
+
+  PipaSecureSession invalid_reuse;
+  if (!invalid_reuse.beginFromSharedSecret("vector-session", shared_secret, transcript_hash, true) ||
+      invalid_reuse.beginFromSharedSecret("vector-session", zero_secret, transcript_hash, true) ||
+      invalid_reuse.ready()) {
     return false;
   }
 
