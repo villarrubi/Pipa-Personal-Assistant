@@ -108,6 +108,13 @@ python .\windows-agent\pipa_cli.py codex-open --confirm
 python .\windows-agent\pipa_cli.py lock --confirm
 ```
 
+`doctor` consulta el proceso residente y, además de comprobar su salud, compara
+su catálogo público y sus flags de seguridad con el código/configuración del
+checkout actual. Si una actualización dejó ejecutándose una versión antigua,
+la comprobación falla con `source_alignment: agent_reload_required`; recarga el
+agente con `start_agent_hidden.ps1 -Restart` y vuelve a ejecutar `doctor` antes
+de usar una integración.
+
 La política de logs del runtime también puede auditarse de forma independiente
 con `powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File
 .\scripts\check_log_safety.ps1`. El agente no escribe trazas ni textos de
