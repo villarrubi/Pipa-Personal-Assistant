@@ -312,7 +312,9 @@ lanzador de Pipa con el usuario correcto; una tarea arbitraria de PowerShell no
 se considera válida. Al actualizar la instalación, el lanzador recarga el
 agente mediante una señal local de apagado dirigida al propio servidor; solo
 usa la comprobación exacta de proceso como fallback y nunca mata un PID ajeno
-solo porque escuche en el puerto 8765.
+solo porque escuche en el puerto 8765. Si el Programador de tareas no es
+legible desde esa sesión, el diagnóstico informa `NO VERIFICADO` en vez de
+afirmar que la tarea no existe.
 
 ## Validación
 

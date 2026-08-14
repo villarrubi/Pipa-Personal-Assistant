@@ -33,7 +33,11 @@ if ($null -eq $task) {
             $xmlOutput = @(& $schtasks /Query /TN "$TaskPath$TaskName" /XML 2>&1)
             $schtasksExitCode = $LASTEXITCODE
             $xmlText = $xmlOutput -join "`n"
-            $taskMissing = $xmlText -match '(?i)(cannot find|no puede encontrar|no se puede encontrar|no existe|not exist|path specified|ruta especificada)'
+            # Do not classify a generic "path specified" error as an absent
+            # task: restricted users can receive that message when the Task
+            # Scheduler provider is unreadable. Only an explicit task/file
+            # absence is safe to report as not installed.
+            $taskMissing = $xmlText -match '(?i)(cannot find (the )?task|no puede encontrar (la )?tarea|no se puede encontrar (la )?tarea|no existe (la )?tarea|task .*not exist|tarea .*no existe|file specified|archivo especificado)'
             if ($schtasksExitCode -eq 0 -and $xmlOutput.Count -gt 0) {
                 $taskXml = [xml]$xmlText
                 $taskQueryFailed = $false

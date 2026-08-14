@@ -89,7 +89,10 @@ if ($null -eq $task -and (Test-Path -LiteralPath $schtasks -PathType Leaf)) {
         $xmlOutput = @(& $schtasks /Query /TN "$TaskPath$TaskName" /XML 2>&1)
         $schtasksExitCode = $LASTEXITCODE
         $xmlText = $xmlOutput -join "`n"
-        $taskMissing = $xmlText -match '(?i)(cannot find|no puede encontrar|no se puede encontrar|no existe|not exist|path specified|ruta especificada)'
+        # A generic "path specified" message can mean that this restricted
+        # context cannot read Task Scheduler. Never turn that ambiguity into
+        # permission to delete a startup entry.
+        $taskMissing = $xmlText -match '(?i)(cannot find (the )?task|no puede encontrar (la )?tarea|no se puede encontrar (la )?tarea|no existe (la )?tarea|task .*not exist|tarea .*no existe|file specified|archivo especificado)'
         if ($schtasksExitCode -eq 0 -and $xmlOutput.Count -gt 0) {
             $taskXml = [xml]$xmlText
             $taskQueryFailed = $false

@@ -191,6 +191,10 @@ acción, usuario, nivel y trigger coinciden exactamente con Pipa. El instalador
 y `check_agent_status.ps1` comparan
 el ejecutable, argumentos, usuario y trigger exactos; una tarea distinta no se
 valida por ser simplemente “oculta”.
+Si la sesión de PowerShell no puede leer el Programador de tareas, el
+diagnóstico muestra `NO VERIFICADO` y no lo confunde con “no instalado”; repite
+la comprobación desde una consola con acceso al Scheduler antes de cambiar la
+configuración.
 
 ## API local
 
