@@ -22,6 +22,7 @@ from .confirmations import ConfirmationError
 from .intents import parse_text_intent
 from .memory import MemoryStore
 from .protocol import ClientMessage, server_message
+from .request_binding import compute_request_digest
 from .state import SessionRegistry
 from .tools import ToolRouter
 
@@ -359,11 +360,31 @@ class PipaCore:
         if message.type == "text_input":
             return self._route_transcript(session, message.fields["text"])
         if message.type == "tool_call":
+            supplied_digest = message.fields.get("request_digest")
+            if supplied_digest is not None:
+                try:
+                    expected_digest = compute_request_digest(
+                        str(message.fields["name"]),
+                        message.fields["arguments"],
+                    )
+                except ValueError:
+                    expected_digest = None
+                if expected_digest != supplied_digest:
+                    session.set_state("idle", caption="La solicitud no es válida.")
+                    return [
+                        server_message(
+                            "error",
+                            code="request_binding_failed",
+                            message="La solicitud no es válida.",
+                        ),
+                        session.ui_message(),
+                    ]
             return self._run_tool(
                 session,
                 str(message.fields["name"]),
                 message.fields["arguments"],
                 call_id=message.fields.get("call_id"),
+                request_digest=supplied_digest,
             )
         if message.type == "confirm":
             try:
@@ -562,6 +583,7 @@ class PipaCore:
         arguments: dict[str, Any],
         *,
         call_id: str | None = None,
+        request_digest: str | None = None,
     ) -> list[dict[str, Any]]:
         session.set_state("thinking")
         if tool_name == "remember_fact":
@@ -609,6 +631,7 @@ class PipaCore:
                 arguments,
                 owner_id=session.session_id,
                 call_id=call_id,
+                request_digest=request_digest,
             )
         except (KeyError, ValueError, ConfirmationError):
             session.set_state("idle", caption="No he podido ejecutar esa acción.")
@@ -634,6 +657,8 @@ class PipaCore:
             }
             if confirmation.get("call_id") is not None:
                 confirmation_fields["call_id"] = confirmation["call_id"]
+            if confirmation.get("request_digest") is not None:
+                confirmation_fields["request_digest"] = confirmation["request_digest"]
             return [
                 server_message("confirm_request", **confirmation_fields),
                 session.ui_message(),

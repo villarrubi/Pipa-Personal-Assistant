@@ -148,10 +148,24 @@ class ProtocolTests(unittest.TestCase):
                 "type": "tool_call",
                 "name": "media_action",
                 "arguments": {"action": "play_pause"},
+                "request_digest": "a" * 64,
             }
         )
         self.assertEqual(message.type, "tool_call")
         self.assertEqual(message.fields["arguments"]["action"], "play_pause")
+        self.assertEqual(message.fields["request_digest"], "a" * 64)
+
+    def test_request_digest_is_strictly_bounded(self):
+        base = {
+            "protocol_version": 1,
+            "type": "tool_call",
+            "name": "media_action",
+            "arguments": {"action": "play_pause"},
+        }
+        for value in ("A" * 64, "a" * 63, "a" * 65, "g" * 64):
+            with self.subTest(value=value):
+                with self.assertRaises(ProtocolError):
+                    parse_client_message({**base, "request_digest": value})
 
     def test_rejects_unknown_version(self):
         with self.assertRaises(ProtocolError):

@@ -217,7 +217,17 @@ public actor PipaMobileTCPClient {
         guard encodedArguments.count <= Self.maxArgumentsBytes else {
             throw PipaMobileError.payloadTooLarge
         }
-        var fields: [String: Any] = ["name": name, "arguments": arguments]
+        guard let requestDigest = try? PipaMobileRequestBinding.digest(
+            forToolName: name,
+            arguments: arguments
+        ) else {
+            throw PipaMobileError.invalidMessage
+        }
+        var fields: [String: Any] = [
+            "name": name,
+            "arguments": arguments,
+            "request_digest": requestDigest,
+        ]
         if let callID {
             guard !callID.isEmpty,
                   callID.utf8.count <= 128,

@@ -302,26 +302,56 @@ final class PipaMobileUITests: XCTestCase {
             toolName: "whatsapp_compose",
             summary: "Preparar un mensaje de WhatsApp; el envío será manual.",
             localPreview: "prepara WhatsApp para +34 600 123 456 y dile Hola",
-            localPreviewToolName: "whatsapp_compose"
+            localPreviewToolName: "whatsapp_compose",
+            localRequestDigest: String(repeating: "a", count: 64),
+            serverRequestDigest: String(repeating: "a", count: 64)
         )
         let mismatch = PipaMobileConfirmation(
             confirmationID: "confirmation-2",
             toolName: "discord_call_channel",
             summary: "Preparar una llamada de Discord; el inicio será manual.",
             localPreview: "prepara WhatsApp para +34 600 123 456 y dile Hola",
-            localPreviewToolName: "whatsapp_compose"
+            localPreviewToolName: "whatsapp_compose",
+            localRequestDigest: String(repeating: "a", count: 64),
+            serverRequestDigest: String(repeating: "a", count: 64)
         )
         let freeText = PipaMobileConfirmation(
             confirmationID: "confirmation-3",
             toolName: "music_search",
             summary: "Buscar en Apple Music.",
             localPreview: "busca Daft Punk en Apple Music",
-            localPreviewToolName: nil
+            localPreviewToolName: nil,
+            localRequestDigest: nil,
+            serverRequestDigest: nil
         )
 
         XCTAssertTrue(matching.localPreviewMatchesServerAction)
         XCTAssertFalse(mismatch.localPreviewMatchesServerAction)
         XCTAssertTrue(freeText.localPreviewMatchesServerAction)
+    }
+
+    func testLocalConfirmationPreviewRejectsMissingOrChangedRequestBinding() {
+        let missing = PipaMobileConfirmation(
+            confirmationID: "confirmation-4",
+            toolName: "whatsapp_compose",
+            summary: "Preparar un mensaje de WhatsApp; el envío será manual.",
+            localPreview: "prepara WhatsApp y dile Hola",
+            localPreviewToolName: "whatsapp_compose",
+            localRequestDigest: String(repeating: "a", count: 64),
+            serverRequestDigest: nil
+        )
+        let changed = PipaMobileConfirmation(
+            confirmationID: "confirmation-5",
+            toolName: "whatsapp_compose",
+            summary: "Preparar un mensaje de WhatsApp; el envío será manual.",
+            localPreview: "prepara WhatsApp y dile Hola",
+            localPreviewToolName: "whatsapp_compose",
+            localRequestDigest: String(repeating: "a", count: 64),
+            serverRequestDigest: String(repeating: "b", count: 64)
+        )
+
+        XCTAssertFalse(missing.localPreviewMatchesServerAction)
+        XCTAssertFalse(changed.localPreviewMatchesServerAction)
     }
 
     func testCatalogCommandOnlyPrefillsTheEditor() throws {

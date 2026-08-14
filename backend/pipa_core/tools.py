@@ -77,6 +77,7 @@ class ToolRouter:
         confirmation_id: str | None = None,
         owner_id: str | None = None,
         call_id: str | None = None,
+        request_digest: str | None = None,
     ) -> dict[str, Any]:
         definition = self.catalog.get(name)
         values = definition.validate_arguments(arguments)
@@ -95,6 +96,7 @@ class ToolRouter:
                 definition.confirm_summary(values),
                 owner_id=owner_id,
                 call_id=call_id,
+                request_digest=request_digest,
                 execution_arguments=execution_arguments,
             )
             return {"status": "needs_confirmation", "confirmation": pending.as_dict()}

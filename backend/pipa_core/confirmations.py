@@ -9,6 +9,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from .request_binding import is_valid_request_digest
+
 DEFAULT_CONFIRMATION_TTL = 30
 MAX_PENDING_CONFIRMATIONS = 128
 MAX_PENDING_PER_OWNER = 4
@@ -24,6 +26,9 @@ class PendingConfirmation:
     created_at: int
     expires_at: int
     call_id: str | None = None
+    # A digest binds a mobile preview to the exact tool/arguments received by
+    # the Core. It is safe to expose because it contains no original values.
+    request_digest: str | None = None
     # Optional internal execution snapshot. It is intentionally omitted from
     # ``as_dict`` so a resolved phone, channel ID, or other private destination
     # cannot cross the confirmation transport.
@@ -39,6 +44,8 @@ class PendingConfirmation:
         }
         if self.call_id is not None:
             result["call_id"] = self.call_id
+        if self.request_digest is not None:
+            result["request_digest"] = self.request_digest
         return result
 
 
@@ -62,6 +69,7 @@ class ConfirmationManager:
         *,
         owner_id: str | None = None,
         call_id: str | None = None,
+        request_digest: str | None = None,
         execution_arguments: Mapping[str, Any] | None = None,
     ) -> PendingConfirmation:
         if not isinstance(summary, str) or not summary.strip():
@@ -70,6 +78,8 @@ class ConfirmationManager:
             not isinstance(call_id, str) or not call_id.strip() or len(call_id) > 128
         ):
             raise ConfirmationError("confirmation call_id is invalid")
+        if request_digest is not None and not is_valid_request_digest(request_digest):
+            raise ConfirmationError("confirmation request_digest is invalid")
         if execution_arguments is not None and not isinstance(execution_arguments, Mapping):
             raise ConfirmationError("confirmation execution arguments are invalid")
         if len(summary) > 240:
@@ -84,6 +94,7 @@ class ConfirmationManager:
             created_at=now,
             expires_at=now + self._ttl_seconds,
             call_id=call_id,
+            request_digest=request_digest,
             execution_arguments=(dict(execution_arguments) if execution_arguments is not None else None),
         )
         with self._lock:

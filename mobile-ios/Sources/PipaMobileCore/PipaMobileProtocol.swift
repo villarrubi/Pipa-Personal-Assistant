@@ -618,3 +618,26 @@ enum PipaMobileCodec {
         return withUnsafeBytes(of: &number) { Data($0) }
     }
 }
+
+/// Binds an iPhone structured-command preview to the exact request received
+/// by the Core without sending the original arguments back in a confirmation.
+public enum PipaMobileRequestBinding {
+    public static let digestLength = 64
+
+    public static func digest(forToolName name: String, arguments: [String: Any]) throws -> String {
+        let canonical = try PipaMobileCodec.canonicalJSON([
+            "arguments": arguments,
+            "name": name,
+        ])
+        return SHA256.hash(data: canonical)
+            .map { String(format: "%02x", $0) }
+            .joined()
+    }
+
+    public static func isValidDigest(_ value: String) -> Bool {
+        value.utf8.count == digestLength &&
+            value.utf8.allSatisfy {
+                ($0 >= 0x30 && $0 <= 0x39) || ($0 >= 0x61 && $0 <= 0x66)
+            }
+    }
+}

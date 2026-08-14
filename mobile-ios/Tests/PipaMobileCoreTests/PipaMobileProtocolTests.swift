@@ -46,6 +46,23 @@ final class PipaMobileProtocolTests: XCTestCase {
         XCTAssertEqual(String(data: data, encoding: .utf8), "{\"a\":1,\"z\":\"último\"}")
     }
 
+    func testStructuredRequestBindingMatchesThePythonCanonicalVector() throws {
+        let digest = try PipaMobileRequestBinding.digest(
+            forToolName: "whatsapp_compose",
+            arguments: [
+                "phone": "+34600123456",
+                "message": "Hola\nMundo",
+            ]
+        )
+
+        XCTAssertEqual(
+            digest,
+            "2f68a904be3abe2ac1cd5043dfeb6ddfc5a5c3adc90c480b99a979a05f56760f"
+        )
+        XCTAssertTrue(PipaMobileRequestBinding.isValidDigest(digest))
+        XCTAssertFalse(PipaMobileRequestBinding.isValidDigest(digest.uppercased()))
+    }
+
     func testStrictJSONRejectsDuplicateKeysIncludingEscapedDuplicates() {
         XCTAssertFalse(PipaMobileCodec.isStrictJSONObject(Data(#"{"a":1,"a":2}"#.utf8)))
         XCTAssertFalse(PipaMobileCodec.isStrictJSONObject(Data(#"{"a":1,"\u0061":2}"#.utf8)))

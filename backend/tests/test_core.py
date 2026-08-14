@@ -17,6 +17,7 @@ from backend.pipa_core.confirmations import (
     ConfirmationManager,
 )  # noqa: E402
 from backend.pipa_core.core import PipaCore  # noqa: E402
+from backend.pipa_core.request_binding import compute_request_digest  # noqa: E402
 from backend.pipa_core.state import MAX_SESSION_IDLE_SECONDS  # noqa: E402
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter  # noqa: E402
 
@@ -181,6 +182,32 @@ class CoreTests(unittest.TestCase):
         self.assertTrue(any(item["type"] == "tool_result" for item in outputs))
         ui = next(item for item in outputs if item["type"] == "ui_state")
         self.assertEqual(ui["caption"], "Acción completada.")
+
+    def test_structured_request_binding_is_returned_without_arguments(self):
+        arguments = {"value": "WhatsApp mensaje privado"}
+        outputs = self._send(
+            "tool_call",
+            name="unsafe",
+            arguments=arguments,
+            request_digest=compute_request_digest("unsafe", arguments),
+        )
+
+        request = next(item for item in outputs if item["type"] == "confirm_request")
+        self.assertEqual(request["request_digest"], compute_request_digest("unsafe", arguments))
+        self.assertNotIn("WhatsApp mensaje privado", str(request))
+
+    def test_structured_request_binding_mismatch_never_reaches_router(self):
+        outputs = self._send(
+            "tool_call",
+            name="unsafe",
+            arguments={"value": "no ejecutar"},
+            request_digest="a" * 64,
+        )
+
+        self.assertEqual(outputs[0]["type"], "error")
+        self.assertEqual(outputs[0]["code"], "request_binding_failed")
+        self.assertEqual(self.calls, [])
+        self.assertEqual(outputs[1]["state"], "idle")
 
     def test_device_confirmation_does_not_echo_tool_arguments(self):
         outputs = self._send(

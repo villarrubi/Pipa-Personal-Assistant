@@ -154,8 +154,14 @@ conserva el camino compatible de frase libre. Cada entrada solo contiene
 
 La UI Swift valida esos metadatos y, cuando están presentes, ofrece un
 formulario local y envía un `tool_call` estructurado cifrado. Los valores no se
-guardan en el catálogo ni se devuelven en confirmaciones. Si un agente antiguo
-no publica `parameters`, la UI conserva el camino compatible de frase libre.
+guardan en el catálogo ni se devuelven en confirmaciones. El iPhone añade
+`request_digest`, un SHA-256 del JSON canónico `{name, arguments}`. El Core lo
+recalcula antes de llamar al router y lo conserva en la confirmación sin
+exponer los argumentos. La respuesta `confirm_request` devuelve solo ese
+digest; el iPhone bloquea `Aceptar` si falta o no coincide con su vista local.
+Así un cambio de teléfono, mensaje, canal, cola o URL no puede quedar oculto
+tras una confirmación del mismo tipo de herramienta. Si un agente antiguo no
+publica `parameters`, la UI conserva el camino compatible de frase libre.
 El Core vuelve a validar ese contrato —incluidos campos extra, tipos, límites y
 allowlists— antes de crear una confirmación y al consumirla.
 
@@ -163,9 +169,9 @@ Para ayudar a la revisión humana, la UI Swift puede mostrar además una copia
 efímera del comando que el usuario acaba de preparar en el propio teléfono.
 Esa vista local nunca forma parte de `confirm_request`, no se persiste y se
 borra al resolver la confirmación, cerrar la sesión o fallar la operación. En
-comandos estructurados, si la herramienta solicitada por el agente no coincide
-con la seleccionada localmente, la UI bloquea `Aceptar` y solo permite
-rechazarla.
+comandos estructurados, si la herramienta o el digest de argumentos solicitado
+por el agente no coincide con la selección local, la UI bloquea `Aceptar` y
+solo permite rechazarla.
 
 Una acción directa que no muestra marcadores pero necesita argumentos fijos puede
 publicar además `default_arguments`, un objeto pequeño de textos acotados. Solo

@@ -29,7 +29,7 @@ _MESSAGE_FIELDS = {
     "ping": frozenset({"request_id"}),
     "device_status": frozenset({"audio_state", "battery_percent", "wifi_rssi"}),
     "gesture": frozenset({"gesture"}),
-    "tool_call": frozenset({"name", "arguments", "call_id"}),
+    "tool_call": frozenset({"name", "arguments", "call_id", "request_digest"}),
     "confirm": frozenset({"confirmation_id", "accepted"}),
 }
 
@@ -92,6 +92,19 @@ def _optional_string(payload: Mapping[str, Any], name: str, *, maximum: int = 25
     if value is None:
         return None
     return _string(payload, name, maximum=maximum)
+
+
+def _optional_request_digest(payload: Mapping[str, Any]) -> str | None:
+    value = payload.get("request_digest")
+    if value is None:
+        return None
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise ProtocolError("request_digest must be a lowercase SHA-256 hexadecimal digest")
+    return value
 
 
 def _capabilities(payload: Mapping[str, Any]) -> list[str]:
@@ -214,6 +227,9 @@ def parse_client_message(payload: Mapping[str, Any]) -> ClientMessage:
         call_id = payload.get("call_id")
         if call_id is not None:
             fields["call_id"] = _string(payload, "call_id", maximum=128)
+        request_digest = _optional_request_digest(payload)
+        if request_digest is not None:
+            fields["request_digest"] = request_digest
     elif message_type == "confirm":
         fields["confirmation_id"] = _string(payload, "confirmation_id", maximum=128)
         accepted = payload.get("accepted")

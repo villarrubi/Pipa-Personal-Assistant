@@ -50,6 +50,14 @@ argumentos de herramientas sobredimensionados, telemetría inválida, tipos
 ambiguos y objetos JSON con claves repetidas (también si una clave está
 escapada). Cambios incompatibles requieren aumentar `protocol_version`.
 
+Los `tool_call` estructurados del cliente móvil pueden incluir
+`request_digest`, un SHA-256 del JSON canónico compacto con `name` y
+`arguments`. El Core lo recalcula y rechaza la solicitud antes del router si
+no coincide. Cuando se crea una confirmación, solo devuelve ese digest —nunca
+los argumentos— para que la UI móvil pueda comprobar que la acción que se
+aprueba es exactamente la que se previsualizó. El campo es opcional para
+mantener compatibilidad con el protocolo del Waveshare actual.
+
 `device_status.audio_state` es opcional para clientes antiguos y, cuando está
 presente, solo admite los estados cerrados `disabled`, `probe_only`,
 `codec_ready`, `listening`, `draining` y `error`. El Core lo conserva en la

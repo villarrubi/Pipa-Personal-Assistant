@@ -336,10 +336,20 @@ public struct PipaMobileConfirmation {
     /// Structured commands know the tool the user selected locally. A
     /// mismatch must never be silently accepted.
     public let localPreviewToolName: String?
+    /// SHA-256 binding calculated from the exact structured arguments shown
+    /// in the local editor. It contains no phone, message, channel or URL.
+    public let localRequestDigest: String?
+    /// The same binding returned by the Core for this one-use confirmation.
+    public let serverRequestDigest: String?
 
     public var localPreviewMatchesServerAction: Bool {
         guard let localPreviewToolName else { return true }
-        return localPreviewToolName == toolName
+        guard localPreviewToolName == toolName,
+              let localRequestDigest,
+              let serverRequestDigest else {
+            return false
+        }
+        return localRequestDigest == serverRequestDigest
     }
 }
 
@@ -397,6 +407,7 @@ public final class PipaMobileViewModel: ObservableObject {
     private var sessionGeneration = 0
     private var pendingLocalPreview: String?
     private var pendingLocalPreviewToolName: String?
+    private var pendingLocalRequestDigest: String?
 
     public init(
         identityStore: PipaKeychainIdentityStore = PipaKeychainIdentityStore(),
@@ -645,6 +656,15 @@ public final class PipaMobileViewModel: ObservableObject {
         textCommand = ""
         pendingLocalPreview = command.rendered(with: values)
         pendingLocalPreviewToolName = command.toolName
+        guard let requestDigest = try? PipaMobileRequestBinding.digest(
+            forToolName: command.toolName,
+            arguments: arguments
+        ) else {
+            clearLocalPreview()
+            fail("No se pudo validar la acción estructurada.")
+            return
+        }
+        pendingLocalRequestDigest = requestDigest
         startRequest(failureMessage: "No se pudo enviar la acción estructurada.") { activeClient in
             try await activeClient.callTool(name: command.toolName, arguments: arguments)
         }
@@ -764,12 +784,28 @@ public final class PipaMobileViewModel: ObservableObject {
                       Self.isSafeConfirmationSummary(toolName: toolName, summary: summary) else {
                     return false
                 }
+                let serverRequestDigest: String?
+                if let rawDigest = response["request_digest"], !(rawDigest is NSNull) {
+                    guard let parsedDigest = rawDigest as? String,
+                          PipaMobileRequestBinding.isValidDigest(parsedDigest) else {
+                        return false
+                    }
+                    serverRequestDigest = parsedDigest
+                } else {
+                    serverRequestDigest = nil
+                }
+                if pendingLocalRequestDigest != nil,
+                   serverRequestDigest != pendingLocalRequestDigest {
+                    return false
+                }
                 pendingConfirmation = PipaMobileConfirmation(
                     confirmationID: confirmationID,
                     toolName: toolName,
                     summary: summary,
                     localPreview: pendingLocalPreview,
-                    localPreviewToolName: pendingLocalPreviewToolName
+                    localPreviewToolName: pendingLocalPreviewToolName,
+                    localRequestDigest: pendingLocalRequestDigest,
+                    serverRequestDigest: serverRequestDigest
                 )
                 clearLocalPreview()
                 connectionState = .awaitingConfirmation
@@ -860,6 +896,7 @@ public final class PipaMobileViewModel: ObservableObject {
     private func clearLocalPreview() {
         pendingLocalPreview = nil
         pendingLocalPreviewToolName = nil
+        pendingLocalRequestDigest = nil
     }
 
     private func clearCommandDraft() {
