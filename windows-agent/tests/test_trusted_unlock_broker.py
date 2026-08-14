@@ -10,7 +10,11 @@ from trusted_unlock_broker import (  # noqa: E402
     FILE_FLAG_FIRST_PIPE_INSTANCE,
     TrustedUnlockBroker,
 )
-from trusted_unlock_broker_client import WindowsNamedPipeBrokerClient  # noqa: E402
+from trusted_unlock_broker_client import (  # noqa: E402
+    BrokerClientError,
+    WindowsNamedPipeBrokerClient,
+    _decode_response,
+)
 from trusted_unlock_devices import InMemoryDeviceStore  # noqa: E402
 from trusted_unlock_simulator import InMemoryTrustedDevice  # noqa: E402
 
@@ -19,6 +23,42 @@ class TrustedUnlockBrokerTests(unittest.TestCase):
     def test_broker_client_rejects_non_local_pipe_names(self):
         with self.assertRaises(ValueError):
             WindowsNamedPipeBrokerClient(pipe_name=r"\\server\pipe\PipaTrustedUnlock")
+
+    def test_broker_client_rejects_duplicate_response_fields(self):
+        raw_response = b'{"ok":true,"request_id":"request-1","request_id":"other","result":{}}'
+
+        with self.assertRaises(BrokerClientError) as context:
+            _decode_response(raw_response, "request-1")
+
+        self.assertEqual(context.exception.code, "invalid_response")
+
+    def test_broker_client_rejects_unknown_response_fields(self):
+        raw_response = b'{"ok":true,"request_id":"request-1","result":{},"extra":true}'
+
+        with self.assertRaises(BrokerClientError) as context:
+            _decode_response(raw_response, "request-1")
+
+        self.assertEqual(context.exception.code, "invalid_response")
+
+    def test_broker_client_accepts_only_structured_broker_errors(self):
+        raw_response = (
+            '{"ok":false,"request_id":"request-1",'
+            '"error":{"code":"authorization_failed","message":"Autorización rechazada."}}'
+        ).encode()
+
+        with self.assertRaises(BrokerClientError) as context:
+            _decode_response(raw_response, "request-1")
+
+        self.assertEqual(context.exception.code, "authorization_failed")
+        self.assertEqual(context.exception.message, "Autorización rechazada.")
+
+        malformed_error = (
+            b'{"ok":false,"request_id":"request-1",'
+            b'"error":{"code":"authorization_failed","message":"ok","extra":true}}'
+        )
+        with self.assertRaises(BrokerClientError) as malformed_context:
+            _decode_response(malformed_error, "request-1")
+        self.assertEqual(malformed_context.exception.code, "invalid_response")
 
     def setUp(self):
         self.device = InMemoryTrustedDevice.generate("phone-main")

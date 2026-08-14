@@ -95,6 +95,16 @@ foreach ($marker in @(
 if ($broker -match '(?i)Everyone|Authenticated Users|WorldSid|AF_INET|http\.server|socket\.socket') {
     throw 'El broker no puede ampliar la ACL ni anadir un transporte de red.'
 }
+foreach ($marker in @(
+    'object_pairs_hook=_reject_duplicate_fields',
+    'def _decode_response',
+    'successful broker response has invalid fields',
+    'broker error is invalid'
+)) {
+    if ($brokerClient.IndexOf($marker, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El cliente del broker no conserva la validacion estricta de respuestas: $marker"
+    }
+}
 if ($brokerClient.IndexOf('if pipe_name != PIPE_NAME:', [System.StringComparison]::Ordinal) -lt 0 -or
     $brokerTests.IndexOf('rejects_non_local_pipe_names', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'El cliente del broker no conserva la validacion de pipe fijo/local.'

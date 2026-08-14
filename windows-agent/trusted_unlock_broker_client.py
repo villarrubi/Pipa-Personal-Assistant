@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import secrets
 from typing import Any
 
@@ -16,6 +17,68 @@ class BrokerClientError(Exception):
         super().__init__(f"{code}: {message}")
         self.code = code
         self.message = message
+
+
+_RESPONSE_FIELDS = frozenset({"ok", "request_id", "result", "error"})
+_ERROR_FIELDS = frozenset({"code", "message"})
+_RESPONSE_CODE_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
+_MAX_ERROR_TEXT_LENGTH = 256
+
+
+def _reject_duplicate_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON field")
+        result[key] = value
+    return result
+
+
+def _invalid_response(message: str) -> BrokerClientError:
+    return BrokerClientError("invalid_response", message)
+
+
+def _decode_response(raw_response: bytes, request_id: str) -> dict[str, object]:
+    """Decode one strict broker envelope before exposing its result to callers."""
+
+    try:
+        response = json.loads(
+            raw_response.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_fields,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+        raise _invalid_response("broker response is invalid") from error
+
+    if not isinstance(response, dict) or set(response) - _RESPONSE_FIELDS:
+        raise _invalid_response("broker response has unsupported fields")
+    if response.get("request_id") != request_id:
+        raise _invalid_response("broker response does not match the request")
+
+    ok = response.get("ok")
+    if ok is True:
+        if set(response) != {"ok", "request_id", "result"}:
+            raise _invalid_response("successful broker response has invalid fields")
+        result = response.get("result")
+        if not isinstance(result, dict):
+            raise _invalid_response("broker result is not an object")
+        return result
+
+    if ok is not False or set(response) != {"ok", "request_id", "error"}:
+        raise _invalid_response("broker response envelope is invalid")
+    error_data = response.get("error")
+    if not isinstance(error_data, dict) or set(error_data) != _ERROR_FIELDS:
+        raise _invalid_response("broker error is invalid")
+    code = error_data.get("code")
+    message = error_data.get("message")
+    if (
+        not isinstance(code, str)
+        or _RESPONSE_CODE_PATTERN.fullmatch(code) is None
+        or not isinstance(message, str)
+        or not 1 <= len(message) <= _MAX_ERROR_TEXT_LENGTH
+        or any(ord(character) < 0x20 or ord(character) == 0x7F for character in message)
+    ):
+        raise _invalid_response("broker error is invalid")
+    raise BrokerClientError(code, message)
 
 
 class WindowsNamedPipeBrokerClient:
@@ -81,24 +144,4 @@ class WindowsNamedPipeBrokerClient:
 
         if len(raw_response) > MAX_MESSAGE_BYTES:
             raise BrokerClientError("invalid_response", "broker response is too large")
-        try:
-            response = json.loads(raw_response.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise BrokerClientError("invalid_response", "broker response is invalid") from error
-
-        if not isinstance(response, dict) or response.get("request_id") != request_id:
-            raise BrokerClientError("invalid_response", "broker response does not match the request")
-        if response.get("ok") is not True:
-            error_data = response.get("error", {}) if isinstance(response, dict) else {}
-            code = error_data.get("code", "broker_error") if isinstance(error_data, dict) else "broker_error"
-            message = (
-                error_data.get("message", "request rejected")
-                if isinstance(error_data, dict)
-                else "request rejected"
-            )
-            raise BrokerClientError(str(code), str(message))
-
-        result = response.get("result")
-        if not isinstance(result, dict):
-            raise BrokerClientError("invalid_response", "broker result is not an object")
-        return result
+        return _decode_response(raw_response, request_id)

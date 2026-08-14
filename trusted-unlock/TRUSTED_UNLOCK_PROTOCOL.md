@@ -55,6 +55,9 @@ proceso ocupa el nombre del pipe, el broker falla en lugar de conectarse a él.
   esto hace que los desafíos antiguos fallen cerradamente.
 - Los tickets internos duran como máximo 10 segundos y solo pueden consumirse
   una vez.
+- El cliente del pipe valida también las respuestas: rechaza JSON duplicado,
+  campos desconocidos, sobres con forma incorrecta y errores con texto no
+  acotado antes de entregar un resultado al proceso llamador.
 
 ## Emparejamiento y revocación
 
