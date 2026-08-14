@@ -232,7 +232,8 @@ El resultado físico es deliberadamente pequeño:
 No se entregan al teléfono URLs privadas, textos de WhatsApp, tokens de
 League, memoria del Core ni datos crudos de los adaptadores. La UI puede
 recibir además un caption breve y allowlisted en `ui_state` —por ejemplo,
-porcentaje de batería, si League está buscando o el número de temporizadores—
+porcentaje de batería, si League está buscando, si hay una partida pendiente de
+aceptación o el número de temporizadores—
 pero nunca recibe nombres de interfaces, IDs, etiquetas, contactos o mensajes.
 WhatsApp sigue requiriendo pulsar `Enviar`, Discord sigue requiriendo iniciar
 la llamada, League sigue requiriendo aceptar la partida y el Apple Music remoto
