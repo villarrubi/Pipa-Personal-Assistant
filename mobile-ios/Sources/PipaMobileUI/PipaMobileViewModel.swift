@@ -436,6 +436,11 @@ public final class PipaMobileViewModel: ObservableObject {
     public func forgetConnectionSettings() {
         if isConnected {
             disconnect()
+        } else {
+            // The settings action is also a privacy boundary when no session
+            // exists: discard any locally prepared command before resetting
+            // the endpoint fields.
+            clearCommandDraft()
         }
         do {
             try settingsStore.delete()
@@ -536,12 +541,10 @@ public final class PipaMobileViewModel: ObservableObject {
         client = nil
         commands = []
         integrationCapabilities = []
-        pendingConfirmation = nil
         // A draft may contain a private message or a command transcribed from
         // the microphone.  Leaving the session must not leave that content
         // visible in the editor after the app enters the background.
-        textCommand = ""
-        clearLocalPreview()
+        clearCommandDraft()
         connectionState = .disconnected
         statusMessage = "Desconectado."
         Task {
@@ -756,8 +759,7 @@ public final class PipaMobileViewModel: ObservableObject {
     ) {
         guard client != nil else { return }
         client = nil
-        pendingConfirmation = nil
-        clearLocalPreview()
+        clearCommandDraft()
         requestInProgress = false
         connectionState = .disconnected
         errorMessage = message
@@ -775,6 +777,12 @@ public final class PipaMobileViewModel: ObservableObject {
     private func clearLocalPreview() {
         pendingLocalPreview = nil
         pendingLocalPreviewToolName = nil
+    }
+
+    private func clearCommandDraft() {
+        textCommand = ""
+        pendingConfirmation = nil
+        clearLocalPreview()
     }
 
     private func saveSettings() {

@@ -591,6 +591,18 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertEqual(model.port, "18765")
     }
 
+    func testForgetConnectionSettingsClearsDraftWhenAlreadyDisconnected() {
+        let model = PipaMobileViewModel()
+
+        model.updateVoiceDraft("mensaje privado preparado")
+        XCTAssertFalse(model.textCommand.isEmpty)
+
+        model.forgetConnectionSettings()
+
+        XCTAssertEqual(model.textCommand, "")
+        XCTAssertNil(model.pendingConfirmation)
+    }
+
     func testConnectionRequiresEphemeralFingerprintAcknowledgement() {
         let model = PipaMobileViewModel()
         model.serverPublicKey = "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA"
