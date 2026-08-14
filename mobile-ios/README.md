@@ -87,6 +87,9 @@ HTTPS al canal o DM. El sistema puede entregar esos enlaces a la app instalada
 o abrirlos en Safari. No se usa UI automation ni APIs privadas: WhatsApp
 siempre requiere pulsar Enviar y Discord requiere pulsar Llamar. Los campos
 permanecen solo en memoria de la pantalla y no se guardan en Keychain.
+La construcción de estos enlaces y de la búsqueda web está centralizada en un
+único helper HTTPS con hosts fijos; la UI también comprueba el resultado de
+iOS y muestra un error genérico si el sistema no acepta la apertura.
 
 Cada acción local pendiente conserva la instantánea exacta de los valores
 validados al abrir su diálogo. Si el formulario cambia mientras se muestra la

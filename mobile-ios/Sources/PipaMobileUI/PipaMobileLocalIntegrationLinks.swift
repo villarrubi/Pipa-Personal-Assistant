@@ -15,12 +15,11 @@ public enum PipaMobileLocalIntegrationLinks {
             return nil
         }
 
-        var components = URLComponents()
-        components.scheme = "https"
-        components.host = "www.google.com"
-        components.path = "/search"
-        components.queryItems = [URLQueryItem(name: "q", value: normalizedQuery)]
-        return components.url
+        return httpsURL(
+            host: "www.google.com",
+            path: "/search",
+            queryItems: [URLQueryItem(name: "q", value: normalizedQuery)]
+        )
     }
 
     public static func whatsappComposeURL(phone: String, message: String) -> URL? {
@@ -29,22 +28,17 @@ public enum PipaMobileLocalIntegrationLinks {
             return nil
         }
 
-        var components = URLComponents()
-        components.scheme = "https"
-        components.host = "wa.me"
-        components.path = "/\(normalizedPhone)"
-        components.queryItems = [URLQueryItem(name: "text", value: message)]
-        return components.url
+        return httpsURL(
+            host: "wa.me",
+            path: "/\(normalizedPhone)",
+            queryItems: [URLQueryItem(name: "text", value: message)]
+        )
     }
 
     public static func whatsappChatURL(phone: String) -> URL? {
         guard let normalizedPhone = PipaMobileDestinationPolicy.normalizePhone(phone) else { return nil }
 
-        var components = URLComponents()
-        components.scheme = "https"
-        components.host = "wa.me"
-        components.path = "/\(normalizedPhone)"
-        return components.url
+        return httpsURL(host: "wa.me", path: "/\(normalizedPhone)")
     }
 
     public static func discordChannelURL(channelID: String, guildID: String? = nil) -> URL? {
@@ -53,16 +47,36 @@ public enum PipaMobileLocalIntegrationLinks {
             return nil
         }
 
-        var components = URLComponents()
-        components.scheme = "https"
-        components.host = "discord.com"
-        components.path = "/channels/\(guild)/\(channel)"
-        return components.url
+        return httpsURL(host: "discord.com", path: "/channels/\(guild)/\(channel)")
     }
 
     private static func normalizeGuild(_ value: String?) -> String? {
         guard let value else { return "@me" }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "@me" : PipaMobileDestinationPolicy.normalizeSnowflake(trimmed)
+    }
+
+    /// Build only the fixed HTTPS destinations owned by this module.
+    ///
+    /// Keeping the scheme and host in one helper makes it harder for a future
+    /// local integration to accidentally accept a custom scheme or a caller-
+    /// supplied host. Dynamic values are restricted to paths and query items
+    /// after their caller-specific validation.
+    private static func httpsURL(
+        host: String,
+        path: String,
+        queryItems: [URLQueryItem] = []
+    ) -> URL? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = host
+        components.path = path
+        components.queryItems = queryItems.isEmpty ? nil : queryItems
+        guard let url = components.url,
+              url.scheme == "https",
+              url.host == host else {
+            return nil
+        }
+        return url
     }
 }

@@ -458,8 +458,11 @@ public struct PipaMobileRootView: View {
                 localIntegrationStatus = "Escribe una búsqueda válida y acotada."
                 return
             }
-            openURL(url)
-            localIntegrationStatus = "Búsqueda abierta en Safari."
+            openLocalURL(
+                url,
+                success: "Búsqueda abierta en Safari.",
+                failure: "iOS no ha podido abrir la búsqueda."
+            )
         case let .wakeOnLan(mac):
             guard localWakeOnLan.validate(mac: mac) else { return }
             localWakeOnLan.wake(mac: mac)
@@ -468,8 +471,11 @@ public struct PipaMobileRootView: View {
                 localIntegrationStatus = "Introduce un teléfono internacional válido."
                 return
             }
-            openURL(url)
-            localIntegrationStatus = "Chat de WhatsApp abierto; no se ha preparado ni enviado ningún mensaje."
+            openLocalURL(
+                url,
+                success: "Chat de WhatsApp abierto; no se ha preparado ni enviado ningún mensaje.",
+                failure: "iOS no ha podido abrir WhatsApp."
+            )
         case let .whatsappMessage(phone, message):
             guard let url = PipaMobileLocalIntegrationLinks.whatsappComposeURL(
                 phone: phone,
@@ -478,8 +484,11 @@ public struct PipaMobileRootView: View {
                 localIntegrationStatus = "Revisa el teléfono y el mensaje."
                 return
             }
-            openURL(url)
-            localIntegrationStatus = "Mensaje preparado en WhatsApp; pulsa Enviar manualmente."
+            openLocalURL(
+                url,
+                success: "Mensaje preparado en WhatsApp; pulsa Enviar manualmente.",
+                failure: "iOS no ha podido abrir WhatsApp."
+            )
         case let .discordChannel(channelID, guildID):
             performDiscordDestination(channelID: channelID, guildID: guildID, manualCall: false)
         case let .discordCall(channelID, guildID):
@@ -513,10 +522,25 @@ public struct PipaMobileRootView: View {
             localIntegrationStatus = "Introduce IDs de Discord válidos."
             return
         }
-        openURL(url)
-        localIntegrationStatus = manualCall
-            ? "Canal de Discord abierto; pulsa Llamar manualmente."
-            : "Canal de Discord abierto; no se ha iniciado ninguna llamada."
+        openLocalURL(
+            url,
+            success: manualCall
+                ? "Canal de Discord abierto; pulsa Llamar manualmente."
+                : "Canal de Discord abierto; no se ha iniciado ninguna llamada.",
+            failure: "iOS no ha podido abrir Discord."
+        )
+    }
+
+    private func openLocalURL(_ url: URL, success: String, failure: String) {
+        // `.discarded` is the only result that means the system refused the
+        // hand-off. `.handled` and `.systemAction` both represent an accepted
+        // hand-off to the system or an installed app.
+        let result = openURL(url)
+        if case .discarded = result {
+            localIntegrationStatus = failure
+        } else {
+            localIntegrationStatus = success
+        }
     }
 
     private var commandSection: some View {
