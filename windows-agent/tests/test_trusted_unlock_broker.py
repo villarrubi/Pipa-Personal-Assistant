@@ -1,7 +1,9 @@
 import json
 import sys
+import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -58,6 +60,35 @@ class TrustedUnlockBrokerTests(unittest.TestCase):
         with self.assertRaises(BrokerClientError) as malformed_context:
             _decode_response(malformed_error, "request-1")
         self.assertEqual(malformed_context.exception.code, "invalid_response")
+
+    def test_broker_client_bounds_the_complete_named_pipe_exchange(self):
+        calls = []
+
+        class FakePywinError(Exception):
+            pass
+
+        pywintypes = types.ModuleType("pywintypes")
+        pywintypes.error = FakePywinError
+        win32pipe = types.ModuleType("win32pipe")
+
+        def call_named_pipe(pipe_name, encoded_request, output_size, timeout_ms):
+            request = json.loads(encoded_request.decode("utf-8"))
+            calls.append((pipe_name, output_size, timeout_ms))
+            return json.dumps(
+                {
+                    "ok": True,
+                    "request_id": request["request_id"],
+                    "result": {"unlock_enabled": False},
+                },
+                separators=(",", ":"),
+            ).encode("utf-8")
+
+        win32pipe.CallNamedPipe = call_named_pipe
+        with patch.dict(sys.modules, {"pywintypes": pywintypes, "win32pipe": win32pipe}):
+            result = WindowsNamedPipeBrokerClient(timeout_ms=234).request("health")
+
+        self.assertEqual(result, {"unlock_enabled": False})
+        self.assertEqual(calls, [(r"\\.\pipe\PipaTrustedUnlock", 16 * 1024 + 1, 234)])
 
     def setUp(self):
         self.device = InMemoryTrustedDevice.generate("phone-main")
