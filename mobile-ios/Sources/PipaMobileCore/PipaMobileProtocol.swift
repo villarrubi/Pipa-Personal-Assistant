@@ -533,7 +533,11 @@ private struct PipaStrictJSONParser {
             if byte == 0x22 && !escaped {
                 index += 1
                 let token = Data(bytes[start..<index])
-                return try? JSONSerialization.jsonObject(with: token) as? String
+                guard let object = try? JSONSerialization.jsonObject(with: token),
+                      let value = object as? String else {
+                    return nil
+                }
+                return value
             }
             if byte == 0x5C && !escaped {
                 escaped = true
@@ -556,10 +560,13 @@ private struct PipaStrictJSONParser {
 
     private mutating func parseNumber() -> Bool {
         let start = index
-        while index < bytes.count,
-              bytes[index] == 0x2D || bytes[index] == 0x2B || bytes[index] == 0x2E ||
-              bytes[index] == 0x45 || bytes[index] == 0x65 ||
-              (bytes[index] >= 0x30 && bytes[index] <= 0x39) {
+        while index < bytes.count {
+            let byte = bytes[index]
+            guard byte == 0x2D || byte == 0x2B || byte == 0x2E ||
+                    byte == 0x45 || byte == 0x65 ||
+                    (byte >= 0x30 && byte <= 0x39) else {
+                break
+            }
             index += 1
         }
         return index > start
