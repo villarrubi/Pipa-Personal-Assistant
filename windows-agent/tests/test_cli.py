@@ -322,43 +322,76 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result, 0)
         tcp_test.assert_called_once_with()
 
-    @patch(
-        "pipa_cli._request",
-        side_effect=[
+    def _doctor_capability_fixture(self):
+        integrations = {
+            group: {field: False for field in fields}
+            for group, fields in pipa_cli._INTEGRATION_ALIGNMENT_FIELDS.items()
+        }
+        return {"success": True, "integrations": integrations, "commands": []}
+
+    @patch("pipa_cli._local_capabilities")
+    @patch("pipa_cli._request")
+    def test_doctor_is_read_only_and_checks_all_local_surfaces(self, request, local_capabilities):
+        capabilities = self._doctor_capability_fixture()
+        local_capabilities.return_value = capabilities
+        request.side_effect = [
             {"success": True, "pc": "online"},
-            {"success": True, "integrations": {}},
+            capabilities,
             {"success": True, "apps": {}, "contacts": {}, "integrations": {}},
             {"success": True, "commands": []},
             {"success": True, "protocol_version": 1, "tool_names": []},
             {"success": True, "checks": {}},
-        ],
-    )
-    def test_doctor_is_read_only_and_checks_all_local_surfaces(self, request):
+        ]
+
         result = pipa_cli._doctor("http://127.0.0.1:8765")
 
         self.assertTrue(result["success"])
         self.assertTrue(all(check["ok"] for check in result["checks"].values()))
+        self.assertTrue(result["checks"]["source_alignment"]["ok"])
         self.assertEqual(request.call_count, 6)
         self.assertTrue(all(call.args[1] == "GET" for call in request.call_args_list))
 
-    @patch(
-        "pipa_cli._request",
-        side_effect=[
+    @patch("pipa_cli._local_capabilities")
+    @patch("pipa_cli._request")
+    def test_doctor_rejects_an_incomplete_response_shape(self, request, local_capabilities):
+        local_capabilities.return_value = self._doctor_capability_fixture()
+        request.side_effect = [
             {"success": True, "pc": "online"},
             {"success": True},
             {"success": True},
             {"success": True},
             {"success": True, "protocol_version": 1, "tool_names": []},
             {"success": True},
-        ],
-    )
-    def test_doctor_rejects_an_incomplete_response_shape(self, request):
+        ]
+
         result = pipa_cli._doctor("http://127.0.0.1:8765")
 
         self.assertFalse(result["success"])
         self.assertFalse(result["checks"]["capabilities"]["ok"])
         self.assertFalse(result["checks"]["self_test"]["ok"])
         self.assertEqual(request.call_count, 6)
+
+    @patch("pipa_cli._local_capabilities")
+    @patch("pipa_cli._request")
+    def test_doctor_flags_a_stale_resident_contract(self, request, local_capabilities):
+        current = self._doctor_capability_fixture()
+        resident = self._doctor_capability_fixture()
+        resident["commands"] = [{"id": "old_command"}]
+        local_capabilities.return_value = current
+        request.side_effect = [
+            {"success": True, "pc": "online"},
+            resident,
+            {"success": True, "apps": {}, "contacts": {}, "integrations": {}},
+            {"success": True, "commands": []},
+            {"success": True, "protocol_version": 1, "tool_names": []},
+            {"success": True, "checks": {}},
+        ]
+
+        result = pipa_cli._doctor("http://127.0.0.1:8765")
+
+        self.assertFalse(result["success"])
+        self.assertFalse(result["checks"]["source_alignment"]["ok"])
+        self.assertEqual(result["checks"]["source_alignment"]["reason"], "agent_reload_required")
 
     def test_external_commands_require_explicit_cli_confirmation(self):
         arguments = pipa_cli._parser().parse_args(["music-search", "Daft Punk"])

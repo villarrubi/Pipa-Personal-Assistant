@@ -21,7 +21,9 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from tools.app_diagnostics import inspect_apps  # noqa: E402
+from tools.apps import AppsConfigError  # noqa: E402
 from tools.capabilities import get_capabilities  # noqa: E402
+from tools.contacts import ContactsConfigError  # noqa: E402
 from tools.diagnostics import get_self_test  # noqa: E402
 from tools.integration_diagnostics import run_integration_self_test  # noqa: E402
 from tools.integration_protocol_diagnostics import run_integration_protocol_self_test  # noqa: E402
@@ -42,6 +44,71 @@ from backend.pipa_core.intents import parse_text_intent  # noqa: E402
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8765"
 LOCAL_HOSTS = frozenset({"127.0.0.1", "::1"})
+_INTEGRATION_ALIGNMENT_FIELDS: dict[str, tuple[str, ...]] = {
+    "web_search": ("available", "requires_confirmation"),
+    "apple_music": (
+        "available",
+        "app_configured",
+        "launcher_resolved",
+        "playback",
+        "media_control",
+        "requires_manual_selection",
+        "requires_confirmation",
+    ),
+    "whatsapp": (
+        "available",
+        "app_configured",
+        "launcher_resolved",
+        "send_message",
+        "requires_manual_send",
+        "requires_confirmation",
+    ),
+    "discord": (
+        "available",
+        "app_configured",
+        "launcher_resolved",
+        "start_call",
+        "requires_manual_call",
+        "requires_confirmation",
+    ),
+    "league": (
+        "available",
+        "launcher_resolved",
+        "matchmaking",
+        "accept_match",
+        "requires_manual_accept",
+        "requires_confirmation",
+    ),
+    "codex": (
+        "available",
+        "launcher_resolved",
+        "writes_to_chat",
+        "requires_confirmation",
+    ),
+}
+
+
+def _capability_alignment_signature(capabilities: object) -> dict[str, object] | None:
+    """Return only bounded public fields used to detect a stale resident agent."""
+
+    if not isinstance(capabilities, dict):
+        return None
+    integrations = capabilities.get("integrations")
+    commands = capabilities.get("commands")
+    if not isinstance(integrations, dict) or not isinstance(commands, list):
+        return None
+
+    integration_signature: dict[str, dict[str, object]] = {}
+    for group, fields in _INTEGRATION_ALIGNMENT_FIELDS.items():
+        payload = integrations.get(group)
+        if not isinstance(payload, dict) or any(field not in payload for field in fields):
+            return None
+        integration_signature[group] = {field: payload[field] for field in fields}
+
+    # The catalog validator bounds every descriptor and excludes local paths,
+    # URLs, contacts and tokens. Comparing the full public catalog catches a
+    # resident process that still serves an older command contract.
+    return {"integrations": integration_signature, "commands": commands}
 
 
 def _configure_output_encoding() -> None:
@@ -466,6 +533,7 @@ def _doctor(base_url: str) -> dict[str, object]:
         return False
 
     checks: dict[str, object] = {}
+    resident_results: dict[str, dict] = {}
     requests = (
         ("agent", "GET", "/status"),
         ("capabilities", "GET", "/capabilities"),
@@ -477,12 +545,25 @@ def _doctor(base_url: str) -> dict[str, object]:
     for name, method, path in requests:
         try:
             result = _request(base_url, method, path)
+            resident_results[name] = result
             checks[name] = {
                 "ok": healthy(name, result),
                 "success": result.get("success"),
             }
         except RuntimeError:
             checks[name] = {"ok": False, "success": False}
+
+    resident_signature = _capability_alignment_signature(resident_results.get("capabilities"))
+    current_signature = None
+    try:
+        current_signature = _capability_alignment_signature(_local_capabilities())
+    except (AppsConfigError, ContactsConfigError, OSError, ValueError):
+        current_signature = None
+    aligned = resident_signature is not None and resident_signature == current_signature
+    checks["source_alignment"] = {
+        "ok": aligned,
+        "reason": None if aligned else "agent_reload_required",
+    }
     return {"success": all(item["ok"] for item in checks.values()), "checks": checks}
 
 
