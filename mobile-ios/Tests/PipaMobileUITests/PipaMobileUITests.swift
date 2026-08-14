@@ -532,6 +532,18 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertEqual(model.textCommand, "")
     }
 
+    func testDisconnectClearsThePrivateCommandDraft() {
+        let model = PipaMobileViewModel()
+
+        model.updateVoiceDraft("prepara WhatsApp para +34 600 123 456 y dile mensaje privado")
+        XCTAssertFalse(model.textCommand.isEmpty)
+
+        model.disconnect()
+
+        XCTAssertEqual(model.textCommand, "")
+        XCTAssertNil(model.pendingConfirmation)
+    }
+
     func testCatalogRejectsInconsistentSafetyMetadata() {
         let command = PipaMobileCommand(payload: [
             "id": "music_search",

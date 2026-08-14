@@ -88,7 +88,9 @@ plano, se descarta la acción pendiente y se cancela cualquier Wake-on-LAN en
 curso. Al cancelar, ejecutar o abandonar la app, los campos efímeros de
 búsqueda, MAC, teléfono, mensaje e IDs de Discord también se limpian del
 estado de la vista; la instantánea confirmada solo vive lo necesario para una
-ejecución.
+ejecución. Al desconectar la sesión o pasar la app a segundo plano también se
+borra el borrador del comando remoto, que podría contener una transcripción o
+un mensaje privado.
 
 La lista de comandos incluye un botón `Usar` para preparar una frase sin
 enviarla. Las acciones actuales sin parámetros muestran `Ejecutar` y usan el

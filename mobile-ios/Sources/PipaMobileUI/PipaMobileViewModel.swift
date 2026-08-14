@@ -537,6 +537,10 @@ public final class PipaMobileViewModel: ObservableObject {
         commands = []
         integrationCapabilities = []
         pendingConfirmation = nil
+        // A draft may contain a private message or a command transcribed from
+        // the microphone.  Leaving the session must not leave that content
+        // visible in the editor after the app enters the background.
+        textCommand = ""
         clearLocalPreview()
         connectionState = .disconnected
         statusMessage = "Desconectado."
