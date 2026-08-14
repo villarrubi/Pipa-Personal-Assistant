@@ -805,6 +805,18 @@ class IntegrationTests(unittest.TestCase):
         )
         self.assertEqual(parse_text_intent("llama a mamá por Discord").tool_name, "discord_call")
         self.assertEqual(
+            parse_text_intent("quiero llamar a mamá por Discord").arguments,
+            {"contact": "mamá"},
+        )
+        self.assertEqual(
+            parse_text_intent("haz una llamada a Discord con mamá").arguments,
+            {"contact": "mamá"},
+        )
+        self.assertEqual(
+            parse_text_intent("puedes llamar a mamá por Discord").arguments,
+            {"contact": "mamá"},
+        )
+        self.assertEqual(
             parse_text_intent("haz una llamada a mamá por Discord").arguments,
             {"contact": "mamá"},
         )

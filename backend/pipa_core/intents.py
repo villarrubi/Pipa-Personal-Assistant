@@ -350,7 +350,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent("whatsapp_contact_open", {"contact": whatsapp_contact_open.group(1).strip()})
 
     discord_call_contact = re.fullmatch(
-        r"(?:llama(?:r)?|haz una llamada|inicia(?:r)? una llamada|empieza(?:r)? una llamada) "
+        r"(?:(?:quiero|puedes) )?(?:llama(?:r)?|haz una llamada|inicia(?:r)? una llamada|empieza(?:r)? una llamada) "
         r"(?:a|con) (?:el )?(.+?) (?:por|en|de) discord",
         original,
         flags=re.IGNORECASE,
@@ -359,7 +359,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent("discord_call", {"contact": discord_call_contact.group(1).strip()})
 
     discord_call_contact_prefix = re.fullmatch(
-        r"(?:llama(?:r)?|haz una llamada|inicia(?:r)? una llamada|empieza(?:r)? una llamada) "
+        r"(?:(?:quiero|puedes) )?(?:llama(?:r)?|haz una llamada|inicia(?:r)? una llamada|empieza(?:r)? una llamada) "
         r"(?:por|en|de) discord (?:a|al|con) (.+)",
         original,
         flags=re.IGNORECASE,
@@ -368,6 +368,18 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent(
             "discord_call",
             {"contact": discord_call_contact_prefix.group(1).strip()},
+        )
+
+    discord_call_contact_service_first = re.fullmatch(
+        r"(?:(?:quiero|puedes) )?(?:llama(?:r)?|haz una llamada|inicia(?:r)? una llamada|"
+        r"empieza(?:r)? una llamada) a discord (?:a|al|con) (.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if discord_call_contact_service_first:
+        return ParsedIntent(
+            "discord_call",
+            {"contact": discord_call_contact_service_first.group(1).strip()},
         )
 
     discord_call_server_channel_suffix = re.fullmatch(

@@ -322,6 +322,10 @@ abre el canal 12345678901234567 en Discord
 abre Discord servidor 98765432109876543 canal 12345678901234567
 abre el chat de amigo en Discord
 llama a amigo por Discord
+quiero llamar a amigo por Discord
+puedes llamar a amigo por Discord
+haz una llamada a Discord con amigo
+llama a Discord con amigo
 haz una llamada a amigo por Discord
 inicia una llamada con amigo en Discord
 empieza una llamada por Discord con amigo
