@@ -1,4 +1,4 @@
-"""Check that the Python capability matrix matches the Swift TCP allowlists."""
+"""Check that every capability contract layer matches the Swift TCP allowlists."""
 
 from __future__ import annotations
 
@@ -72,22 +72,50 @@ def _python_contract() -> tuple[set[str], set[str], set[str], set[str]]:
     return groups, boolean_fields, string_fields, list_fields
 
 
+def _core_contract() -> tuple[set[str], set[str], set[str], set[str]]:
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+
+    from backend.pipa_core.core import (  # noqa: PLC0415
+        _CAPABILITY_BOOLEAN_FIELDS,
+        _CAPABILITY_GROUPS,
+        _CAPABILITY_LIST_FIELDS,
+        _CAPABILITY_STRING_FIELDS,
+    )
+
+    return (
+        set(_CAPABILITY_GROUPS),
+        set(_CAPABILITY_BOOLEAN_FIELDS),
+        set(_CAPABILITY_STRING_FIELDS),
+        set(_CAPABILITY_LIST_FIELDS),
+    )
+
+
 def check_contract() -> tuple[set[str], set[str], set[str], set[str]]:
     python_groups, python_bool, python_string, python_list = _python_contract()
+    core_groups, core_bool, core_string, core_list = _core_contract()
     swift = _read_swift()
     swift_groups = _swift_set(swift, "capabilityGroups")
     swift_bool = _swift_set(swift, "booleanCapabilityFields")
     swift_string = _swift_set(swift, "stringCapabilityFields")
     swift_list = _swift_set(swift, "listCapabilityFields")
 
-    expected = (python_groups, python_bool, python_string, python_list)
-    actual = (swift_groups, swift_bool, swift_string, swift_list)
-    mismatches = [
-        (expected_values - actual_values) | (actual_values - expected_values)
-        for expected_values, actual_values in zip(expected, actual, strict=True)
-    ]
-    overlap = (swift_bool & swift_string) | (swift_bool & swift_list) | (swift_string & swift_list)
-    if overlap:
+    contracts = (
+        (python_groups, python_bool, python_string, python_list),
+        (core_groups, core_bool, core_string, core_list),
+        (swift_groups, swift_bool, swift_string, swift_list),
+    )
+    reference = contracts[0]
+    mismatches = [set() for _ in reference]
+    for contract in contracts[1:]:
+        for index, (expected_values, actual_values) in enumerate(zip(reference, contract, strict=True)):
+            mismatches[index].update(expected_values ^ actual_values)
+
+    for contract in contracts:
+        _, boolean_fields, string_fields, list_fields = contract
+        overlap = (
+            (boolean_fields & string_fields) | (boolean_fields & list_fields) | (string_fields & list_fields)
+        )
         mismatches[1].update(overlap)
     return mismatches[0], mismatches[1], mismatches[2], mismatches[3]
 
@@ -103,7 +131,9 @@ def main() -> int:
         labels = ("groups", "booleanos", "textos", "listas")
         for label, values in zip(labels, mismatches, strict=True):
             if values:
-                print(f"ERROR: deriva de capacidades Swift/Python en {label}: {', '.join(sorted(values))}")
+                print(
+                    f"ERROR: deriva de capacidades Python/Core/Swift en {label}: {', '.join(sorted(values))}"
+                )
         return 1
 
     groups, boolean_fields, string_fields, list_fields = _python_contract()

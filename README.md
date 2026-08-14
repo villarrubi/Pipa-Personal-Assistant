@@ -398,10 +398,10 @@ Ese modo deja un aviso explícito y no sustituye la verificación posterior del
 arranque.
 
 El preflight incluye `scripts/check_mobile_capability_contract.py`: construye
-la matriz de integraciones del agente y la compara con las allowlists de tipos
-del parser TCP Swift. Así, añadir un flag de WhatsApp, Discord, Apple Music,
-League o cualquier integración nueva exige actualizar ambos lados de forma
-explícita.
+la matriz de integraciones del agente y la compara con las allowlists del Core
+Python y del parser TCP Swift. Así, añadir un flag de WhatsApp, Discord, Apple
+Music, League o cualquier integración nueva exige actualizar las tres capas de
+forma explícita.
 El mismo preflight comprueba que los tipos de campos estructurados del
 catálogo (`phone`, `channel_id`, `queue`, etc.) estén sincronizados entre el
 validador Python y el formulario Swift.
