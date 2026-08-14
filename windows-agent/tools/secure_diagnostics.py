@@ -38,6 +38,7 @@ from secure_session_server import SecureSessionServer
 from secure_tcp_gateway import SecureTcpGateway
 
 from backend.pipa_core.core import PipaCore
+from backend.pipa_core.intents import parse_text_intent
 from backend.pipa_core.simulator import create_simulator
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter
 from tools.text_policy import validate_bounded_text
@@ -144,6 +145,44 @@ _MOBILE_INTEGRATION_CASES = (
         "Abrir una URL validada.",
     ),
 )
+
+# These are synthetic, side-effect-free transcripts.  Keeping the expected
+# intent beside the phrase makes the secure-audio diagnostic catch drift in
+# the same natural-language routes used by the future device STT path.
+_VOICE_INTENT_CASES = (
+    ("estado de integraciones", "integration_status", {}),
+    ("busca algo en internet sobre el tiempo", "web_search", {"query": "el tiempo"}),
+    ("busca una canción de Daft Punk", "music_search", {"term": "Daft Punk"}),
+    ("busca una canción en Apple Music", "music_open", {}),
+    (
+        "prepara WhatsApp para +34 600 000 000 y dile llego en diez minutos",
+        "whatsapp_compose",
+        {"phone": "+34 600 000 000", "message": "llego en diez minutos"},
+    ),
+    (
+        "abre WhatsApp para +34 600 000 000",
+        "whatsapp_phone_open",
+        {"phone": "+34 600 000 000"},
+    ),
+    ("abre Discord", "discord_open_app", {}),
+    (
+        "llama a Discord servidor 98765432109876543 canal 12345678901234567",
+        "discord_call_channel",
+        {"guild_id": "98765432109876543", "channel_id": "12345678901234567"},
+    ),
+    ("busca una partida de ARAM", "league_search", {"queue": "aram"}),
+    ("cancela la búsqueda del LoL", "league_cancel", {}),
+)
+
+
+def _validate_voice_intent_matrix() -> int:
+    """Check natural voice routes without dispatching any tool or app."""
+
+    for transcript, expected_tool, expected_arguments in _VOICE_INTENT_CASES:
+        intent = parse_text_intent(transcript)
+        if intent is None or intent.tool_name != expected_tool or intent.arguments != expected_arguments:
+            raise ValueError(f"voice intent matrix drifted for {expected_tool}")
+    return len(_VOICE_INTENT_CASES)
 
 
 def _validate_mobile_diagnostic_matrix() -> None:
@@ -417,9 +456,11 @@ def run_secure_audio_self_test() -> dict[str, object]:
     The check proves the future capture path still needs codec readiness,
     visible consent and an ordered encrypted stream, without opening a
     microphone, socket or serial port. It also routes a safe transcript
-    through the Core so the voice bridge cannot drift from text handling.
+    through the Core and checks representative integration phrases so the
+    voice bridge cannot drift from text handling.
     """
 
+    voice_intents_checked = _validate_voice_intent_matrix()
     core = PipaCore(
         verifier=object(),
         router=ToolRouter(
@@ -460,6 +501,7 @@ def run_secure_audio_self_test() -> dict[str, object]:
         "bounded_summary": True,
         "transcript_bridge": True,
         "intent_routed": True,
+        "voice_intents_checked": voice_intents_checked,
         "external_actions_executed": False,
         "persistent_keys_touched": False,
     }

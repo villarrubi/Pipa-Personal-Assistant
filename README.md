@@ -143,7 +143,8 @@ que las solicitó y caducan si no se confirman.
 - Ejecutar `python .\windows-agent\pipa_cli.py secure-audio-test` para
   comprobar el contrato de audio cifrado con PCM sintético, consentimiento,
   orden y límites, sin activar micrófono, red, puerto serie ni claves
-  persistentes.
+  persistentes. Además comprueba diez frases de voz sintéticas para web,
+  Apple Music, WhatsApp, Discord y League contra el parser natural.
 - Ejecutar `python .\windows-agent\pipa_cli.py voice-preview <frase>` para
   simular una transcripción de voz sobre ese transporte cifrado y revisar el
   parser, los argumentos y la confirmación que tendría; no captura audio ni

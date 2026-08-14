@@ -406,7 +406,9 @@ además ejecuta en memoria el handshake y el cifrado v2; no toca la identidad
 persistente de DPAPI.
 `secure-audio-test` ejecuta el contrato de audio con muestras PCM sintéticas:
 comprueba la compuerta de codec, pantalla, consentimiento y transporte seguro,
-el orden cifrado de los chunks, el puente de transcript final hasta el Core y el resumen acotado. El
+el orden cifrado de los chunks, el puente de transcript final hasta el Core y el resumen acotado. También
+comprueba diez frases sintéticas representativas de web, Apple Music, WhatsApp, Discord y League
+contra el parser natural, para detectar que la futura voz no pierda rutas ni cambie argumentos. El
 `SecureAudioCommandBridge` garantiza un único dispatch tras el frame final y cierra el transcriptor ante
 éxito, error o cancelación. No abre micrófono,
 puertos, navegador ni aplicaciones, y no guarda las muestras.
