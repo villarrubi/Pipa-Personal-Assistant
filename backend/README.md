@@ -60,7 +60,12 @@ Antes de crear una confirmación o llamar a un adaptador, `ToolRouter` aplica el
 contrato de argumentos registrado para la herramienta: campos obligatorios,
 tipos, límites, opciones allowlisted y validaciones puras de URL, teléfono o
 cola. Así un `tool_call` estructurado del móvil o del Waveshare falla cerrado
-sin dejar una confirmación pendiente; la comprobación se repite al consumirla.
+sin dejar una confirmación pendiente; los argumentos ordinarios se vuelven a
+validar al consumirla. Los adaptadores que resuelven destinos privados por
+alias (WhatsApp y Discord) guardan además una instantánea interna del destino
+validado al crear la confirmación. Esa instantánea no se incluye en el sobre
+de confirmación y evita que un cambio concurrente del fichero local redirija
+la acción después de que el usuario la haya aprobado.
 
 Una sesión v2 se crea sin capacidades físicas. Hasta aceptar un único
 `device_hello`, el Core solo atiende `ping`, `device_status` y `abort`; el

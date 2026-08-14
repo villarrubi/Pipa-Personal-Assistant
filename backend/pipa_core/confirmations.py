@@ -24,6 +24,10 @@ class PendingConfirmation:
     created_at: int
     expires_at: int
     call_id: str | None = None
+    # Optional internal execution snapshot. It is intentionally omitted from
+    # ``as_dict`` so a resolved phone, channel ID, or other private destination
+    # cannot cross the confirmation transport.
+    execution_arguments: dict[str, Any] | None = None
 
     def as_dict(self) -> dict[str, object]:
         result: dict[str, object] = {
@@ -58,6 +62,7 @@ class ConfirmationManager:
         *,
         owner_id: str | None = None,
         call_id: str | None = None,
+        execution_arguments: Mapping[str, Any] | None = None,
     ) -> PendingConfirmation:
         if not isinstance(summary, str) or not summary.strip():
             raise ConfirmationError("confirmation summary must not be empty")
@@ -65,6 +70,8 @@ class ConfirmationManager:
             not isinstance(call_id, str) or not call_id.strip() or len(call_id) > 128
         ):
             raise ConfirmationError("confirmation call_id is invalid")
+        if execution_arguments is not None and not isinstance(execution_arguments, Mapping):
+            raise ConfirmationError("confirmation execution arguments are invalid")
         if len(summary) > 240:
             summary = summary[:240]
         now = int(time.time())
@@ -77,6 +84,7 @@ class ConfirmationManager:
             created_at=now,
             expires_at=now + self._ttl_seconds,
             call_id=call_id,
+            execution_arguments=(dict(execution_arguments) if execution_arguments is not None else None),
         )
         with self._lock:
             self._prune(now)

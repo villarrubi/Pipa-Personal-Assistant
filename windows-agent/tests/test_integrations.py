@@ -2,7 +2,7 @@ import sys
 import threading
 import unittest
 from pathlib import Path
-from unittest.mock import ANY, call, patch
+from unittest.mock import ANY, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -392,8 +392,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertFalse(result["result"]["sent"])
         self.assertNotIn("contact", result["result"])
         self.assertNotIn("url", result["result"])
-        resolve_contact.assert_has_calls([call("mama"), call("mama"), call("mama")])
-        self.assertEqual(resolve_contact.call_count, 3)
+        resolve_contact.assert_called_once_with("mama")
         open_browser.assert_called_once_with("https://wa.me/34600123456")
 
     @patch("tools.whatsapp.webbrowser.open", return_value=True)
@@ -418,7 +417,7 @@ class IntegrationTests(unittest.TestCase):
 
     @patch("tools.agent_catalog.resolve_whatsapp_contact", return_value=("mama", "34600123456"))
     @patch("tools.agent_catalog.webbrowser.open", return_value=True)
-    def test_contact_alias_is_validated_before_and_resolved_after_confirmation(
+    def test_contact_alias_is_validated_and_snapshotted_before_confirmation(
         self, open_browser, resolve_contact
     ):
         catalog = build_agent_catalog(TimerManager())
@@ -441,9 +440,62 @@ class IntegrationTests(unittest.TestCase):
         self.assertNotIn("contact", result["result"])
         self.assertFalse(result["result"]["sent"])
         self.assertNotIn("url", result["result"])
-        resolve_contact.assert_has_calls([call("mama"), call("mama"), call("mama")])
-        self.assertEqual(resolve_contact.call_count, 3)
+        resolve_contact.assert_called_once_with("mama")
         open_browser.assert_called_once()
+
+    @patch(
+        "tools.agent_catalog.open_whatsapp_compose",
+        return_value={"success": True, "sent": False},
+    )
+    @patch("tools.agent_catalog.resolve_whatsapp_contact", return_value=("mama", "34600123456"))
+    def test_whatsapp_confirmation_keeps_the_original_destination_if_alias_changes(
+        self, resolve_contact, open_compose
+    ):
+        catalog = build_agent_catalog(TimerManager())
+        router = ToolRouter(catalog)
+        pending = router.invoke(
+            "whatsapp_contact",
+            {"contact": "mama", "message": "mensaje privado"},
+            owner_id="waveshare-test",
+        )
+
+        self.assertNotIn("34600123456", str(pending["confirmation"]))
+        resolve_contact.reset_mock()
+        resolve_contact.return_value = ("mama", "34999999999")
+
+        result = router.resolve_confirmation(
+            pending["confirmation"]["confirmation_id"], True, owner_id="waveshare-test"
+        )
+
+        resolve_contact.assert_not_called()
+        open_compose.assert_called_once_with("34600123456", "mensaje privado")
+        self.assertEqual(result["result"]["sent"], False)
+
+    @patch(
+        "tools.agent_catalog.open_discord_channel",
+        return_value={"success": True, "call_started": False},
+    )
+    @patch(
+        "tools.agent_catalog.resolve_discord_contact",
+        return_value=("amigo", "12345678901234567", "98765432109876543"),
+    )
+    def test_discord_confirmation_keeps_the_original_destination_if_alias_changes(
+        self, resolve_contact, open_channel
+    ):
+        catalog = build_agent_catalog(TimerManager())
+        router = ToolRouter(catalog)
+        pending = router.invoke("discord_contact", {"contact": "amigo"}, owner_id="waveshare-test")
+
+        self.assertNotIn("12345678901234567", str(pending["confirmation"]))
+        resolve_contact.reset_mock()
+        resolve_contact.return_value = ("amigo", "11111111111111111", None)
+
+        router.resolve_confirmation(
+            pending["confirmation"]["confirmation_id"], True, owner_id="waveshare-test"
+        )
+
+        resolve_contact.assert_not_called()
+        open_channel.assert_called_once_with("12345678901234567", "98765432109876543")
 
     @patch("tools.agent_catalog.resolve_discord_contact", return_value=("amigo", "12345678901234567", None))
     @patch(
@@ -468,8 +520,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertFalse(result["result"]["call_started"])
         self.assertTrue(result["result"]["requires_manual_call"])
         self.assertNotIn("contact", result["result"])
-        resolve_contact.assert_has_calls([call("amigo"), call("amigo"), call("amigo")])
-        self.assertEqual(resolve_contact.call_count, 3)
+        resolve_contact.assert_called_once_with("amigo")
         open_call.assert_called_once_with("12345678901234567", None)
 
     @patch("tools.agent_catalog.with_client")

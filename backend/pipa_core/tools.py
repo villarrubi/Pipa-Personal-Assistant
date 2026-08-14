@@ -11,6 +11,7 @@ from .confirmations import ConfirmationError, ConfirmationManager
 ToolHandler = Callable[[dict[str, Any]], Mapping[str, Any]]
 ToolSummary = Callable[[dict[str, Any]], str]
 ToolArgumentValidator = Callable[[dict[str, Any]], None]
+ToolConfirmationPreparer = Callable[[dict[str, Any]], Mapping[str, Any]]
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,7 @@ class ToolDefinition:
     safety: str = "safe"
     confirm_summary: ToolSummary | None = None
     argument_validator: ToolArgumentValidator | None = None
+    confirmation_preparer: ToolConfirmationPreparer | None = None
 
     def __post_init__(self) -> None:
         if self.safety not in {"safe", "unsafe"}:
@@ -81,12 +83,19 @@ class ToolRouter:
 
         if definition.safety == "unsafe" and confirmation_id is None:
             assert definition.confirm_summary is not None
+            execution_arguments = None
+            if definition.confirmation_preparer is not None:
+                prepared = definition.confirmation_preparer(values)
+                if not isinstance(prepared, Mapping):
+                    raise ConfirmationError("confirmation execution arguments are invalid")
+                execution_arguments = dict(prepared)
             pending = self.confirmations.create(
                 name,
                 values,
                 definition.confirm_summary(values),
                 owner_id=owner_id,
                 call_id=call_id,
+                execution_arguments=execution_arguments,
             )
             return {"status": "needs_confirmation", "confirmation": pending.as_dict()}
 
@@ -94,7 +103,11 @@ class ToolRouter:
             pending = self.confirmations.consume(confirmation_id or "", owner_id=owner_id)
             if pending.tool_name != name:
                 raise ConfirmationError("confirmation does not match the requested tool")
-            values = pending.arguments
+            values = (
+                dict(pending.execution_arguments)
+                if pending.execution_arguments is not None
+                else pending.arguments
+            )
 
         return self._execute(definition, values)
 
@@ -116,7 +129,11 @@ class ToolRouter:
                 result["call_id"] = pending.call_id
             return result
         definition = self.catalog.get(pending.tool_name)
-        values = definition.validate_arguments(pending.arguments)
+        values = (
+            dict(pending.execution_arguments)
+            if pending.execution_arguments is not None
+            else definition.validate_arguments(pending.arguments)
+        )
         result = {"tool_name": pending.tool_name, **self._execute(definition, values)}
         if pending.call_id is not None:
             result["call_id"] = pending.call_id

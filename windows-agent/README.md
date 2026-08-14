@@ -520,8 +520,10 @@ abren el destino y mantienen la última acción humana: pulsar `Enviar` o
 iniciar la llamada. La frase `llama a amigo por Discord` expresa explícitamente
 esa intención, pero solo abre el canal y deja el botón para la persona. No existe
 una operación automática de envío o llamada. Un alias desconocido se rechaza
-antes de pedir confirmación y se vuelve a comprobar al aceptar, por si el
-fichero local cambió mientras la confirmación estaba visible. El fichero se
+antes de pedir confirmación y el destino validado queda fijado internamente
+para esa confirmación; así, si el fichero local cambia mientras está visible,
+la aprobación sigue correspondiendo al destino que se validó al mostrarla.
+El teléfono o ID fijado no aparece en el resumen ni cruza al dispositivo. El fichero se
 limita a 128 KiB, 64 contactos y aliases acotados.
 
 Para abrir un chat por un número sin guardarlo como alias usa

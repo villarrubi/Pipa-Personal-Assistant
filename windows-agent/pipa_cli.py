@@ -494,6 +494,11 @@ def _preview_intent(text: str) -> dict[str, object]:
     definition = build_agent_catalog(TimerManager()).get(parsed.tool_name)
     try:
         definition.validate_arguments(parsed.arguments)
+        if definition.confirmation_preparer is not None:
+            # Contact aliases are resolved only to validate the local
+            # destination for the preview. No confirmation is created and no
+            # external handler is executed by this inspection command.
+            definition.confirmation_preparer(parsed.arguments)
     except (KeyError, TypeError, ValueError):
         arguments_valid = False
     else:

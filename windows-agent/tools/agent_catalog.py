@@ -139,11 +139,9 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
     )
     whatsapp_contact_message_arguments = _argument_schema(
         required_text={"contact": 80, "message": 3800},
-        check=lambda arguments: resolve_whatsapp_contact(arguments["contact"]),
     )
     whatsapp_contact_arguments = _argument_schema(
         required_text={"contact": 80},
-        check=lambda arguments: resolve_whatsapp_contact(arguments["contact"]),
     )
     whatsapp_phone_arguments = _argument_schema(
         required_text={"phone": 32},
@@ -151,7 +149,6 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
     )
     discord_contact_arguments = _argument_schema(
         required_text={"contact": 80},
-        check=lambda arguments: resolve_discord_contact(arguments["contact"]),
     )
     league_search_arguments = _argument_schema(
         required_text={"queue": 32},
@@ -202,17 +199,21 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
         return open_whatsapp_compose(phone, message)
 
     def whatsapp_contact(arguments):
-        contact = _text(arguments, "contact")
         message = _text(arguments, "message")
-        _contact_name, phone = resolve_whatsapp_contact(contact)
+        phone = arguments.get("_resolved_phone")
+        if not isinstance(phone, str):
+            contact = _text(arguments, "contact")
+            _contact_name, phone = resolve_whatsapp_contact(contact)
         # The alias is only an input to local resolution.  Do not echo it in
         # the result: the action needs the destination, not a copy of the
         # user's private contact label.
         return open_whatsapp_compose(phone, message)
 
     def whatsapp_contact_open(arguments):
-        contact = _text(arguments, "contact")
-        _contact_name, phone = resolve_whatsapp_contact(contact)
+        phone = arguments.get("_resolved_phone")
+        if not isinstance(phone, str):
+            contact = _text(arguments, "contact")
+            _contact_name, phone = resolve_whatsapp_contact(contact)
         return open_whatsapp_chat(phone)
 
     def whatsapp_phone_open(arguments):
@@ -259,14 +260,34 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
         return without_destination(open_discord_app())
 
     def discord_contact(arguments):
-        contact = _text(arguments, "contact")
-        _contact_name, channel_id, guild_id = resolve_discord_contact(contact)
+        channel_id = arguments.get("_resolved_channel_id")
+        guild_id = arguments.get("_resolved_guild_id")
+        if not isinstance(channel_id, str):
+            contact = _text(arguments, "contact")
+            _contact_name, channel_id, guild_id = resolve_discord_contact(contact)
         return open_discord_channel(channel_id, guild_id)
 
     def discord_call(arguments):
-        contact = _text(arguments, "contact")
-        _contact_name, channel_id, guild_id = resolve_discord_contact(contact)
+        channel_id = arguments.get("_resolved_channel_id")
+        guild_id = arguments.get("_resolved_guild_id")
+        if not isinstance(channel_id, str):
+            contact = _text(arguments, "contact")
+            _contact_name, channel_id, guild_id = resolve_discord_contact(contact)
         return open_discord_call(channel_id, guild_id)
+
+    def prepare_whatsapp_contact(arguments):
+        _contact_name, phone = resolve_whatsapp_contact(_text(arguments, "contact"))
+        prepared = {"_resolved_phone": phone}
+        if "message" in arguments:
+            prepared["message"] = _text(arguments, "message")
+        return prepared
+
+    def prepare_discord_contact(arguments):
+        _contact_name, channel_id, guild_id = resolve_discord_contact(_text(arguments, "contact"))
+        return {
+            "_resolved_channel_id": channel_id,
+            "_resolved_guild_id": guild_id,
+        }
 
     def whatsapp_open(_arguments):
         return without_destination(open_whatsapp_web())
@@ -369,6 +390,7 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                 safety="unsafe",
                 confirm_summary=lambda args: f"Abrir Discord para contacto {_text(args, 'contact')}",
                 argument_validator=discord_contact_arguments,
+                confirmation_preparer=prepare_discord_contact,
             ),
             ToolDefinition(
                 "discord_call",
@@ -379,6 +401,7 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                     "la llamada se inicia manualmente"
                 ),
                 argument_validator=discord_contact_arguments,
+                confirmation_preparer=prepare_discord_contact,
             ),
             ToolDefinition(
                 "whatsapp_compose",
@@ -399,6 +422,7 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                     f"{' '.join(_text(args, 'message').split())[:72]}"
                 ),
                 argument_validator=whatsapp_contact_message_arguments,
+                confirmation_preparer=prepare_whatsapp_contact,
             ),
             ToolDefinition(
                 "whatsapp_contact_open",
@@ -406,6 +430,7 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                 safety="unsafe",
                 confirm_summary=lambda args: f"Abrir WhatsApp para contacto {_text(args, 'contact')}",
                 argument_validator=whatsapp_contact_arguments,
+                confirmation_preparer=prepare_whatsapp_contact,
             ),
             ToolDefinition(
                 "whatsapp_phone_open",

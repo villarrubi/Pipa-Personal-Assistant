@@ -609,6 +609,45 @@ class CoreTests(unittest.TestCase):
         with self.assertRaises(ConfirmationError):
             manager.consume(pending.confirmation_id, now=130)
 
+    def test_confirmation_execution_snapshot_is_internal(self):
+        manager = ConfirmationManager()
+        pending = manager.create(
+            "unsafe",
+            {"contact": "mama"},
+            "Preparar acción externa",
+            execution_arguments={"_resolved_phone": "34600123456"},
+        )
+
+        self.assertNotIn("34600123456", str(pending.as_dict()))
+        consumed = manager.consume(pending.confirmation_id)
+        self.assertEqual(consumed.execution_arguments, {"_resolved_phone": "34600123456"})
+
+    def test_router_uses_execution_snapshot_when_confirmation_is_passed_directly(self):
+        executed = []
+        catalog = ToolCatalog(
+            [
+                ToolDefinition(
+                    "snapshot",
+                    lambda arguments: executed.append(arguments) or {"success": True},
+                    safety="unsafe",
+                    confirm_summary=lambda _arguments: "Preparar acción",
+                    confirmation_preparer=lambda _arguments: {"resolved": "bound"},
+                )
+            ]
+        )
+        router = ToolRouter(catalog)
+        pending = router.invoke("snapshot", {}, owner_id="device-a")
+
+        result = router.invoke(
+            "snapshot",
+            {},
+            confirmation_id=pending["confirmation"]["confirmation_id"],
+            owner_id="device-a",
+        )
+
+        self.assertEqual(result["result"], {"success": True})
+        self.assertEqual(executed, [{"resolved": "bound"}])
+
     def test_confirmation_manager_rejects_empty_summary_and_has_a_pending_cap(self):
         manager = ConfirmationManager()
         with self.assertRaises(ConfirmationError):
