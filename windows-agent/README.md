@@ -340,6 +340,10 @@ aplicaciones, enviar mensajes ni contactar con League Client. `self-test`
 incluye además un simulador v1 y el loopback serie cifrado, completamente inertes;
 comprueba también que una acción externa se rechaza sin capacidad `touch` y que
 cada comando parametrizado mantiene el mismo número de campos que sus marcadores.
+`integration-protocol-test` recorre web, Apple Music, WhatsApp, Discord y League
+con handlers sintéticos: usa el catálogo y validadores reales, autentica un
+dispositivo efímero, exige confirmación y comprueba la redacción del resultado,
+sin abrir aplicaciones, contactar con League ni modificar claves persistentes.
 La matriz pública de integraciones se valida además contra un contrato único:
 Apple Music no anuncia reproducción automática, WhatsApp no anuncia envío,
 Discord no anuncia inicio de llamada, League no anuncia aceptación de partida y

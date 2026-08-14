@@ -23,6 +23,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from tools.capabilities import get_capabilities  # noqa: E402
 from tools.diagnostics import get_self_test  # noqa: E402
 from tools.integration_diagnostics import run_integration_self_test  # noqa: E402
+from tools.integration_protocol_diagnostics import run_integration_protocol_self_test  # noqa: E402
 from tools.mobile_config import inspect_mobile_transport  # noqa: E402
 from tools.secure_diagnostics import (  # noqa: E402
     run_mobile_protocol_self_test,
@@ -116,6 +117,10 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser(
         "integration-test",
         help="Valida URLs, colas y límites de integraciones sin ejecutar acciones.",
+    )
+    commands.add_parser(
+        "integration-protocol-test",
+        help="Simula las cinco integraciones con confirmación, sin ejecutar acciones reales.",
     )
     commands.add_parser("commands", help="Muestra frases y acciones disponibles, sin ejecutar nada.")
     commands.add_parser("protocol", help="Muestra herramientas y estado del gateway.")
@@ -531,6 +536,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "success": True,
                 "hardware_required": False,
                 "checks": {"integrations": run_integration_self_test()},
+            }
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0
+        if arguments.command == "integration-protocol-test":
+            result = {
+                "success": True,
+                "hardware_required": False,
+                "checks": {"integration_protocol": run_integration_protocol_self_test()},
             }
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0

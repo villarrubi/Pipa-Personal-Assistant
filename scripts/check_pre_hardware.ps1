@@ -79,6 +79,9 @@ if ($null -eq $python) {
     Invoke-PipaJsonCheck -Name 'Current-source capabilities' -Python $python -Arguments @(
         '-B', $cli, 'local-capabilities'
     )
+    Invoke-PipaJsonCheck -Name 'Integration protocol simulator' -Python $python -Arguments @(
+        '-B', $cli, 'integration-protocol-test'
+    )
     Invoke-PipaJsonCheck -Name 'Secure protocol self-test' -Python $python -Arguments @(
         '-B', $cli, 'secure-test'
     )

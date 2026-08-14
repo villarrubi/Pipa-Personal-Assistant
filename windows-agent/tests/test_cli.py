@@ -232,6 +232,23 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result, 0)
         integration_test.assert_called_once_with()
 
+    @patch("pipa_cli.run_integration_protocol_self_test")
+    def test_integration_protocol_test_is_local_and_does_not_require_hardware(self, protocol_test):
+        protocol_test.return_value = {
+            "commands_checked": 5,
+            "confirmation_gated": True,
+            "executed_only_after_confirmation": True,
+            "result_redacted": True,
+            "simulated_handlers_executed": 5,
+            "external_actions_executed": False,
+            "persistent_keys_touched": False,
+        }
+
+        result = pipa_cli.main(["integration-protocol-test"])
+
+        self.assertEqual(result, 0)
+        protocol_test.assert_called_once_with()
+
     @patch("pipa_cli.run_mobile_protocol_self_test")
     def test_mobile_test_is_in_memory_and_reports_bounded_checks(self, mobile_test):
         mobile_test.return_value = {
