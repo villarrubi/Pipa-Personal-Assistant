@@ -179,7 +179,10 @@ ni privilegios elevados. La tarea programada corre
 como el usuario interactivo, reinicia el agente hasta tres veces y funciona
 también con batería; el fallback `HKCU` solo arranca el agente al iniciar
 sesión y deja que el propio lanzador evite duplicados. Se retira con
-`uninstall_agent_task.ps1`. El instalador y `check_agent_status.ps1` comparan
+`uninstall_agent_task.ps1`; el desinstalador también puede usar `schtasks.exe`
+si el proveedor PowerShell no es accesible, pero solo borra una tarea cuya
+acción, usuario, nivel y trigger coinciden exactamente con Pipa. El instalador
+y `check_agent_status.ps1` comparan
 el ejecutable, argumentos, usuario y trigger exactos; una tarea distinta no se
 valida por ser simplemente “oculta”.
 
