@@ -16,7 +16,9 @@ de recuperación.
 - Para la ruta local de Apple Music, usar un Bundle ID explícito y activar
   `MusicKit` en el App ID desde Certificates, Identifiers & Profiles de Apple
   Developer antes de firmar el iPhone. El servicio queda asociado al Bundle ID
-  durante la ejecución; no se añade ninguna clave privada al proyecto.
+  durante la ejecución; no hace falta crear un entitlement de MusicKit en el
+  proyecto. `NSAppleMusicUsageDescription` ya está en el `Info.plist`; no se
+  añade ninguna clave privada al proyecto.
 - Ejecutar las pruebas del paquete en un simulador iOS 16 o posterior.
 - Confirmar que no hay warnings de concurrencia, Keychain, Network o CryptoKit
   que se estén ignorando.

@@ -75,7 +75,9 @@ iniciada no se detiene por ese cambio de UI.
 Antes de probarla en un dispositivo, usa un Bundle ID explícito para el target
 y activa el servicio MusicKit en su App ID desde Certificates, Identifiers &
 Profiles de Apple Developer. MusicKit asocia ese servicio al Bundle ID durante
-la ejecución; no se debe copiar ninguna clave privada ni token al repositorio.
+la ejecución; no se necesita añadir un archivo `.entitlements` de MusicKit al
+proyecto. `NSAppleMusicUsageDescription` ya está en el `Info.plist` rastreado.
+No se debe copiar ninguna clave privada ni token al repositorio.
 La guía oficial está en
 <https://developer.apple.com/documentation/musickit/integrating-musickit-into-your-app>.
 
