@@ -156,9 +156,10 @@ que las solicitó y caducan si no se confirman.
   contacta con servicios externos.
 - Ejecutar `python .\windows-agent\pipa_cli.py mobile-test` para validar en
   memoria el flujo futuro de iPhone: handshake, capacidades de pantalla/touch,
-  confirmación y resultado sin datos privados.
+  confirmación ligada a los argumentos exactos y resultado sin datos privados.
 - Ejecutar `python .\windows-agent\pipa_cli.py mobile-tcp-test` para validar
-  el transporte cifrado real sobre un puerto efímero de `127.0.0.1`.
+  el transporte cifrado real sobre un puerto efímero de `127.0.0.1`, incluida
+  la coincidencia del binding de cada confirmación.
 - Ejecutar `python .\windows-agent\pipa_cli.py mobile-config` para validar la
   configuración móvil sin abrir puertos, modificar el firewall ni modificar claves;
   también valida que la identidad DPAPI corresponda al `server_id` configurado.

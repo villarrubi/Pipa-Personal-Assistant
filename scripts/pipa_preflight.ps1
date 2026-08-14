@@ -33,7 +33,8 @@ function Invoke-ExternalCheck {
     param(
         [Parameter(Mandatory)] [string]$Name,
         [Parameter(Mandatory)] [string]$FilePath,
-        [Parameter(Mandatory)] [string[]]$Arguments
+        [Parameter(Mandatory)] [string[]]$Arguments,
+        [string[]]$RequiredTrueFields = @()
     )
 
     $command = Get-Command $FilePath -CommandType Application -ErrorAction SilentlyContinue |
@@ -59,6 +60,30 @@ function Invoke-ExternalCheck {
     if ($exitCode -ne 0) {
         Write-CheckResult -Name $Name -Success $false -Detail (" (exit {0})" -f $exitCode)
         return
+    }
+    if ($RequiredTrueFields.Count -gt 0) {
+        try {
+            $json = ($output -join "`n") | ConvertFrom-Json -ErrorAction Stop
+            foreach ($fieldPath in $RequiredTrueFields) {
+                $current = $json
+                foreach ($segment in ($fieldPath -split '\.')) {
+                    if ($null -eq $current) {
+                        throw "missing JSON field: $fieldPath"
+                    }
+                    $property = $current.PSObject.Properties[$segment]
+                    if ($null -eq $property) {
+                        throw "missing JSON field: $fieldPath"
+                    }
+                    $current = $property.Value
+                }
+                if ($current -ne $true) {
+                    throw "JSON field is not true: $fieldPath"
+                }
+            }
+        } catch {
+            Write-CheckResult -Name $Name -Success $false -Detail ' (required safety field missing)'
+            return
+        }
     }
     Write-CheckResult -Name $Name -Success $true
 }
@@ -251,10 +276,10 @@ Invoke-ExternalCheck -Name 'Integration self-test' -FilePath $python -Arguments 
 )
 Invoke-ExternalCheck -Name 'Mobile protocol self-test' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'mobile-test'
-)
+) -RequiredTrueFields @('checks.mobile_protocol.request_binding')
 Invoke-ExternalCheck -Name 'Mobile TCP loopback self-test' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'mobile-tcp-test'
-)
+) -RequiredTrueFields @('checks.mobile_tcp.request_binding')
 Invoke-ExternalCheck -Name 'Mobile transport configuration' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'windows-agent/pipa_cli.py'), 'mobile-config'
 )

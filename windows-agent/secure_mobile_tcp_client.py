@@ -29,6 +29,8 @@ from secure_tcp_gateway import (
     validate_mobile_port,
 )
 
+from backend.pipa_core.request_binding import compute_request_digest
+
 
 class SecureMobileTcpClientError(SecureSessionError):
     """The network reference client cannot safely continue."""
@@ -133,9 +135,15 @@ class SecureMobileTcpClient:
         *,
         call_id: str | None = None,
     ) -> list[dict[str, object]]:
+        values = dict(arguments or {})
+        try:
+            binding = compute_request_digest(name, values)
+        except ValueError as error:
+            raise SecureMobileTcpClientError("structured tool arguments are not bindable") from error
         payload: dict[str, object] = {
             "name": name,
-            "arguments": dict(arguments or {}),
+            "arguments": values,
+            "request_digest": binding,
         }
         if call_id is not None:
             payload["call_id"] = call_id

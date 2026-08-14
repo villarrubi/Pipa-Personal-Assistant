@@ -22,6 +22,7 @@ from tools.timers import TimerManager  # noqa: E402
 from trusted_unlock_devices import DeviceStoreError  # noqa: E402
 
 from backend.pipa_core.core import PipaCore  # noqa: E402
+from backend.pipa_core.request_binding import compute_request_digest  # noqa: E402
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter  # noqa: E402
 
 
@@ -92,6 +93,7 @@ class SecureTcpGatewayTests(unittest.TestCase):
                 pending = await client.call_tool("external_test", {}, call_id="tcp-call")
                 self.assertEqual(pending[0]["type"], "confirm_request")
                 self.assertEqual(pending[0]["call_id"], "tcp-call")
+                self.assertEqual(pending[0]["request_digest"], compute_request_digest("external_test", {}))
                 self.assertEqual(executed, [])
                 completed = await client.confirm(pending[0]["confirmation_id"], True)
                 self.assertEqual(completed[0]["type"], "tool_result")

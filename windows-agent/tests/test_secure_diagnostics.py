@@ -103,6 +103,7 @@ class SecureDiagnosticsTests(unittest.TestCase):
 
         self.assertTrue(result["handshake"])
         self.assertTrue(result["confirmation_gated"])
+        self.assertTrue(result["request_binding"])
         self.assertTrue(result["result_redacted"])
         self.assertEqual(result["integration_tools_checked"], 20)
         self.assertFalse(result["external_actions_executed"])
@@ -114,6 +115,7 @@ class SecureDiagnosticsTests(unittest.TestCase):
         self.assertTrue(result["listener_loopback_only"])
         self.assertTrue(result["network_round_trip"])
         self.assertTrue(result["confirmation_gated"])
+        self.assertTrue(result["request_binding"])
         self.assertTrue(result["result_redacted"])
         self.assertEqual(result["integration_tools_checked"], 20)
         self.assertFalse(result["external_actions_executed"])

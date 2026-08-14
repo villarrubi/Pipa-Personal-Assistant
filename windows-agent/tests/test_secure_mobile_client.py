@@ -16,6 +16,7 @@ from tools.integration_catalog import get_command_catalog  # noqa: E402
 from tools.timers import TimerManager  # noqa: E402
 
 from backend.pipa_core.core import PipaCore  # noqa: E402
+from backend.pipa_core.request_binding import compute_request_digest  # noqa: E402
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter  # noqa: E402
 
 
@@ -85,6 +86,7 @@ class SecureMobileClientTests(unittest.TestCase):
         pending = client.call_tool("external_test", {}, call_id="mobile-call")
         self.assertEqual(pending[0]["type"], "confirm_request")
         self.assertEqual(pending[0]["call_id"], "mobile-call")
+        self.assertEqual(pending[0]["request_digest"], compute_request_digest("external_test", {}))
         self.assertEqual(executed, [])
 
         completed = client.confirm(pending[0]["confirmation_id"], True)

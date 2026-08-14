@@ -41,7 +41,8 @@ function Invoke-PipaJsonCheck {
     param(
         [Parameter(Mandatory)] [string]$Name,
         [Parameter(Mandatory)] [string]$Python,
-        [Parameter(Mandatory)] [string[]]$Arguments
+        [Parameter(Mandatory)] [string[]]$Arguments,
+        [string[]]$RequiredTrueFields = @()
     )
 
     try {
@@ -59,6 +60,24 @@ function Invoke-PipaJsonCheck {
         }
         $json = ($output -join "`n") | ConvertFrom-Json -ErrorAction Stop
         $success = $null -ne $json -and $json.success -eq $true
+        foreach ($fieldPath in $RequiredTrueFields) {
+            $current = $json
+            foreach ($segment in ($fieldPath -split '\.')) {
+                if ($null -eq $current) {
+                    $success = $false
+                    break
+                }
+                $property = $current.PSObject.Properties[$segment]
+                if ($null -eq $property) {
+                    $success = $false
+                    break
+                }
+                $current = $property.Value
+            }
+            if ($success -and $current -ne $true) {
+                $success = $false
+            }
+        }
         Write-CheckResult -Name $Name -Success $success
     } catch {
         Write-CheckResult -Name $Name -Success $false -Detail ' (invalid or unavailable result)'
@@ -109,10 +128,10 @@ if ($null -eq $python) {
     )
     Invoke-PipaJsonCheck -Name 'Mobile protocol self-test' -Python $python -Arguments @(
         '-B', $cli, 'mobile-test'
-    )
+    ) -RequiredTrueFields @('checks.mobile_protocol.request_binding')
     Invoke-PipaJsonCheck -Name 'Mobile TCP loopback self-test' -Python $python -Arguments @(
         '-B', $cli, 'mobile-tcp-test'
-    )
+    ) -RequiredTrueFields @('checks.mobile_tcp.request_binding')
     Invoke-PipaJsonCheck -Name 'Mobile configuration safety' -Python $python -Arguments @(
         '-B', $cli, 'mobile-config'
     )

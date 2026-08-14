@@ -39,6 +39,7 @@ from secure_tcp_gateway import SecureTcpGateway
 
 from backend.pipa_core.core import PipaCore
 from backend.pipa_core.intents import parse_text_intent
+from backend.pipa_core.request_binding import compute_request_digest
 from backend.pipa_core.simulator import create_simulator
 from backend.pipa_core.tools import ToolCatalog, ToolDefinition, ToolRouter
 from tools.text_policy import validate_bounded_text
@@ -646,6 +647,8 @@ def run_mobile_protocol_self_test() -> dict[str, object]:
                 raise ValueError("mobile tool call did not reach confirmation")
             if pending[0].get("summary") != expected_summary:
                 raise ValueError("mobile confirmation summary was not fixed")
+            if pending[0].get("request_digest") != compute_request_digest(tool_name, arguments):
+                raise ValueError("mobile confirmation request binding was not preserved")
             pending_text = str(pending)
             if any(str(value) in pending_text for value in arguments.values()):
                 raise ValueError("mobile confirmation echoed private arguments")
@@ -667,6 +670,7 @@ def run_mobile_protocol_self_test() -> dict[str, object]:
         "handshake": True,
         "capabilities_acknowledged": True,
         "confirmation_gated": True,
+        "request_binding": True,
         "result_redacted": True,
         "integration_tools_checked": len(_MOBILE_INTEGRATION_CASES),
         "external_actions_executed": False,
@@ -727,6 +731,8 @@ def run_mobile_tcp_self_test() -> dict[str, object]:
                     raise ValueError("TCP mobile tool call did not reach confirmation")
                 if pending[0].get("summary") != expected_summary:
                     raise ValueError("TCP mobile confirmation summary was not fixed")
+                if pending[0].get("request_digest") != compute_request_digest(tool_name, arguments):
+                    raise ValueError("TCP mobile confirmation request binding was not preserved")
                 pending_text = str(pending)
                 if any(str(value) in pending_text for value in arguments.values()):
                     raise ValueError("TCP mobile confirmation echoed private arguments")
@@ -749,6 +755,7 @@ def run_mobile_tcp_self_test() -> dict[str, object]:
             "listener_loopback_only": gateway.bind_host == "127.0.0.1",
             "network_round_trip": True,
             "confirmation_gated": True,
+            "request_binding": True,
             "result_redacted": True,
             "integration_tools_checked": len(_MOBILE_INTEGRATION_CASES),
             "external_actions_executed": False,

@@ -11,6 +11,9 @@ cifrado, el cliente TCP v2 y la pantalla de confirmaciones.
 
 - El cliente móvil de referencia completa el handshake v2, anuncia una UI con
   `display` y `touch`, envía comandos y confirma acciones.
+- Los clientes de referencia en memoria y TCP envían `request_digest`, y los
+  diagnósticos verifican que cada `confirm_request` conserva el digest correcto
+  de las 20 acciones externas sin ejecutar ningún adaptador real.
 - `python .\windows-agent\pipa_cli.py mobile-test` ejecuta el flujo completo
   sin sockets, navegador, aplicaciones, League ni claves persistentes.
 - El agente no abre el transporte móvil por defecto y todavía no existe una
