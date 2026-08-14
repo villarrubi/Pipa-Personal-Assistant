@@ -239,8 +239,8 @@ dispositivo sí exige firma Ed25519 y confirmación para herramientas externas.
   la búsqueda y la cancelación fallan cerradas y no crean lobby ni inician cola.
   El estado público expone `searching`, `match_found`, `not_searching` o
   `unknown`; `match_found` solo avisa de que debes aceptar manualmente y nunca
-  pulsa el botón de aceptación. El lobby incluye la cola allowlisted cuando se
-  puede identificar.
+  pulsa el botón de aceptación. Cancelar tampoco rechaza una partida ya
+  encontrada. El lobby incluye la cola allowlisted cuando se puede identificar.
 - El móvil también puede consultar por separado el estado de búsqueda de
   League, la batería/red del PC y los temporizadores locales; esas consultas
   no requieren confirmación. Cancelar un temporizador solo afecta a la memoria

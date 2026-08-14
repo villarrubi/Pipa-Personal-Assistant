@@ -241,7 +241,8 @@ de recuperación y acceso.
   si no está iniciado, pero solo espera un tiempo acotado y no amplía la
   allowlist ni ejecuta comandos del sistema; estado, cancelación y estados
   desconocidos siguen siendo fail-closed si el cliente no está disponible. La
-  aceptación de una partida requiere una acción visible del usuario.
+  aceptación de una partida requiere una acción visible del usuario y cancelar
+  nunca rechaza automáticamente una partida que ya fue encontrada.
 
 ## Datos prohibidos en Git
 

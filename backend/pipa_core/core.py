@@ -790,4 +790,6 @@ class PipaCore:
                 return "Ya había una búsqueda activa."
             if result.get("started"):
                 return "Búsqueda de partida iniciada."
+        if tool_name == "league_cancel" and result.get("already_not_searching") is True:
+            return "League no estaba buscando partida."
         return captions.get(tool_name, "Acción completada.")

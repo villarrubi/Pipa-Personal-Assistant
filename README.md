@@ -60,8 +60,9 @@ que las solicitó y caducan si no se confirman.
 - Abrir League y comenzar/cancelar matchmaking en colas permitidas; una
   búsqueda confirmada puede abrir el cliente si todavía no está listo.
 - El estado de League se reduce a datos seguros y la búsqueda falla cerrada si
-  el cliente devuelve un estado de matchmaking desconocido. La aceptación de
-  una partida sigue siendo manual.
+  el cliente devuelve un estado de matchmaking desconocido. Si ya hay una
+  partida encontrada, se avisa sin aceptarla ni rechazarla; ambos pasos siguen
+  siendo manuales.
 - Abrir WhatsApp Web, abrir el chat de un alias o de un teléfono, o preparar un
   mensaje sin pulsar `Enviar`.
 - Si existe una entrada local allowlisted `whatsapp`, abrir esa app; en caso

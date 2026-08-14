@@ -1097,15 +1097,11 @@ class IntegrationTests(unittest.TestCase):
     def test_league_cancel_requires_a_confirmed_idle_state(self):
         connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
         api = LeagueClientApi(connection)
-        with patch.object(
-            api,
-            "_request",
-            side_effect=[None, {"searchState": "None"}],
-        ) as request:
+        with patch.object(api, "_request", side_effect=[{"searchState": "None"}]) as request:
             result = api.cancel_search()
 
-        self.assertEqual(result, {"cancelled": True})
-        self.assertEqual(request.call_count, 2)
+        self.assertEqual(result, {"cancelled": False, "already_not_searching": True})
+        self.assertEqual(request.call_count, 1)
 
     def test_league_cancel_fails_if_search_is_still_active(self):
         connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
@@ -1113,12 +1109,25 @@ class IntegrationTests(unittest.TestCase):
         with patch.object(
             api,
             "_request",
-            side_effect=[None, {"searchState": "Searching"}],
+            side_effect=[
+                {"searchState": "Searching"},
+                None,
+                {"searchState": "Searching"},
+            ],
         ) as request:
             with self.assertRaises(LeagueClientError):
                 api.cancel_search()
 
-        self.assertEqual(request.call_count, 2)
+        self.assertEqual(request.call_count, 3)
+
+    def test_league_cancel_never_touches_a_found_match(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+        with patch.object(api, "_request", return_value={"searchState": "Found"}) as request:
+            with self.assertRaises(LeagueClientError):
+                api.cancel_search()
+
+        request.assert_called_once_with("GET", "/lol-lobby/v2/lobby/matchmaking/search")
 
     def test_league_cancel_fails_closed_for_an_unknown_postcondition(self):
         connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
@@ -1126,12 +1135,12 @@ class IntegrationTests(unittest.TestCase):
         with patch.object(
             api,
             "_request",
-            side_effect=[None, {"searchState": "FutureStateFromNewClient"}],
+            side_effect=[{"searchState": "FutureStateFromNewClient"}],
         ) as request:
             with self.assertRaises(LeagueClientError):
                 api.cancel_search()
 
-        self.assertEqual(request.call_count, 2)
+        self.assertEqual(request.call_count, 1)
 
     def test_league_search_fails_closed_for_an_unknown_matchmaking_state(self):
         connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})

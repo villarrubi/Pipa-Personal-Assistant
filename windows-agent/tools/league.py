@@ -332,6 +332,16 @@ class LeagueClientApi:
 
     def cancel_search(self) -> dict[str, object]:
         with _MATCHMAKING_OPERATION_LOCK:
+            before = self.search_status()
+            if before["supported"] is not True:
+                raise LeagueClientError("La API local de matchmaking no está disponible.")
+            if before["match_found"]:
+                raise LeagueClientError("League ya encontró una partida; no se cancela automáticamente.")
+            if before["state"] == "unknown":
+                raise LeagueClientError("No se pudo confirmar el estado actual de matchmaking.")
+            if before["searching"] is not True:
+                return {"cancelled": False, "already_not_searching": True}
+
             self._request(
                 "DELETE",
                 "/lol-lobby/v2/lobby/matchmaking/search",
@@ -342,6 +352,7 @@ class LeagueClientApi:
                 verification["supported"] is not True
                 or verification["state"] != "not_searching"
                 or verification["searching"] is True
+                or verification["match_found"] is True
             ):
                 raise LeagueClientError("League Client no confirmó la cancelación de matchmaking.")
             return {"cancelled": True}
