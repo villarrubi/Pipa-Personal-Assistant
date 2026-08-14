@@ -72,8 +72,10 @@ CDC. La referencia física está en la
   no permite confirmar acciones externas. La configuración rastreada lo deja
   desactivado hasta provisionar la clave pública del agente.
 - El entorno `secure-session-vector` compila un vector determinista compartido
-  con Python para el record layer y el framing de audio v2. El nuevo primitive
-  `pipa_secure_audio.h/.cpp` valida límites, secuencias, AAD y cierre
+  con Python para el record layer y el framing de audio v2. El primitive de
+  audio está protegido por `PIPA_SECURE_SESSION_VECTOR_TEST` y queda fuera de
+  las imágenes normales. El nuevo primitive `pipa_secure_audio.h/.cpp` valida
+  límites, secuencias, AAD y cierre
   fail-closed, pero solo se invoca desde ese entorno; su ejecución en una placa
   real sigue pendiente y no forma parte del firmware normal.
 

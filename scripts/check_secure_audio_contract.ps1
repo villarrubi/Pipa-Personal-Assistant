@@ -96,6 +96,15 @@ if ($firmwareAudio.IndexOf('pipa/audio/v2', [System.StringComparison]::Ordinal) 
     $firmwareAudioHeader.IndexOf('PipaSecureAudioReceiver', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'El primitive de framing del firmware no contiene el contrato esperado.'
 }
+
+$vectorAudioGuard = '(?s)#if\s+defined\(PIPA_SECURE_SESSION_VECTOR_TEST\).*?#endif\s*//\s*defined\(PIPA_SECURE_SESSION_VECTOR_TEST\)'
+if ($firmwareAudioHeader -notmatch $vectorAudioGuard -or $firmwareAudio -notmatch $vectorAudioGuard) {
+    throw 'El primitive de audio del firmware debe quedar compilado solo en secure-session-vector.'
+}
+$mainAudioIncludeGuard = '(?s)#if\s+defined\(PIPA_SECURE_SESSION_VECTOR_TEST\)\s*#include\s*[<"]pipa_secure_audio\.h[>"]\s*#endif'
+if ($firmwareMain -notmatch $mainAudioIncludeGuard) {
+    throw 'main.cpp no mantiene el include de audio seguro aislado al entorno vector.'
+}
 if ($firmwareAudio -match '(?im)#include\s*[<"](?:driver/i2s|I2S|Wire|WiFi|Bluetooth|esp_audio)[>"]|\b(?:Wire|Serial|WiFi)\s*[.(]|\b(?:ES8311|ES7210)\b') {
     throw 'El framing de audio del firmware no puede depender de hardware, red ni puertos.'
 }

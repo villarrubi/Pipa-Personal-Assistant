@@ -1,5 +1,7 @@
 #include "pipa_secure_audio.h"
 
+#if defined(PIPA_SECURE_SESSION_VECTOR_TEST)
+
 #include <string.h>
 
 namespace pipa {
@@ -292,3 +294,5 @@ bool PipaSecureAudio::vectorSelfTest() {
 }
 
 }  // namespace pipa
+
+#endif  // defined(PIPA_SECURE_SESSION_VECTOR_TEST)

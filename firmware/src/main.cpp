@@ -12,13 +12,16 @@
 #include "board_pins.h"
 #include "pipa_audio_state.h"
 #include "pipa_protocol.h"
-#include "pipa_secure_audio.h"
 #include "pipa_secure_session.h"
 #include "pipa_secure_protocol.h"
 #include "pipa_display.h"
 #include "pipa_audio.h"
 #include "pipa_power.h"
 #include "wake_on_lan.h"
+
+#if defined(PIPA_SECURE_SESSION_VECTOR_TEST)
+#include "pipa_secure_audio.h"
+#endif
 
 namespace {
 

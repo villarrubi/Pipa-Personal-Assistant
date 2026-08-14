@@ -1,5 +1,7 @@
 #pragma once
 
+#if defined(PIPA_SECURE_SESSION_VECTOR_TEST)
+
 #include <Arduino.h>
 
 #include <stddef.h>
@@ -111,3 +113,5 @@ class PipaSecureAudioReceiver {
 };
 
 }  // namespace pipa
+
+#endif  // defined(PIPA_SECURE_SESSION_VECTOR_TEST)

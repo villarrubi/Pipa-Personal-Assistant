@@ -6,7 +6,9 @@ una identidad del dispositivo ni una clave de producción.
 
 El entorno incluye también el cliente de handshake X25519/Ed25519, pero el
 vector determinista comprueba únicamente el record layer. Además, el
-primitive `pipa_secure_audio.h/.cpp` comprueba el framing de PCM cifrado, el
+primitive `pipa_secure_audio.h/.cpp` está protegido por
+`PIPA_SECURE_SESSION_VECTOR_TEST`, por lo que no forma parte de las imágenes
+normales, y comprueba el framing de PCM cifrado, el
 AAD canónico, el orden de los bloques y el cierre fail-closed ante una
 modificación. Usa el payload PCM/AAD del fixture
 `mobile-ios/Tests/Fixtures/secure_audio_v2.json`, para que Python, Swift y
