@@ -8,6 +8,7 @@ from tools.agent_catalog import build_agent_catalog  # noqa: E402
 from tools.capabilities import build_integration_capabilities  # noqa: E402
 from tools.integration_catalog import (  # noqa: E402
     get_command_catalog,
+    validate_command_catalog,
     validate_integration_capabilities,
 )
 from tools.security_policy import (  # noqa: E402
@@ -74,6 +75,32 @@ class IntegrationContractTests(unittest.TestCase):
                     self.catalog.get(command["tool_name"]).validate_arguments(arguments),
                     arguments,
                 )
+
+    def test_public_catalog_validator_rejects_duplicate_or_unsafe_metadata(self):
+        valid = {
+            "id": "safe_test",
+            "tool_name": "system_status",
+            "phrase": "estado",
+            "description": "Consulta el estado.",
+            "safety": "safe",
+            "requires_confirmation": False,
+            "parameters": [],
+        }
+
+        with self.assertRaises(ValueError):
+            validate_command_catalog([dict(valid), dict(valid)])
+
+        malformed = dict(valid)
+        malformed["description"] = "texto\u202eoculto"
+        with self.assertRaises(ValueError):
+            validate_command_catalog([malformed])
+
+        malformed_parameter = dict(valid)
+        malformed_parameter["parameters"] = [
+            {"name": "value", "label": "Valor", "kind": "unknown", "max_length": 10}
+        ]
+        with self.assertRaises(ValueError):
+            validate_command_catalog([malformed_parameter])
 
     def test_remote_capabilities_never_claim_automatic_private_actions(self):
         capabilities = build_integration_capabilities(

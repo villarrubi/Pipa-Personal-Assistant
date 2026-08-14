@@ -7,10 +7,47 @@ by the Core and the actual adapter still validates its own arguments.
 
 from __future__ import annotations
 
+import re
 from copy import deepcopy
 from typing import Any
 
 from tools.league import QUEUE_IDS
+from tools.text_policy import validate_bounded_text
+
+_MAX_COMMANDS = 64
+_MAX_PARAMETERS = 8
+_MAX_PARAMETER_OPTIONS = 16
+_MAX_COMMAND_TEXT_BYTES = 256
+_MAX_PARAMETER_TEXT_BYTES = 128
+_COMMAND_FIELDS = frozenset(
+    {
+        "id",
+        "tool_name",
+        "phrase",
+        "description",
+        "safety",
+        "requires_confirmation",
+        "parameters",
+        "default_arguments",
+    }
+)
+_PARAMETER_FIELDS = frozenset({"name", "label", "kind", "max_length", "options"})
+_PARAMETER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
+_PARAMETER_KINDS = frozenset(
+    {
+        "text",
+        "message",
+        "phone",
+        "integer",
+        "queue",
+        "action",
+        "app",
+        "contact",
+        "channel_id",
+        "guild_id",
+        "url",
+    }
+)
 
 # These are safety properties, not availability flags.  Availability changes
 # with local configuration; crossing one of these boundaries would change
@@ -526,13 +563,123 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
 )
 
 
+def _safe_catalog_text(value: object, field_name: str, maximum_bytes: int) -> str:
+    try:
+        return validate_bounded_text(value, field_name, maximum_bytes)
+    except ValueError as error:
+        raise ValueError(f"{field_name} no es texto de catálogo válido") from error
+
+
+def _validate_parameters(value: object) -> list[dict[str, Any]]:
+    if not isinstance(value, list) or len(value) > _MAX_PARAMETERS:
+        raise ValueError("parameters no es una lista acotada")
+
+    validated: list[dict[str, Any]] = []
+    seen_names: set[str] = set()
+    for parameter in value:
+        if not isinstance(parameter, dict) or set(parameter) - _PARAMETER_FIELDS:
+            raise ValueError("parameter contiene campos no permitidos")
+        name = parameter.get("name")
+        label = parameter.get("label")
+        kind = parameter.get("kind")
+        max_length = parameter.get("max_length")
+        if (
+            not isinstance(name, str)
+            or _PARAMETER_NAME.fullmatch(name) is None
+            or name in seen_names
+            or not isinstance(kind, str)
+            or kind not in _PARAMETER_KINDS
+            or isinstance(max_length, bool)
+            or not isinstance(max_length, int)
+            or not 1 <= max_length <= 4096
+        ):
+            raise ValueError("parameter no es válido")
+        safe_label = _safe_catalog_text(label, "label", _MAX_PARAMETER_TEXT_BYTES)
+        options = parameter.get("options", [])
+        if (
+            not isinstance(options, list)
+            or len(options) > _MAX_PARAMETER_OPTIONS
+            or not all(isinstance(option, str) for option in options)
+        ):
+            raise ValueError("options no es una lista válida")
+        safe_options = [_safe_catalog_text(option, "option", _MAX_PARAMETER_TEXT_BYTES) for option in options]
+        if len(set(safe_options)) != len(safe_options):
+            raise ValueError("options no puede contener duplicados")
+        validated_parameter: dict[str, Any] = {
+            "name": name,
+            "label": safe_label.strip(),
+            "kind": kind,
+            "max_length": max_length,
+        }
+        if safe_options:
+            validated_parameter["options"] = safe_options
+        validated.append(validated_parameter)
+        seen_names.add(name)
+    return validated
+
+
+def _validate_default_arguments(value: object) -> dict[str, str]:
+    if not isinstance(value, dict) or not value or len(value) > _MAX_PARAMETERS:
+        raise ValueError("default_arguments no es un objeto acotado")
+    result: dict[str, str] = {}
+    for name, argument in value.items():
+        if not isinstance(name, str) or _PARAMETER_NAME.fullmatch(name) is None:
+            raise ValueError("default_arguments contiene un nombre inválido")
+        result[name] = _safe_catalog_text(argument, "default_argument", _MAX_PARAMETER_TEXT_BYTES).strip()
+    return result
+
+
+def validate_command_catalog(commands: object) -> list[dict[str, Any]]:
+    """Validate the local public catalog before exposing it to any UI."""
+
+    if not isinstance(commands, list) or len(commands) > _MAX_COMMANDS:
+        raise ValueError("command catalog is too large")
+    validated: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for command in commands:
+        if not isinstance(command, dict) or set(command) - _COMMAND_FIELDS:
+            raise ValueError("command contains fields outside the public contract")
+        command_id = _safe_catalog_text(command.get("id"), "id", _MAX_COMMAND_TEXT_BYTES).strip()
+        if command_id in seen_ids:
+            raise ValueError("command IDs must be unique")
+        tool_name = _safe_catalog_text(command.get("tool_name"), "tool_name", _MAX_COMMAND_TEXT_BYTES).strip()
+        phrase = _safe_catalog_text(command.get("phrase"), "phrase", _MAX_COMMAND_TEXT_BYTES).strip()
+        description = _safe_catalog_text(
+            command.get("description"), "description", _MAX_COMMAND_TEXT_BYTES
+        ).strip()
+        safety = command.get("safety")
+        requires_confirmation = command.get("requires_confirmation")
+        if safety not in {"safe", "unsafe"} or not isinstance(requires_confirmation, bool):
+            raise ValueError("command safety metadata is invalid")
+        if requires_confirmation != (safety == "unsafe"):
+            raise ValueError("command safety metadata is inconsistent")
+        parameters = _validate_parameters(command.get("parameters", []))
+        default_arguments = None
+        if "default_arguments" in command:
+            default_arguments = _validate_default_arguments(command["default_arguments"])
+            if parameters:
+                raise ValueError("fixed arguments cannot accompany editable parameters")
+        normalized: dict[str, Any] = {
+            "id": command_id,
+            "tool_name": tool_name,
+            "phrase": phrase,
+            "description": description,
+            "safety": safety,
+            "requires_confirmation": requires_confirmation,
+            "parameters": parameters,
+        }
+        if default_arguments is not None:
+            normalized["default_arguments"] = default_arguments
+        validated.append(normalized)
+        seen_ids.add(command_id)
+    return validated
+
+
 def get_command_catalog() -> list[dict[str, Any]]:
     """Return fresh JSON-safe command descriptors for a local UI."""
 
-    commands = [deepcopy(command) for command in _COMMANDS]
     # An explicit empty list advertises that a no-argument action supports
     # the structured tool path. Older agents that omit this field still use
     # the text-editor fallback in compatible clients.
-    for command in commands:
-        command.setdefault("parameters", [])
-    return commands
+    commands = [deepcopy(command) for command in _COMMANDS]
+    return validate_command_catalog(commands)
