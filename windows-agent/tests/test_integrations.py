@@ -665,8 +665,9 @@ class IntegrationTests(unittest.TestCase):
     def test_discord_app_url_is_fixed(self):
         self.assertEqual(build_discord_app_url(), "https://discord.com/app")
 
+    @patch("tools.discord.open_app", return_value={"success": False})
     @patch("tools.discord.webbrowser.open", return_value=True)
-    def test_discord_open_does_not_start_call(self, open_browser):
+    def test_discord_open_does_not_start_call(self, open_browser, _open_app):
         result = open_discord_app()
 
         self.assertFalse(result["call_started"])
@@ -1280,7 +1281,8 @@ class IntegrationTests(unittest.TestCase):
             {"supported": True, "searching": True, "match_found": False, "state": "searching"},
         )
 
-    def test_device_text_input_reaches_integrations_only_after_tap_confirmation(self):
+    @patch("tools.discord.open_app", return_value={"success": False})
+    def test_device_text_input_reaches_integrations_only_after_tap_confirmation(self, _open_discord_app):
         cases = (
             ("busca en internet documentación de Pipa", "web_search", "Búsqueda web abierta."),
             ("busca en Apple Music Daft Punk", "music_search", "Búsqueda musical abierta; elige la pista."),
