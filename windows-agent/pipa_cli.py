@@ -26,6 +26,7 @@ from tools.diagnostics import get_self_test  # noqa: E402
 from tools.integration_diagnostics import run_integration_self_test  # noqa: E402
 from tools.integration_protocol_diagnostics import run_integration_protocol_self_test  # noqa: E402
 from tools.mobile_config import inspect_mobile_transport  # noqa: E402
+from tools.readiness import inspect_readiness  # noqa: E402
 from tools.secure_diagnostics import (  # noqa: E402
     run_device_protocol_self_test,
     run_mobile_protocol_self_test,
@@ -122,6 +123,10 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser(
         "apps-status",
         help="Comprueba aplicaciones configuradas sin abrirlas ni mostrar sus rutas.",
+    )
+    commands.add_parser(
+        "readiness",
+        help="Resume apps, alias e integraciones sin abrir nada ni mostrar datos privados.",
     )
     commands.add_parser("integration-status", help="Muestra solo el estado de las integraciones.")
     commands.add_parser(
@@ -580,6 +585,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0 if result["success"] else 1
         if arguments.command == "apps-status":
             result = inspect_apps()
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0 if result["success"] else 1
+        if arguments.command == "readiness":
+            result = inspect_readiness()
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0 if result["success"] else 1
         if arguments.command == "mobile-test":

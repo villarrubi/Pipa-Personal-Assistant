@@ -18,6 +18,7 @@ _LEAGUE_QUEUE_ALIASES = {
     "normal": "normal_draft",
     "normal draft": "normal_draft",
     "normal_draft": "normal_draft",
+    "draft": "normal_draft",
     "clasificatoria": "ranked_solo",
     "clasificatoria solo": "ranked_solo",
     "clasificatoria flex": "ranked_flex",
@@ -56,6 +57,24 @@ def _whatsapp_recipient_intent(recipient: str, message: str) -> ParsedIntent:
     if re.fullmatch(r"[+\d][\d\s().-]{6,24}", recipient):
         return ParsedIntent("whatsapp_compose", {"phone": recipient, "message": message.strip()})
     return ParsedIntent("whatsapp_contact", {"contact": recipient, "message": message.strip()})
+
+
+def _league_queue_intent(queue_text: str) -> ParsedIntent | None:
+    """Map natural League context to the small allowlisted queue set."""
+
+    queue_text = queue_text.strip()
+    queue_text = re.sub(
+        r"(?:^|\s+)(?:(?:en|dentro de|de)\s+(?:el\s+)?|"
+        r"(?:en el|dentro del|del)\s+)"
+        r"(?:lol|league(?: of legends)?)$",
+        "",
+        queue_text,
+    ).strip()
+    queue_text = re.sub(r"^(?:de|en)\s+", "", queue_text).strip()
+    queue = _LEAGUE_QUEUE_ALIASES.get(queue_text)
+    if queue is None:
+        return None
+    return ParsedIntent("league_search", {"queue": queue})
 
 
 def parse_text_intent(text: str) -> ParsedIntent | None:
@@ -204,6 +223,26 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     )
     if whatsapp_colon_service:
         return _whatsapp_recipient_intent(whatsapp_colon_service.group(1), whatsapp_colon_service.group(2))
+
+    whatsapp_message_colon = re.fullmatch(
+        r"(?:prepara|abre|escribe|manda|env[ií]a)(?: un)? mensaje "
+        r"(?:de|por|en) whatsapp (?:para|a) (.+?)\s*:\s*(.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if whatsapp_message_colon:
+        return _whatsapp_recipient_intent(whatsapp_message_colon.group(1), whatsapp_message_colon.group(2))
+
+    whatsapp_open_and_write_colon = re.fullmatch(
+        r"(?:abre|abrir) (?:el )?whatsapp y (?:escribe|dile) (?:a|para) "
+        r"(.+?)\s*:\s*(.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if whatsapp_open_and_write_colon:
+        return _whatsapp_recipient_intent(
+            whatsapp_open_and_write_colon.group(1), whatsapp_open_and_write_colon.group(2)
+        )
 
     whatsapp_message = re.fullmatch(
         r"(?:manda|env[ií]a|escribe)(?: un)? mensaje (?:para|a) "
@@ -460,6 +499,14 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     if discord_chat_contact:
         return ParsedIntent("discord_contact", {"contact": discord_chat_contact.group(1).strip()})
 
+    discord_contact_short = re.fullmatch(
+        r"(?:abre|abrir) discord (?:a|al|con|para) (.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if discord_contact_short:
+        return ParsedIntent("discord_contact", {"contact": discord_contact_short.group(1).strip()})
+
     discord_call_server_channel = re.fullmatch(
         r"llama(?:r)? (?:a |al )?(?:canal )?discord (?:servidor|guild) ([0-9]{17,20}) "
         r"(?:canal )?([0-9]{17,20})",
@@ -695,21 +742,15 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
             r"(?:ponme|meteme|entra(?:r)?) en cola(?: de)?(?: (.+))?",
             normalized,
         )
+    if league_search is None:
+        league_search = re.fullmatch(
+            r"(?:inicia|empieza|comienza) (?:el )?matchmaking(?: (?:en|de))?(?: (.+))?",
+            normalized,
+        )
     if league_search:
-        queue_text = league_search.group(1) or ""
-        # Accept the natural context users add when addressing the game,
-        # while keeping the actual queue strictly allowlisted below.
-        queue_text = re.sub(
-            r"(?:^|\s+)(?:(?:en|dentro de|de)\s+(?:el\s+)?|"
-            r"(?:en el|dentro del|del)\s+)"
-            r"(?:lol|league(?: of legends)?)$",
-            "",
-            queue_text,
-        ).strip()
-        queue_text = re.sub(r"^(?:de|en)\s+", "", queue_text).strip()
-        queue = _LEAGUE_QUEUE_ALIASES.get(queue_text)
-        if queue is not None:
-            return ParsedIntent("league_search", {"queue": queue})
+        parsed_queue = _league_queue_intent(league_search.group(1) or "")
+        if parsed_queue is not None:
+            return parsed_queue
 
     volume = re.fullmatch(r"(?:pon|ajusta) el volumen (\d{1,3})", normalized)
     if volume:

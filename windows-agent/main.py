@@ -35,6 +35,7 @@ from tools.discord import open_discord_app, open_discord_call, open_discord_chan
 from tools.integration_catalog import get_command_catalog
 from tools.league import LeagueClientError, with_client, with_client_or_launch
 from tools.media import send_media_action
+from tools.readiness import inspect_readiness
 from tools.security_policy import LOCAL_CONFIRMATION_PATHS
 from tools.system import get_network_status, get_power_status, get_system_status, lock_pc
 from tools.timers import TimerManager, TimerNotFoundError, validate_timer_id
@@ -395,6 +396,13 @@ def api_integration_status():
     """Return only the non-sensitive integration matrix for local UIs."""
 
     return {"success": True, "integrations": get_integration_capabilities()}
+
+
+@app.get("/readiness")
+def api_readiness():
+    """Return a private-data-free readiness report for the local UI."""
+
+    return inspect_readiness()
 
 
 @app.get("/commands")

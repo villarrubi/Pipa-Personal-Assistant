@@ -247,6 +247,7 @@ class MainRouteTests(unittest.TestCase):
                 "/discord/contact/open",
                 "/discord/contact/call",
                 "/self-test",
+                "/readiness",
             }.issubset(paths)
         )
 
@@ -266,6 +267,23 @@ class MainRouteTests(unittest.TestCase):
             {"success": True, "integrations": {"league": {"client_ready": False}}},
         )
         get_integration_capabilities.assert_called_once_with()
+
+    @patch(
+        "main.inspect_readiness",
+        return_value={
+            "success": True,
+            "apps": {"configured_count": 2, "unresolved_count": 0},
+            "contacts": {"configured_count": 1, "whatsapp_destinations": 1, "discord_destinations": 0},
+            "integrations": {"whatsapp": {"contact_aliases_configured": True}},
+        },
+    )
+    def test_readiness_route_is_read_only_and_bounded(self, inspect_readiness):
+        response = main.api_readiness()
+
+        self.assertTrue(response["success"])
+        self.assertNotIn("phone", str(response).lower())
+        self.assertNotIn("path", str(response).lower())
+        inspect_readiness.assert_called_once_with()
 
     @patch("main.get_self_test", return_value={"success": True, "checks": {}})
     def test_self_test_route_is_read_only(self, get_self_test):

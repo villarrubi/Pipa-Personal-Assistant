@@ -170,6 +170,9 @@ que las solicitó y caducan si no se confirman.
 - Comprobar qué aplicaciones configuradas tienen un lanzador resoluble, sin
   abrirlas ni mostrar sus rutas, con
   `python .\windows-agent\pipa_cli.py apps-status`.
+- Consultar en una sola salida los lanzadores, alias e integraciones que están
+  listos, sin abrir nada ni revelar datos privados, con
+  `python .\windows-agent\pipa_cli.py readiness`.
 - Consultar el catálogo de frases y sus confirmaciones con
   `python .\windows-agent\pipa_cli.py commands`.
 - Inspeccionar cómo se interpreta una frase con `pipa_cli.py intent` sin

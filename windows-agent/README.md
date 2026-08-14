@@ -64,6 +64,7 @@ python .\windows-agent\pipa_cli.py mobile-config
 python .\windows-agent\secure_identity_admin.py show
 python .\windows-agent\pipa_cli.py capabilities
 python .\windows-agent\pipa_cli.py apps-status
+python .\windows-agent\pipa_cli.py readiness
 python .\windows-agent\pipa_cli.py integration-status
 python .\windows-agent\pipa_cli.py commands
 python .\windows-agent\pipa_cli.py protocol
@@ -73,7 +74,10 @@ python .\windows-agent\pipa_cli.py preview "busca una partida clasificatoria sol
 python .\windows-agent\pipa_cli.py intent "busca una partida de LoL"
 python .\windows-agent\pipa_cli.py intent "manda un mensaje de WhatsApp a mamá diciendo llego"
 python .\windows-agent\pipa_cli.py intent "manda un WhatsApp a mamá: llego"
+python .\windows-agent\pipa_cli.py intent "abre WhatsApp y escribe a mamá: llego"
 python .\windows-agent\pipa_cli.py intent "haz una llamada de Discord con amigo"
+python .\windows-agent\pipa_cli.py intent "abre Discord con amigo"
+python .\windows-agent\pipa_cli.py intent "inicia matchmaking en ARAM"
 python .\windows-agent\pipa_cli.py music-search "Daft Punk" --confirm
 python .\windows-agent\pipa_cli.py whatsapp-contact mama "Ya estoy en casa" --confirm
 python .\windows-agent\pipa_cli.py whatsapp-contact-open mama --confirm
@@ -452,6 +456,11 @@ listo, pero nunca devuelven rutas locales, tokens, URLs, contactos ni mensajes.
 `GET /integrations/status` y `integration-status` devuelven únicamente esa matriz
 de integraciones. En WhatsApp y Discord indican si hay alias locales configurados,
 pero nunca exponen sus teléfonos, nombres o IDs.
+`GET /readiness` y `readiness` combinan esa matriz con el estado de los lanzadores
+locales y un recuento de alias. Son comprobaciones de solo lectura: no abren
+aplicaciones, no contactan League y no muestran rutas, teléfonos, nombres ni IDs.
+Si aparece un lanzador no resoluble, la integración web puede seguir disponible;
+el informe separa esa configuración opcional del estado general de cada servicio.
 `GET /commands` y el comando `commands` ofrecen el catálogo de frases que puede
 mostrar una UI local. Sus ejemplos usan marcadores como `<teléfono>` y no
 contienen datos de esta máquina. El catálogo cifrado del dispositivo añade la
