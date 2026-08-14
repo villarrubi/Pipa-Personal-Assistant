@@ -73,6 +73,9 @@ jobs:
       - name: Check firmware security gate
         shell: pwsh
         run: ./scripts/check_firmware_security_gate.ps1
+      - name: Check secure handshake contract
+        shell: pwsh
+        run: ./scripts/check_secure_handshake_contract.ps1
       - name: Check audio I2S lab safety
         shell: pwsh
         run: ./scripts/check_audio_i2s_lab.ps1

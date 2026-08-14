@@ -40,6 +40,22 @@ bool PipaSecureHandshake::validIdentifier(const char* value) {
   return true;
 }
 
+bool PipaSecureHandshake::hasExactServerHelloFields(JsonObjectConst object) {
+  size_t field_count = 0;
+  for (JsonPairConst pair : object) {
+    const char* key = pair.key().c_str();
+    if (strcmp(key, "client_ephemeral_public_key") != 0 &&
+        strcmp(key, "client_id") != 0 && strcmp(key, "client_nonce") != 0 &&
+        strcmp(key, "protocol_version") != 0 && strcmp(key, "server_ephemeral_public_key") != 0 &&
+        strcmp(key, "server_id") != 0 && strcmp(key, "server_nonce") != 0 &&
+        strcmp(key, "session_id") != 0 && strcmp(key, "signature") != 0) {
+      return false;
+    }
+    ++field_count;
+  }
+  return field_count == 9;
+}
+
 String PipaSecureHandshake::encodeBase64Url(const uint8_t* bytes, size_t length) {
   if (bytes == nullptr && length != 0) return String();
   String value;
@@ -198,8 +214,20 @@ bool PipaSecureHandshake::acceptServerHello(
     const uint8_t server_public_key[kKeyBytes],
     PipaSecureSession& session,
     const char* expected_server_id) {
-  if (!started_ || complete_ || server_hello.isNull() || server_public_key == nullptr) return false;
-  if ((server_hello["protocol_version"] | 0) != 2) return false;
+  if (!started_ || complete_ || server_hello.isNull() || server_public_key == nullptr ||
+      !hasExactServerHelloFields(server_hello) ||
+      !server_hello["protocol_version"].is<int>() ||
+      !server_hello["client_ephemeral_public_key"].is<const char*>() ||
+      !server_hello["client_id"].is<const char*>() ||
+      !server_hello["client_nonce"].is<const char*>() ||
+      !server_hello["server_ephemeral_public_key"].is<const char*>() ||
+      !server_hello["server_id"].is<const char*>() ||
+      !server_hello["server_nonce"].is<const char*>() ||
+      !server_hello["session_id"].is<const char*>() ||
+      !server_hello["signature"].is<const char*>() ||
+      (server_hello["protocol_version"] | 0) != 2) {
+    return false;
+  }
 
   const char* response_session_id = server_hello["session_id"] | "";
   const char* response_client_id = server_hello["client_id"] | "";

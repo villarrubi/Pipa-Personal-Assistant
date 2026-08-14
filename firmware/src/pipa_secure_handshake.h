@@ -44,6 +44,7 @@ class PipaSecureHandshake {
 
  private:
   static bool validIdentifier(const char* value);
+  static bool hasExactServerHelloFields(JsonObjectConst object);
   static bool decodeBase64Url(const char* value, uint8_t* output, size_t output_length);
   static String encodeBase64Url(const uint8_t* bytes, size_t length);
   static String clientUnsignedJson(
