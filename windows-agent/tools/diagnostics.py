@@ -64,6 +64,7 @@ _COMMAND_ROUTE_CASES = (
     ),
     ("busca música de Daft Punk", "music_search", {"term": "Daft Punk"}),
     ("pon música de Daft Punk en Apple Music", "music_search", {"term": "Daft Punk"}),
+    ("pon la canción Bohemian Rhapsody", "music_search", {"term": "Bohemian Rhapsody"}),
     ("reproduce la canción Daft Punk en Apple Music", "music_search", {"term": "Daft Punk"}),
     ("reproduce la canción seleccionada", "media_action", {"action": "play_pause"}),
     ("reanuda la pista", "media_action", {"action": "play_pause"}),
@@ -85,6 +86,16 @@ _COMMAND_ROUTE_CASES = (
         "prepara WhatsApp para mama y dile Hola",
         "whatsapp_contact",
         {"contact": "mama", "message": "Hola"},
+    ),
+    (
+        "manda un WhatsApp a mama: Hola",
+        "whatsapp_contact",
+        {"contact": "mama", "message": "Hola"},
+    ),
+    (
+        "manda un mensaje a +34 600 123 456 en WhatsApp: Hola",
+        "whatsapp_compose",
+        {"phone": "+34 600 123 456", "message": "Hola"},
     ),
     (
         "manda un mensaje a mama por WhatsApp y dile Hola",
