@@ -141,6 +141,30 @@ class ProtocolTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             server_message("ready", protocol_version=99)
 
+    def test_server_message_enforces_the_response_field_contract(self):
+        self.assertEqual(
+            server_message("tool_result", tool_name="web_search", status="completed", success=True),
+            {
+                "protocol_version": 1,
+                "type": "tool_result",
+                "tool_name": "web_search",
+                "status": "completed",
+                "success": True,
+            },
+        )
+        with self.assertRaises(ValueError):
+            server_message(
+                "tool_result",
+                tool_name="web_search",
+                status="completed",
+                success=True,
+                result={"private": True},
+            )
+        with self.assertRaises(ValueError):
+            server_message("confirm_request", confirmation_id="only-id")
+        with self.assertRaises(ValueError):
+            server_message("future_response", status="unknown")
+
     def test_parses_tool_call(self):
         message = parse_client_message(
             {

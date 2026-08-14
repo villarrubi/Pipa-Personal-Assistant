@@ -155,6 +155,10 @@ de recuperación y acceso.
   corto generado por allowlist antes de cruzar USB/WebSocket; el resultado
   interno no se envía al dispositivo. Los captions no incluyen URLs, mensajes,
   contactos, nombres de interfaces, IDs ni etiquetas de temporizadores.
+- El productor Python `server_message` aplica una allowlist y campos mínimos
+  por tipo de respuesta antes de que el sobre llegue a USB, WebSocket, TCP v2 o
+  cualquier futuro transporte; un campo de resultado añadido por regresión
+  falla localmente.
 - Los `confirm_request` del dispositivo también usan etiquetas fijas por
   herramienta; nunca interpolan teléfonos, mensajes, URLs, contactos, IDs o
   argumentos de League en el resumen visible.

@@ -48,7 +48,10 @@ Después de autenticar:
 El parser rechaza versiones desconocidas, campos inesperados, textos, listas y
 argumentos de herramientas sobredimensionados, telemetría inválida, tipos
 ambiguos y objetos JSON con claves repetidas (también si una clave está
-escapada). Cambios incompatibles requieren aumentar `protocol_version`.
+escapada). Las respuestas se construyen con la allowlist central de
+`server_message`: un emisor no puede añadir un campo de resultado, diagnóstico
+o futuro sin que falle localmente, ni omitir los campos mínimos del sobre.
+Cambios incompatibles requieren aumentar `protocol_version`.
 
 Los `tool_call` estructurados del cliente móvil pueden incluir
 `request_digest`, un SHA-256 del JSON canónico compacto con `name` y

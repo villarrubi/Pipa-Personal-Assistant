@@ -33,6 +33,54 @@ _MESSAGE_FIELDS = {
     "confirm": frozenset({"confirmation_id", "accepted"}),
 }
 
+# Every response envelope is built through ``server_message``. Keeping the
+# response contract here makes accidental result/diagnostic leakage fail at
+# the producer instead of relying only on each transport's parser.
+SERVER_MESSAGE_FIELDS = {
+    "challenge": frozenset({"challenge"}),
+    "error": frozenset({"code", "message"}),
+    "ready": frozenset({"session_id", "ui_state"}),
+    "catalog": frozenset({"commands", "capabilities"}),
+    "confirm_request": frozenset(
+        {"confirmation_id", "tool_name", "summary", "expires_at", "call_id", "request_digest"}
+    ),
+    "tool_result": frozenset({"tool_name", "status", "success", "call_id"}),
+    "ui_state": frozenset({"state", "caption", "focus_remaining"}),
+    "pong": frozenset({"request_id"}),
+    "status_ack": frozenset(),
+    "device_hello_ack": frozenset(),
+    "gesture_ack": frozenset({"gesture"}),
+    "tts_aborted": frozenset(),
+}
+SERVER_MESSAGE_REQUIRED_FIELDS = {
+    "challenge": frozenset({"challenge"}),
+    "error": frozenset({"code"}),
+    "ready": frozenset({"session_id", "ui_state"}),
+    "catalog": frozenset({"commands"}),
+    "confirm_request": frozenset({"confirmation_id", "tool_name", "summary", "expires_at"}),
+    "tool_result": frozenset({"tool_name", "status", "success"}),
+    "ui_state": frozenset({"state"}),
+    "pong": frozenset(),
+    "status_ack": frozenset(),
+    "device_hello_ack": frozenset(),
+    "gesture_ack": frozenset({"gesture"}),
+    "tts_aborted": frozenset(),
+}
+MOBILE_SERVER_MESSAGE_TYPES = frozenset(
+    {
+        "device_hello_ack",
+        "catalog",
+        "confirm_request",
+        "tool_result",
+        "ui_state",
+        "error",
+        "pong",
+        "status_ack",
+        "gesture_ack",
+        "tts_aborted",
+    }
+)
+
 
 class ProtocolError(ValueError):
     """A message does not satisfy the Pipα wire contract."""
@@ -244,4 +292,14 @@ def server_message(message_type: str, **fields: Any) -> dict[str, Any]:
         raise ValueError("server message type is required")
     if "type" in fields or "protocol_version" in fields:
         raise ValueError("reserved server message fields cannot be overridden")
+    allowed_fields = SERVER_MESSAGE_FIELDS.get(message_type)
+    required_fields = SERVER_MESSAGE_REQUIRED_FIELDS.get(message_type)
+    if allowed_fields is None or required_fields is None:
+        raise ValueError(f"unsupported server message type: {message_type}")
+    unknown_fields = set(fields) - allowed_fields
+    if unknown_fields:
+        raise ValueError(f"unexpected server message fields: {', '.join(sorted(unknown_fields))}")
+    missing_fields = required_fields - set(fields)
+    if missing_fields:
+        raise ValueError(f"missing server message fields: {', '.join(sorted(missing_fields))}")
     return {"protocol_version": PROTOCOL_VERSION, "type": message_type, **fields}

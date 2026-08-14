@@ -144,6 +144,9 @@ Invoke-ExternalCheck -Name 'Mobile catalog contract' -FilePath $python -Argument
 Invoke-ExternalCheck -Name 'Mobile confirmation contract' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'scripts/check_mobile_confirmation_contract.py')
 )
+Invoke-ExternalCheck -Name 'Mobile server envelope contract' -FilePath $python -Arguments @(
+    (Join-Path $repoRoot 'scripts/check_mobile_server_envelope_contract.py')
+)
 Invoke-ExternalCheck -Name 'Mobile safety contract' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'scripts/check_mobile_safety_contract.py')
 )
