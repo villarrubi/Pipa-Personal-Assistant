@@ -63,6 +63,20 @@ class AppsAndUrlsTests(unittest.TestCase):
             with self.subTest(script=script):
                 with self.assertRaises(ValueError):
                     validate_apps_config({"demo": {"aliases": ["demo"], "command": [script]}})
+        for interpreter in (
+            "python.exe",
+            "py.exe",
+            "node.exe",
+            "javaw.exe",
+            "dotnet.exe",
+            "wsl.exe",
+            "mshta.exe",
+            "rundll32.exe",
+            "regsvr32.exe",
+        ):
+            with self.subTest(interpreter=interpreter):
+                with self.assertRaises(ValueError):
+                    validate_apps_config({"demo": {"aliases": ["demo"], "command": [interpreter]}})
         with self.assertRaises(ValueError):
             validate_apps_config({"demo": {"aliases": ["demo"], "command": ["demo.exe", "/c"]}})
         with self.assertRaises(ValueError):
