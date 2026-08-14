@@ -66,6 +66,7 @@ python .\windows-agent\pipa_cli.py integration-status
 python .\windows-agent\pipa_cli.py commands
 python .\windows-agent\pipa_cli.py protocol
 python .\windows-agent\pipa_cli.py intent "busca en Apple Music Daft Punk"
+python .\windows-agent\pipa_cli.py intent "pon la canción Bohemian Rhapsody"
 python .\windows-agent\pipa_cli.py preview "busca una partida clasificatoria solo"
 python .\windows-agent\pipa_cli.py intent "busca una partida de LoL"
 python .\windows-agent\pipa_cli.py intent "manda un mensaje de WhatsApp a mamá diciendo llego"

@@ -37,6 +37,8 @@ class IntegrationIntentTests(unittest.TestCase):
             "reproduce el tema de Queen en Apple Music",
             "busca canción Blinding Lights en Apple Music",
             "busca Daft Punk en Apple Music",
+            "pon la canción Bohemian Rhapsody",
+            "reproduce el tema de Queen",
         ):
             with self.subTest(phrase=phrase):
                 expected_tool = "music_search"
@@ -50,8 +52,18 @@ class IntegrationIntentTests(unittest.TestCase):
                         "reproduce el tema de Queen en Apple Music": "Queen",
                         "busca canción Blinding Lights en Apple Music": "Blinding Lights",
                         "busca Daft Punk en Apple Music": "Daft Punk",
+                        "pon la canción Bohemian Rhapsody": "Bohemian Rhapsody",
+                        "reproduce el tema de Queen": "Queen",
                     }[phrase],
                 )
+
+    def test_selected_track_controls_are_not_mistaken_for_a_new_search(self):
+        for phrase in (
+            "reproduce la canción seleccionada",
+            "pon la canción elegida",
+        ):
+            with self.subTest(phrase=phrase):
+                self.assert_intent(phrase, "media_action", {"action": "play_pause"})
 
     def test_whatsapp_and_discord_contact_phrases_keep_manual_boundaries(self):
         self.assert_intent(

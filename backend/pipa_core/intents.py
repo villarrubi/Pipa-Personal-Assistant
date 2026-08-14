@@ -74,6 +74,10 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         "reproduce la pista",
         "reproduce la pista seleccionada",
         "reproduce la seleccion",
+        "reproduce la cancion elegida",
+        "reproduce el tema seleccionado",
+        "pon la cancion seleccionada",
+        "pon la cancion elegida",
         "pon la cancion",
         "dale al play",
         "dale play",
@@ -537,6 +541,22 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     )
     if music_request_natural:
         return ParsedIntent("music_search", {"term": _clean_music_term(music_request_natural.group(1))})
+
+    # When the user names the media type but omits the service, keep the same
+    # safe behavior as the Apple Music form: open a bounded search and leave
+    # the final track selection/playback to the person.  Requiring "canción"
+    # or "tema" avoids interpreting a bare "pon X" as an external search.
+    music_request_without_service = re.fullmatch(
+        r"(?:pon(?:me)?|reproduce|reproducir) "
+        r"(?:(?:(?:la|el|una|un) )?(?:canci[oó]n|tema)(?: de )?)"
+        r"(.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if music_request_without_service:
+        term = _clean_music_term(music_request_without_service.group(1))
+        if term.casefold() not in {"seleccionada", "seleccionado", "elegida", "elegido"}:
+            return ParsedIntent("music_search", {"term": term})
 
     song_search = re.fullmatch(
         r"(?:b(?:u|ú)sca(?:me)?|buscar) (?:(?:la|una) )?(?:canción|cancion|tema) (?:de )?"
