@@ -24,11 +24,17 @@ if ($null -eq $task) {
     # correctly installed task is not reported as missing.
     $schtasks = Join-Path $env:WINDIR 'System32\schtasks.exe'
     if (Test-Path -LiteralPath $schtasks -PathType Leaf) {
+        $previousErrorAction = $ErrorActionPreference
         try {
+            # A missing task is reported by schtasks through its native error
+            # stream and a non-zero exit code. Capture that output without
+            # turning a verifiable absence into an inaccessible scheduler.
+            $ErrorActionPreference = 'Continue'
             $xmlOutput = @(& $schtasks /Query /TN "$TaskPath$TaskName" /XML 2>&1)
+            $schtasksExitCode = $LASTEXITCODE
             $xmlText = $xmlOutput -join "`n"
             $taskMissing = $xmlText -match '(?i)(cannot find|no puede encontrar|no se puede encontrar|no existe|not exist|path specified|ruta especificada)'
-            if ($LASTEXITCODE -eq 0 -and $xmlOutput.Count -gt 0) {
+            if ($schtasksExitCode -eq 0 -and $xmlOutput.Count -gt 0) {
                 $taskXml = [xml]$xmlText
                 $taskQueryFailed = $false
             } elseif ($taskMissing) {
@@ -42,6 +48,8 @@ if ($null -eq $task) {
         } catch {
             $taskXml = $null
             $taskQueryFailed = $true
+        } finally {
+            $ErrorActionPreference = $previousErrorAction
         }
     } else {
         $taskQueryFailed = $true

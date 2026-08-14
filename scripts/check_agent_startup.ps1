@@ -75,7 +75,7 @@ if ($installer -match '(?i)(-RunLevel\s+Highest|/RL\s+HIGHEST|-Verb\s+RunAs)') {
 if ($status.IndexOf('$taskQueryFailed = $true', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'El diagnostico no distingue una tarea ilegible de una tarea ausente.'
 }
-foreach ($requiredStatusPattern in @('currentUserSid', 'currentUserLeaf', 'Test-CurrentUserId', '$taskMissing', '$taskQueryFailed = $false')) {
+foreach ($requiredStatusPattern in @('currentUserSid', 'currentUserLeaf', 'Test-CurrentUserId', '$taskMissing', '$taskQueryFailed = $false', '$previousErrorAction = $ErrorActionPreference', '$schtasksExitCode = $LASTEXITCODE')) {
     if ($status.IndexOf($requiredStatusPattern, [System.StringComparison]::Ordinal) -lt 0) {
         throw "El diagnostico no valida la identidad actual de forma exacta: $requiredStatusPattern"
     }
