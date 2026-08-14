@@ -116,6 +116,11 @@ class CoreTests(unittest.TestCase):
                 "No se pudo confirmar el estado de búsqueda de League.",
             ),
             (
+                "league_cancel",
+                {"success": True, "cancelled": False, "already_not_searching": True},
+                "League no estaba buscando partida.",
+            ),
+            (
                 "timer_list",
                 {"success": True, "timers": [{"timer_id": "private-id", "label": "private label"}]},
                 "Temporizadores registrados: 1.",
