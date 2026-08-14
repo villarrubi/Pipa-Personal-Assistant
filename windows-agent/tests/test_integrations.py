@@ -369,7 +369,7 @@ class IntegrationTests(unittest.TestCase):
         )
 
         self.assertFalse(result["result"]["sent"])
-        self.assertEqual(result["result"]["contact"], "mama")
+        self.assertNotIn("contact", result["result"])
         self.assertNotIn("url", result["result"])
         resolve_contact.assert_has_calls([call("mama"), call("mama"), call("mama")])
         self.assertEqual(resolve_contact.call_count, 3)
@@ -417,7 +417,7 @@ class IntegrationTests(unittest.TestCase):
             owner_id="waveshare-test",
         )
 
-        self.assertEqual(result["result"]["contact"], "mama")
+        self.assertNotIn("contact", result["result"])
         self.assertFalse(result["result"]["sent"])
         self.assertNotIn("url", result["result"])
         resolve_contact.assert_has_calls([call("mama"), call("mama"), call("mama")])
@@ -446,6 +446,7 @@ class IntegrationTests(unittest.TestCase):
 
         self.assertFalse(result["result"]["call_started"])
         self.assertTrue(result["result"]["requires_manual_call"])
+        self.assertNotIn("contact", result["result"])
         resolve_contact.assert_has_calls([call("amigo"), call("amigo"), call("amigo")])
         self.assertEqual(resolve_contact.call_count, 3)
         open_call.assert_called_once_with("12345678901234567", None)

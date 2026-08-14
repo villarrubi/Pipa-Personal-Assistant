@@ -589,8 +589,8 @@ def api_whatsapp_open():
 @app.post("/whatsapp/contact/compose")
 def api_whatsapp_contact_compose(request: ContactMessageRequest):
     try:
-        contact_name, phone = resolve_whatsapp_contact(request.contact)
-        return open_whatsapp_compose(phone, request.message) | {"contact": contact_name}
+        _contact_name, phone = resolve_whatsapp_contact(request.contact)
+        return open_whatsapp_compose(phone, request.message)
     except ValueError as error:
         raise HTTPException(
             status_code=400, detail="El contacto o mensaje de WhatsApp no es válido."
@@ -600,8 +600,8 @@ def api_whatsapp_contact_compose(request: ContactMessageRequest):
 @app.post("/whatsapp/contact/open")
 def api_whatsapp_contact_open(request: ContactRequest):
     try:
-        contact_name, phone = resolve_whatsapp_contact(request.contact)
-        return open_whatsapp_chat(phone) | {"contact": contact_name}
+        _contact_name, phone = resolve_whatsapp_contact(request.contact)
+        return open_whatsapp_chat(phone)
     except ValueError as error:
         raise HTTPException(status_code=400, detail="El contacto de WhatsApp no está disponible.") from error
 
@@ -638,8 +638,8 @@ def api_discord_channel_call(request: DiscordChannelRequest):
 @app.post("/discord/contact/open")
 def api_discord_contact_open(request: ContactRequest):
     try:
-        contact_name, channel_id, guild_id = resolve_discord_contact(request.contact)
-        return open_discord_channel(channel_id, guild_id) | {"contact": contact_name}
+        _contact_name, channel_id, guild_id = resolve_discord_contact(request.contact)
+        return open_discord_channel(channel_id, guild_id)
     except ValueError as error:
         raise HTTPException(status_code=400, detail="El contacto de Discord no está disponible.") from error
 
@@ -647,8 +647,8 @@ def api_discord_contact_open(request: ContactRequest):
 @app.post("/discord/contact/call")
 def api_discord_contact_call(request: ContactRequest):
     try:
-        contact_name, channel_id, guild_id = resolve_discord_contact(request.contact)
-        return open_discord_call(channel_id, guild_id) | {"contact": contact_name}
+        _contact_name, channel_id, guild_id = resolve_discord_contact(request.contact)
+        return open_discord_call(channel_id, guild_id)
     except ValueError as error:
         raise HTTPException(status_code=400, detail="El contacto de Discord no está disponible.") from error
 

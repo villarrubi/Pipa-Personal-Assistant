@@ -165,7 +165,7 @@ class MainRouteTests(unittest.TestCase):
 
         self.assertFalse(response["call_started"])
         self.assertTrue(response["requires_manual_call"])
-        self.assertEqual(response["contact"], "amigo")
+        self.assertNotIn("contact", response)
         resolve_contact.assert_called_once_with("amigo")
         open_call.assert_called_once_with("12345678901234567", None)
 
@@ -218,7 +218,7 @@ class MainRouteTests(unittest.TestCase):
 
         self.assertTrue(response["success"])
         self.assertFalse(response["sent"])
-        self.assertEqual(response["contact"], "mama")
+        self.assertNotIn("contact", response)
         self.assertNotIn("url", response)
         resolve_contact.assert_called_once_with("mama")
         open_browser.assert_called_once_with("https://wa.me/34600123456")

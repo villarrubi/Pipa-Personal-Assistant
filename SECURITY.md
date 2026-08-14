@@ -15,9 +15,9 @@ de recuperación y acceso.
   mutaciones y acciones externas. No es un sustituto de la confirmación del
   dispositivo y no protege frente a malware que ya se ejecute con la misma
   cuenta.
-- Las respuestas REST de acciones externas se minimizan y omiten URLs, teléfonos
-  e identificadores de destino; esos valores solo viven en el adaptador local
-  durante la apertura validada.
+- Las respuestas REST de acciones externas se minimizan y omiten URLs, teléfonos,
+  alias e identificadores de destino; esos valores solo viven en el adaptador
+  local durante la apertura validada.
 - Las respuestas de validación HTTP tampoco repiten los valores de entrada, para
   que una solicitud malformada no convierta un teléfono, mensaje o URL en una
   respuesta de diagnóstico.
@@ -96,10 +96,11 @@ de recuperación y acceso.
   rechaza lanzadores `cmd`/PowerShell/WScript/Bash y switches de intérprete,
   por lo que las aplicaciones deben arrancar mediante su ejecutable directo.
 - Los alias de contactos viven únicamente en `windows-agent/config/contacts.local.json`;
-  se validan con destinos acotados, no se publican en capacidades ni catálogo y
-  solo preparan WhatsApp o abren Discord. Un alias inexistente se rechaza antes
-  de crear una confirmación y se vuelve a validar al consumirla. Envío y llamada
-  siguen requiriendo una acción humana visible.
+  se validan con destinos acotados, no se publican en capacidades, catálogo,
+  respuestas ni resultados de acciones y solo preparan WhatsApp o abren Discord.
+  Un alias inexistente se rechaza antes de crear una confirmación y se vuelve a
+  validar al consumirla. Envío y llamada siguen requiriendo una acción humana
+  visible.
 - Las configuraciones locales de aplicaciones y contactos se leen con un límite
   de 128 KiB y un número máximo de entradas; JSON sobredimensionado, ambiguo o
   con lanzadores de shell se rechaza antes de ejecutar una aplicación.

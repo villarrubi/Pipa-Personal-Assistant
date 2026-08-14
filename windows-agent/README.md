@@ -212,7 +212,8 @@ usuario. Los clientes WebSocket de navegador se rechazan mientras no exista
 una UI local con orígenes explícitos.
 
 Las respuestas REST de acciones externas están minimizadas: no devuelven la URL,
-el teléfono ni el ID de destino que el adaptador haya usado internamente. Los
+el teléfono, el ID de destino ni el alias local que el adaptador haya usado
+internamente. Los
 adaptadores sí pueden abrir el destino en el equipo, pero cualquier envío de
 WhatsApp o llamada de Discord sigue requiriendo la intervención visible del usuario.
 
