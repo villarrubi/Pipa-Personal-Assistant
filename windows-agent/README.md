@@ -658,7 +658,9 @@ Para preparar el primer puerto de forma repetible, desde la raíz del repositori
 
 La primera orden valida sin escribir configuración. La segunda solo guarda el
 COM del usuario después de una sonda correcta y puede reiniciar el agente sin
-mostrar una ventana. Ninguna de las dos órdenes empareja claves ni activa v2.
+mostrar una ventana. El reinicio inmediato hereda también el COM recién
+validado aunque se ejecute desde la misma ventana de PowerShell. Ninguna de
+las dos órdenes empareja claves ni activa v2.
 
 El transporte serie v2 cifrado se activa únicamente con
 `PIPA_SERIAL_SECURITY=v2`. Requiere una identidad del agente protegida por
@@ -694,7 +696,9 @@ Como alternativa, el repositorio incluye un configurador validado y reversible:
 
 El primer comando solo muestra la operación. El segundo escribe únicamente
 variables de entorno del usuario; no crea firewall, no empareja dispositivos y
-no abre el listener hasta reiniciar el agente. Para desactivarlo:
+no abre el listener hasta reiniciar el agente. También actualiza el entorno del
+proceso actual, por lo que un reinicio inmediato desde esa misma consola usa
+la configuración nueva. Para desactivarlo:
 
 ```powershell
 .\scripts\configure_mobile_transport.ps1 -Disable

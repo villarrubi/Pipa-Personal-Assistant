@@ -77,6 +77,9 @@ if ($Disable) {
         [Environment]::SetEnvironmentVariable($transportName, $null, 'User')
         [Environment]::SetEnvironmentVariable($bindName, $null, 'User')
         [Environment]::SetEnvironmentVariable($portName, $null, 'User')
+        Remove-Item Env:$transportName -ErrorAction SilentlyContinue
+        Remove-Item Env:$bindName -ErrorAction SilentlyContinue
+        Remove-Item Env:$portName -ErrorAction SilentlyContinue
         Write-Host 'Transporte movil desactivado para nuevas sesiones del agente.' -ForegroundColor Green
         Write-Host 'La regla de firewall, si existe, se retira aparte con configure_mobile_firewall.ps1 -Remove.'
     }
@@ -97,6 +100,11 @@ if ($PSCmdlet.ShouldProcess(
     [Environment]::SetEnvironmentVariable($transportName, 'tcp-v2', 'User')
     [Environment]::SetEnvironmentVariable($bindName, $validatedAddress, 'User')
     [Environment]::SetEnvironmentVariable($portName, [string]$Port, 'User')
+    # User-scope changes do not alter the current PowerShell environment. Keep
+    # an immediate hidden-agent restart from inheriting stale transport values.
+    $env:PIPA_MOBILE_TRANSPORT = 'tcp-v2'
+    $env:PIPA_MOBILE_BIND = $validatedAddress
+    $env:PIPA_MOBILE_PORT = [string]$Port
     Write-Host "Transporte movil configurado: tcp-v2 en $validatedAddress`:$Port" -ForegroundColor Green
     Write-Host 'Reinicia el agente para aplicar la configuracion.'
     Write-Host 'Configura el firewall por separado y limitado a red privada:'

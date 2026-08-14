@@ -84,6 +84,30 @@ function Invoke-PipaJsonCheck {
     }
 }
 
+$prepareScript = Join-Path $repoRoot 'scripts/prepare_waveshare.ps1'
+if (Test-Path -LiteralPath $prepareScript -PathType Leaf) {
+    $prepareContent = Get-Content -LiteralPath $prepareScript -Raw
+    $prepareSafe =
+        $prepareContent.IndexOf('SetEnvironmentVariable(''PIPA_SERIAL_PORT'', $Port, ''User'')', [System.StringComparison]::Ordinal) -ge 0 -and
+        $prepareContent.IndexOf('$env:PIPA_SERIAL_PORT = $Port', [System.StringComparison]::Ordinal) -ge 0 -and
+        $prepareContent.IndexOf('-RestartAgent', [System.StringComparison]::Ordinal) -ge 0
+    Write-CheckResult -Name 'Waveshare restart inherits validated COM' -Success $prepareSafe
+} else {
+    Write-CheckResult -Name 'Waveshare restart inherits validated COM' -Success $false -Detail ' (prepare script missing)'
+}
+
+$mobileTransportScript = Join-Path $repoRoot 'scripts/configure_mobile_transport.ps1'
+if (Test-Path -LiteralPath $mobileTransportScript -PathType Leaf) {
+    $mobileTransportContent = Get-Content -LiteralPath $mobileTransportScript -Raw
+    $mobileTransportSafe =
+        $mobileTransportContent.IndexOf("SetEnvironmentVariable(`$transportName, 'tcp-v2', 'User')", [System.StringComparison]::Ordinal) -ge 0 -and
+        $mobileTransportContent.IndexOf('$env:PIPA_MOBILE_TRANSPORT = ''tcp-v2''', [System.StringComparison]::Ordinal) -ge 0 -and
+        $mobileTransportContent.IndexOf('Remove-Item Env:$transportName', [System.StringComparison]::Ordinal) -ge 0
+    Write-CheckResult -Name 'Mobile transport restart inherits current configuration' -Success $mobileTransportSafe
+} else {
+    Write-CheckResult -Name 'Mobile transport restart inherits current configuration' -Success $false -Detail ' (transport script missing)'
+}
+
 Write-Host 'Pipa pre-hardware gate' -ForegroundColor Cyan
 Write-Host ("Repository: {0}" -f $repoRoot)
 

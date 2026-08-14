@@ -62,6 +62,10 @@ Write-Host 'La sonda fue pasiva: no envio comandos, no activo Wake-on-LAN y no e
 
 if ($PSCmdlet.ShouldProcess('PIPA_SERIAL_PORT del usuario', "establecer $Port")) {
     [Environment]::SetEnvironmentVariable('PIPA_SERIAL_PORT', $Port, 'User')
+    # A newly written User environment value is not retroactively added to the
+    # current PowerShell process. Refresh this process too so -RestartAgent
+    # passes the validated port to the hidden child immediately.
+    $env:PIPA_SERIAL_PORT = $Port
     Write-Host ("PIPA_SERIAL_PORT establecido para el usuario: {0}" -f $Port) -ForegroundColor Green
 }
 
