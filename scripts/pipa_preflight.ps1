@@ -297,6 +297,10 @@ if ($CheckFirmware) {
             '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
             (Join-Path $repoRoot 'scripts/check_audio_i2s_lab.ps1')
         )
+        Invoke-ExternalCheck -Name 'Firmware UI error recovery' -FilePath 'powershell.exe' -Arguments @(
+            '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+            (Join-Path $repoRoot 'scripts/check_firmware_ui_recovery.ps1')
+        )
         # Keep PlatformIO state inside the repository's ignored workspace so a
         # protected or stale user profile cannot make a valid build fail.
         $env:PLATFORMIO_CORE_DIR = Join-Path $repoRoot '.platformio-preflight'

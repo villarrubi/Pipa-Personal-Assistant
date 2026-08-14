@@ -211,6 +211,14 @@ void PipaProtocol::handleMessage(JsonDocument& document) {
       clearSessionUi();
       last_challenge_request_ = millis();
       sendChallengeRequest();
+    } else {
+      // An error is authoritative for the current request. Do not leave a
+      // stale confirmation or a permanent "thinking" screen visible when a
+      // transport/parser error arrives without a follow-up ui_state frame.
+      // If the server sends a fresh ui_state immediately afterwards, that
+      // state will replace this bounded recovery state in the same poll.
+      clearSessionUi();
+      ui_.caption = "La solicitud no ha podido completarse.";
     }
     // Error codes are server-controlled input. Keep the serial channel
     // limited to a static event; the authenticated UI handles the bounded

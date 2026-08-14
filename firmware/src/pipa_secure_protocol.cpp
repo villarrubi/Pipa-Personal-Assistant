@@ -287,6 +287,14 @@ void PipaSecureProtocol::handleMessage(JsonObjectConst object) {
       resetHandshake();
       last_handshake_ = millis();
       log("secure authentication error; handshake restarted");
+    } else {
+      // Invalidate any stale physical confirmation and recover the display if
+      // an error is not accompanied by a later ui_state frame. A subsequent
+      // ui_state from Core still wins during this same poll cycle.
+      ui_.state = "idle";
+      ui_.caption = "La solicitud no ha podido completarse.";
+      ui_.confirmation_id.clear();
+      ui_.confirmation_summary.clear();
     }
   }
 }

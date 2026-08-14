@@ -37,6 +37,7 @@ $requiredFragments = @(
     './scripts/check_firmware_security_gate.ps1',
     './scripts/check_secure_handshake_contract.ps1',
     './scripts/check_audio_i2s_lab.ps1',
+    './scripts/check_firmware_ui_recovery.ps1',
     './scripts/check_secure_audio_contract.ps1',
     './scripts/check_audio_state_machine.ps1',
     './scripts/check_display_text.ps1',
