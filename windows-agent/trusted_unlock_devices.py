@@ -190,33 +190,92 @@ class WindowsRegistryDeviceStore:
         except PermissionError as error:
             raise DeviceStoreError("administrator permissions are required to pair a device") from error
 
+        key_closed = False
+
+        def close_key() -> None:
+            nonlocal key_closed
+            if key_closed:
+                return
+            try:
+                key.Close()
+            except OSError:
+                # Do not replace the original persistence error with a close
+                # failure. The registry provider will fail closed if the
+                # entry cannot be read back completely.
+                pass
+            key_closed = True
+
+        def remove_new_entry() -> bool:
+            """Best-effort cleanup for a key created by this registration."""
+
+            close_key()
+            try:
+                winreg.DeleteKeyEx(
+                    winreg.HKEY_LOCAL_MACHINE,
+                    path,
+                    access=self._wow64,
+                )
+            except FileNotFoundError:
+                return True
+            except OSError:
+                return False
+            return True
+
         try:
             try:
                 existing_key = key.QueryValueEx(PUBLIC_KEY_VALUE)[0]
             except FileNotFoundError:
                 existing_key = None
 
+            try:
+                existing_created = key.QueryValueEx(CREATED_AT_VALUE)[0]
+            except FileNotFoundError:
+                existing_created = None
+
             if existing_key is not None and existing_key != public_key_b64:
                 raise DeviceAlreadyRegisteredError(f"device ID is already bound to another key: {device_id}")
 
-            if existing_key is None:
-                key.SetValueEx(
-                    PUBLIC_KEY_VALUE,
-                    0,
-                    winreg.REG_SZ,
-                    public_key_b64,
-                )
-                key.SetValueEx(
-                    CREATED_AT_VALUE,
-                    0,
-                    winreg.REG_QWORD,
-                    int(time.time() if created_at is None else created_at),
-                )
+            if (existing_key is None) != (existing_created is None):
+                # A valid entry is an all-or-nothing pair. Never silently
+                # complete or overwrite a partially written registration:
+                # manual revocation and an explicit re-pair should be needed
+                # to repair a damaged store.
+                raise DeviceStoreError("trusted device registration is incomplete")
 
-            created = int(key.QueryValueEx(CREATED_AT_VALUE)[0])
+            if existing_key is None:
+                created_value = int(time.time() if created_at is None else created_at)
+                try:
+                    key.SetValueEx(
+                        PUBLIC_KEY_VALUE,
+                        0,
+                        winreg.REG_SZ,
+                        public_key_b64,
+                    )
+                    key.SetValueEx(
+                        CREATED_AT_VALUE,
+                        0,
+                        winreg.REG_QWORD,
+                        created_value,
+                    )
+                except (OSError, TypeError, ValueError) as error:
+                    cleaned = remove_new_entry()
+                    message = "could not persist trusted device registration"
+                    if not cleaned:
+                        message += "; incomplete registry entry could not be removed"
+                    raise DeviceStoreError(message) from error
+                return RegisteredDevice(device_id, public_key_b64, created_value)
+
+            try:
+                created = int(existing_created)
+            except (TypeError, ValueError) as error:
+                raise DeviceStoreError("trusted device registration is invalid") from error
             return RegisteredDevice(device_id, public_key_b64, created)
+        except PermissionError as error:
+            raise DeviceStoreError("administrator permissions are required to pair a device") from error
+        except OSError as error:
+            raise DeviceStoreError("could not read trusted device registration") from error
         finally:
-            key.Close()
+            close_key()
 
     def revoke(self, device_id: str) -> None:
         validate_device_id(device_id)
@@ -257,12 +316,17 @@ class WindowsRegistryDeviceStore:
                         break
                     raise DeviceStoreError("could not enumerate trusted device store") from error
                 index += 1
-                validate_device_id(device_id)
-
-                with winreg.OpenKey(root, device_id, 0, winreg.KEY_READ) as key:
-                    public_key_b64 = str(key.QueryValueEx(PUBLIC_KEY_VALUE)[0])
-                    created_at = int(key.QueryValueEx(CREATED_AT_VALUE)[0])
-                public_key_from_base64(public_key_b64)
+                try:
+                    validate_device_id(device_id)
+                    with winreg.OpenKey(root, device_id, 0, winreg.KEY_READ) as key:
+                        public_key_b64 = str(key.QueryValueEx(PUBLIC_KEY_VALUE)[0])
+                        created_at = int(key.QueryValueEx(CREATED_AT_VALUE)[0])
+                    public_key_from_base64(public_key_b64)
+                except (OSError, TypeError, ValueError) as error:
+                    # A partial, corrupt or concurrently removed entry must
+                    # never become a partially trusted snapshot or an
+                    # uncaught traceback from the admin CLI.
+                    raise DeviceStoreError("could not read trusted device store") from error
                 devices.append(RegisteredDevice(device_id, public_key_b64, created_at))
         finally:
             root.Close()

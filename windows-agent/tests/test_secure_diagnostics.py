@@ -64,7 +64,7 @@ class SecureDiagnosticsTests(unittest.TestCase):
         self.assertTrue(result["bounded_summary"])
         self.assertTrue(result["transcript_bridge"])
         self.assertTrue(result["intent_routed"])
-        self.assertEqual(result["voice_intents_checked"], 10)
+        self.assertEqual(result["voice_intents_checked"], 14)
         self.assertFalse(result["external_actions_executed"])
         self.assertFalse(result["persistent_keys_touched"])
 

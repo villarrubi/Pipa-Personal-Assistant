@@ -49,6 +49,39 @@ _INTEGRATION_CASES: tuple[tuple[str, dict[str, Any]], ...] = (
 )
 INTEGRATION_CASE_COUNT = len(_INTEGRATION_CASES)
 
+# These phrases use the same parser path as a future voice-capable device.
+# Keep destinations synthetic and direct so the diagnostic never needs local
+# contact aliases or a real application while still exercising every named
+# integration from natural language through confirmation.
+_VOICE_INTEGRATION_CASES: tuple[tuple[str, str, dict[str, Any]], ...] = (
+    (
+        "busca en internet Pipa private demo query",
+        "web_search",
+        {"query": "Pipa private demo query"},
+    ),
+    (
+        "pon una canción de Daft Punk en Apple Music",
+        "music_search",
+        {"term": "Daft Punk"},
+    ),
+    (
+        "prepara WhatsApp para +34 600 000 000 y dile Pipa private demo message",
+        "whatsapp_compose",
+        {"phone": "+34 600 000 000", "message": "Pipa private demo message"},
+    ),
+    (
+        "llama a Discord canal 12345678901234567",
+        "discord_call_channel",
+        {"channel_id": "12345678901234567"},
+    ),
+    (
+        "busca partida en el LoL",
+        "league_search",
+        {"queue": "normal_draft"},
+    ),
+)
+VOICE_INTEGRATION_CASE_COUNT = len(_VOICE_INTEGRATION_CASES)
+
 
 def _synthetic_catalog(executed: list[str]) -> ToolCatalog:
     """Copy real safety metadata while replacing every outward handler."""
@@ -72,6 +105,51 @@ def _synthetic_catalog(executed: list[str]) -> ToolCatalog:
             )
         )
     return ToolCatalog(definitions)
+
+
+def _check_voice_cases(simulator, executed: list[str]) -> None:
+    """Route natural-language cases through the real Core parser safely."""
+
+    for _index, (phrase, expected_tool, arguments) in enumerate(_VOICE_INTEGRATION_CASES):
+        executed_before = len(executed)
+        pending = simulator.send(
+            "text_input",
+            text=phrase,
+            source="voice",
+        )
+        confirmation = next(
+            (item for item in pending if item.get("type") == "confirm_request"),
+            None,
+        )
+        if (
+            confirmation is None
+            or confirmation.get("tool_name") != expected_tool
+            or len(executed) != executed_before
+        ):
+            raise ValueError(f"voice route did not stop at confirmation: {expected_tool}")
+
+        pending_text = json.dumps(pending, ensure_ascii=False)
+        if any(str(value) in pending_text for value in arguments.values()):
+            raise ValueError(f"voice route leaked arguments before confirmation: {expected_tool}")
+
+        completed = simulator.send(
+            "confirm",
+            confirmation_id=confirmation["confirmation_id"],
+            accepted=True,
+        )
+        result = next(
+            (item for item in completed if item.get("type") == "tool_result"),
+            None,
+        )
+        if (
+            not isinstance(result, dict)
+            or result.get("tool_name") != expected_tool
+            or result.get("success") is not True
+        ):
+            raise ValueError(f"voice route did not complete after confirmation: {expected_tool}")
+        completed_text = json.dumps(completed, ensure_ascii=False)
+        if any(str(value) in completed_text for value in arguments.values()):
+            raise ValueError(f"voice route leaked arguments after confirmation: {expected_tool}")
 
 
 def run_integration_protocol_self_test() -> dict[str, object]:
@@ -117,7 +195,10 @@ def run_integration_protocol_self_test() -> dict[str, object]:
             if any(str(value) in completed_text for value in arguments.values()):
                 raise ValueError(f"{tool_name} leaked arguments after confirmation")
 
+        _check_voice_cases(simulator, executed)
+
         expected_tools = [name for name, _arguments in _INTEGRATION_CASES]
+        expected_tools.extend(tool_name for _phrase, tool_name, _arguments in _VOICE_INTEGRATION_CASES)
         if executed != expected_tools:
             raise ValueError("synthetic handlers did not execute in the expected order")
     finally:
@@ -125,6 +206,7 @@ def run_integration_protocol_self_test() -> dict[str, object]:
 
     return {
         "commands_checked": INTEGRATION_CASE_COUNT,
+        "voice_commands_checked": VOICE_INTEGRATION_CASE_COUNT,
         "confirmation_gated": True,
         "executed_only_after_confirmation": True,
         "result_redacted": True,

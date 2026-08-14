@@ -143,8 +143,9 @@ que las solicitó y caducan si no se confirman.
 - Ejecutar `python .\windows-agent\pipa_cli.py secure-audio-test` para
   comprobar el contrato de audio cifrado con PCM sintético, consentimiento,
   orden y límites, sin activar micrófono, red, puerto serie ni claves
-  persistentes. Además comprueba diez frases de voz sintéticas para web,
-  Apple Music, WhatsApp, Discord y League contra el parser natural.
+  persistentes. Además comprueba catorce frases de voz sintéticas para web,
+  Apple Music, WhatsApp, Discord y League contra el parser natural, incluidas
+  variantes con servicio al final y mensajes separados por dos puntos.
 - Ejecutar `python .\windows-agent\pipa_cli.py voice-preview <frase>` para
   simular una transcripción de voz sobre ese transporte cifrado y revisar el
   parser, los argumentos y la confirmación que tendría; no captura audio ni
@@ -200,6 +201,8 @@ que las solicitó y caducan si no se confirman.
 - Recorrer todas las acciones externas de integración desde un simulador autenticado con
   `python .\windows-agent\pipa_cli.py integration-protocol-test`; usa handlers
   sintéticos, exige confirmación y no abre aplicaciones ni contacta servicios.
+  También recorre cinco frases naturales de voz por el mismo parser y comprueba
+  que sus argumentos no aparecen en la confirmación ni en el resultado del dispositivo.
 - El contrato de audio cifrado ya tiene un consumidor por chunks en Windows:
   exige codec listo, indicador visible, consentimiento y transporte seguro;
   entrega memoria efímera a un futuro STT local, borra el buffer y cierra la

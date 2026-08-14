@@ -403,6 +403,8 @@ cada comando parametrizado mantiene el mismo número de campos que sus marcadore
 sintéticos: usa el catálogo y validadores reales, autentica un dispositivo
 efímero, exige confirmación y comprueba la redacción del resultado, sin abrir
 aplicaciones, contactar con League ni modificar claves persistentes.
+Además recorre cinco frases naturales de voz por el mismo parser y comprueba
+que sus argumentos no aparecen en la confirmación ni en el resultado del dispositivo.
 La matriz pública de integraciones se valida además contra un contrato único:
 Apple Music no anuncia reproducción automática, WhatsApp no anuncia envío,
 Discord no anuncia inicio de llamada, League no anuncia aceptación de partida y
@@ -415,7 +417,7 @@ persistente de DPAPI.
 `secure-audio-test` ejecuta el contrato de audio con muestras PCM sintéticas:
 comprueba la compuerta de codec, pantalla, consentimiento y transporte seguro,
 el orden cifrado de los chunks, el puente de transcript final hasta el Core y el resumen acotado. También
-comprueba diez frases sintéticas representativas de web, Apple Music, WhatsApp, Discord y League
+comprueba catorce frases sintéticas representativas de web, Apple Music, WhatsApp, Discord y League
 contra el parser natural, para detectar que la futura voz no pierda rutas ni cambie argumentos. El
 `SecureAudioCommandBridge` garantiza un único dispatch tras el frame final y cierra el transcriptor ante
 éxito, error o cancelación. No abre micrófono,

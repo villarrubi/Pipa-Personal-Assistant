@@ -265,6 +265,28 @@ class SecureTcpGatewayTests(unittest.TestCase):
         asyncio.run(exchange())
         self.assertEqual(core.sessions.count(), 0)
 
+    def test_key_rotation_provider_closes_an_active_session(self):
+        core, gateway, client, _server_identity, _executed = self._build()
+        trusted = dict(gateway.trusted_devices)
+        gateway.trusted_devices_provider = lambda: trusted
+        gateway.revocation_check_seconds = 0.1
+        rotated_key = Ed25519PrivateKey.generate().public_key()
+
+        async def exchange():
+            gateway.start()
+            try:
+                await client.connect(gateway.bind_host, gateway.port)
+                trusted[client.identity.identity_id] = rotated_key
+                await asyncio.sleep(0.25)
+                with self.assertRaises(ValueError):
+                    await client.send_text("estado de League")
+            finally:
+                await client.close()
+                gateway.stop()
+
+        asyncio.run(exchange())
+        self.assertEqual(core.sessions.count(), 0)
+
     def test_revocation_store_failure_closes_an_active_session(self):
         core, gateway, client, _server_identity, _executed = self._build()
         trusted = dict(gateway.trusted_devices)

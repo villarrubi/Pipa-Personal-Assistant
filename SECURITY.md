@@ -143,6 +143,10 @@ de recuperación y acceso.
 - La enumeración del almacén de dispositivos del Registro solo interpreta el
   código Win32 explícito de fin de lista como final normal; cualquier error de
   lectura intermedio cierra el camino móvil en lugar de usar una lista parcial.
+- El alta de un dispositivo en el Registro persiste la clave pública y su
+  instante como un par: si falla la segunda escritura, intenta eliminar la
+  subclave recién creada; una entrada incompleta existente se rechaza y no se
+  completa silenciosamente.
 - La actualización del agente usa una ruta de apagado solo en loopback y con
   cabecera específica para que el propio servidor cierre limpiamente; el
   fallback de proceso exige la línea de comandos exacta y nunca termina un PID

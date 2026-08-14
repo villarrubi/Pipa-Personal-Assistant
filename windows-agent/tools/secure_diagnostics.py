@@ -154,6 +154,11 @@ _VOICE_INTENT_CASES = (
     ("estado de integraciones", "integration_status", {}),
     ("busca algo en internet sobre el tiempo", "web_search", {"query": "el tiempo"}),
     ("busca una canción de Daft Punk", "music_search", {"term": "Daft Punk"}),
+    (
+        "pon una canción de Daft Punk en Apple Music",
+        "music_search",
+        {"term": "Daft Punk"},
+    ),
     ("busca una canción en Apple Music", "music_open", {}),
     (
         "prepara WhatsApp para +34 600 000 000 y dile llego en diez minutos",
@@ -171,7 +176,14 @@ _VOICE_INTENT_CASES = (
         "discord_call_channel",
         {"guild_id": "98765432109876543", "channel_id": "12345678901234567"},
     ),
+    ("llama a amigo en Discord", "discord_call", {"contact": "amigo"}),
+    (
+        "manda un mensaje por WhatsApp a mamá: estoy llegando",
+        "whatsapp_contact",
+        {"contact": "mamá", "message": "estoy llegando"},
+    ),
     ("busca una partida de ARAM", "league_search", {"queue": "aram"}),
+    ("busca partida en el LoL", "league_search", {"queue": "normal_draft"}),
     ("cancela la búsqueda del LoL", "league_cancel", {}),
 )
 
