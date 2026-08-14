@@ -498,6 +498,18 @@ Para abrir un chat por un número sin guardarlo como alias usa
 `whatsapp-phone-open +34600123456 --confirm` o la frase `abre WhatsApp para
 +34 600 123 456`. Solo abre el chat y no prepara ni envía ningún mensaje.
 
+Para preparar un alias sin editar JSON a mano, usa el configurador local:
+
+```powershell
+python .\windows-agent\configure_contacts.py --write
+```
+
+El programa solicita el nombre, alias, teléfono e IDs en la consola, conserva
+los contactos existentes y valida todo el documento antes de reemplazarlo de
+forma atómica. Sin `--write` solo valida y no modifica nada. El archivo sigue
+siendo `config/contacts.local.json`, está ignorado por Git y el configurador no
+imprime teléfonos, mensajes ni IDs.
+
 ## Waveshare por USB
 
 El gateway solo se activa con un puerto explícito:

@@ -71,6 +71,9 @@ que las solicitó y caducan si no se confirman.
   `python .\windows-agent\pipa_cli.py integration-status`.
 - Usar alias locales ignorados por Git para preparar WhatsApp sin dictar el
   teléfono.
+- Configurar esos alias con `python .\windows-agent\configure_contacts.py
+  --write`; el asistente valida el archivo local, conserva entradas existentes
+  y nunca lo publica en Git.
 - Abrir Discord o un canal sin iniciar automáticamente una llamada.
 - Si existe una entrada local allowlisted `discord`, abrir esa app; en caso
   contrario, usar el fallback web sin iniciar llamadas.
