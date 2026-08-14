@@ -8,12 +8,12 @@ catalog, capabilities, logs, and device result envelopes.
 
 from __future__ import annotations
 
-import json
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from backend.pipa_core.protocol import ProtocolError, parse_json_object
 from tools.discord import build_discord_channel_url
 from tools.whatsapp import normalize_phone
 
@@ -146,12 +146,12 @@ def load_contacts() -> dict[str, Contact]:
             raw = file.read(MAX_CONFIG_FILE_BYTES + 1)
         if len(raw) > MAX_CONFIG_FILE_BYTES:
             raise ContactsConfigError("La configuración de contactos es demasiado grande.")
-        return validate_contacts(json.loads(raw.decode("utf-8")))
+        return validate_contacts(parse_json_object(raw))
     except OSError as error:
         raise ContactsConfigError("No se pudo leer la configuración local de contactos.") from error
     except UnicodeDecodeError as error:
         raise ContactsConfigError("La configuración local de contactos no es UTF-8 válido.") from error
-    except json.JSONDecodeError as error:
+    except ProtocolError as error:
         raise ContactsConfigError("La configuración local de contactos no es JSON válido.") from error
 
 

@@ -124,6 +124,9 @@ de recuperación y acceso.
   lanzador de Pipa, con sus argumentos, usuario interactivo y trigger de
   inicio; una tarea arbitraria de PowerShell no se considera válida.
 - Logs locales rotativos que no registran cuerpos, firmas, claves ni tokens.
+- Los JSON recibidos por los transportes y los ficheros locales de apps/contactos
+  rechazan claves duplicadas, incluidas claves equivalentes mediante escapes
+  Unicode, para evitar interpretaciones ambiguas entre capas.
 - La actualización del agente usa una ruta de apagado solo en loopback y con
   cabecera específica para que el propio servidor cierre limpiamente; el
   fallback de proceso exige la línea de comandos exacta y nunca termina un PID

@@ -1,9 +1,10 @@
-import json
 import os
 import subprocess
 import unicodedata
 from pathlib import Path
 from typing import Any
+
+from backend.pipa_core.protocol import ProtocolError, parse_json_object
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_DIR = BASE_DIR / "config"
@@ -141,15 +142,15 @@ def load_apps() -> dict[str, dict[str, list[str]]]:
             raw = file.read(MAX_CONFIG_FILE_BYTES + 1)
         if len(raw) > MAX_CONFIG_FILE_BYTES:
             raise AppsConfigError("La configuración de aplicaciones es demasiado grande.")
-        return validate_apps_config(json.loads(raw.decode("utf-8")))
+        return validate_apps_config(parse_json_object(raw))
     except FileNotFoundError as error:
         raise AppsConfigError(f"No existe la configuración: {apps_file}") from error
     except OSError as error:
         raise AppsConfigError("No se pudo leer la configuración de aplicaciones.") from error
     except UnicodeDecodeError as error:
         raise AppsConfigError("La configuración de aplicaciones no es UTF-8 válido.") from error
-    except json.JSONDecodeError as error:
-        raise AppsConfigError(f"JSON inválido en {apps_file}: {error.msg}") from error
+    except ProtocolError as error:
+        raise AppsConfigError(f"JSON inválido en {apps_file}.") from error
 
 
 def find_app(app_name: str) -> tuple[str | None, dict[str, list[str]] | None]:

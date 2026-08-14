@@ -92,6 +92,18 @@ class AppsAndUrlsTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     load_apps()
 
+    def test_app_file_rejects_duplicate_json_fields(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "apps.json"
+            path.write_text(
+                '{"demo":{"aliases":["demo"],"command":["demo.exe"]},'
+                '"demo":{"aliases":["other"],"command":["other.exe"]}}',
+                encoding="utf-8",
+            )
+            with patch("tools.apps.LOCAL_APPS_FILE", path):
+                with self.assertRaises(ValueError):
+                    load_apps()
+
     @patch("tools.apps.subprocess.Popen")
     @patch("tools.apps.load_apps")
     def test_windows_app_launch_suppresses_console_window(self, load_apps, popen):

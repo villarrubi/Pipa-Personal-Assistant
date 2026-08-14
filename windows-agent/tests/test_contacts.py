@@ -104,6 +104,18 @@ class ContactsTests(unittest.TestCase):
                 with self.assertRaises(ContactsConfigError):
                     load_contacts()
 
+    def test_contact_file_rejects_duplicate_json_fields(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "contacts.local.json"
+            path.write_text(
+                '{"amigo":{"whatsapp_phone":"+34600123456"},'
+                '"\\u0061migo":{"discord_channel_id":"12345678901234567"}}',
+                encoding="utf-8",
+            )
+            with patch("tools.contacts.LOCAL_CONTACTS_FILE", path):
+                with self.assertRaises(ContactsConfigError):
+                    load_contacts()
+
 
 if __name__ == "__main__":
     unittest.main()
