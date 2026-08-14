@@ -19,6 +19,7 @@ PipaProtocol::PipaProtocol(
 }
 
 void PipaProtocol::begin() {
+  clearSessionUi();
   last_challenge_request_ = millis();
   sendChallengeRequest();
 }
@@ -46,6 +47,7 @@ void PipaProtocol::poll() {
   if (authenticated_ && now - last_server_message_ >= kServerTimeoutMs) {
     authenticated_ = false;
     awaiting_ready_ = false;
+    clearSessionUi();
     log("server heartbeat timed out; authenticating again");
     last_challenge_request_ = now;
     sendChallengeRequest();
@@ -201,6 +203,7 @@ void PipaProtocol::handleMessage(JsonDocument& document) {
         strcmp(code, "unknown_session") == 0) {
       authenticated_ = false;
       awaiting_ready_ = false;
+      clearSessionUi();
       last_challenge_request_ = millis();
       sendChallengeRequest();
     }
@@ -314,6 +317,13 @@ void PipaProtocol::updateUi(JsonObject object) {
     ui_.confirmation_id.clear();
     ui_.confirmation_summary.clear();
   }
+}
+
+void PipaProtocol::clearSessionUi() {
+  ui_.state = "idle";
+  ui_.caption.clear();
+  ui_.confirmation_id.clear();
+  ui_.confirmation_summary.clear();
 }
 
 void PipaProtocol::sendJson(JsonDocument& document) {

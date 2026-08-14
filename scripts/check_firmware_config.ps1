@@ -49,12 +49,15 @@ $protocolMarkers = @{
     'firmware/src/pipa_protocol.cpp' = @(
         'isSafeDisplayText(text, kMaxTextInput)',
         'isSafeTextSource(safe_source)',
-        '!authenticated_ || !isSafeGesture(gesture)'
+        '!authenticated_ || !isSafeGesture(gesture)',
+        'void PipaProtocol::clearSessionUi()',
+        'clearSessionUi();'
     )
     'firmware/src/pipa_secure_protocol.cpp' = @(
         'isSafeDisplayText(text, 4000)',
         'isSafeTextSource(safe_source)',
-        '!authenticated_ || !isSafeGesture(gesture)'
+        '!authenticated_ || !isSafeGesture(gesture)',
+        'ui_.caption.clear();'
     )
 }
 foreach ($protocolSource in $protocolMarkers.Keys) {

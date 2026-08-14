@@ -460,6 +460,7 @@ void PipaSecureProtocol::resetHandshake() {
   session_.clear();
   ui_.confirmation_id.clear();
   ui_.confirmation_summary.clear();
+  ui_.caption.clear();
   ui_.state = "idle";
 }
 

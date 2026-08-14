@@ -54,6 +54,7 @@ class PipaProtocol {
   void sendHeartbeat();
   void sendDeviceStatus();
   void updateUi(JsonObject object);
+  void clearSessionUi();
   void sendJson(JsonDocument& document);
   void log(const String& message);
 
