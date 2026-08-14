@@ -110,6 +110,9 @@ Invoke-RepoScriptCheck -Name 'Repository hygiene and ignore policy' -RelativePat
 Invoke-RepoScriptCheck -Name 'Git history audit' -RelativePath 'scripts/check_git_history.ps1'
 Invoke-RepoScriptCheck -Name 'Secret pattern self-test' -RelativePath 'scripts/test_security_patterns.ps1'
 Invoke-RepoScriptCheck -Name 'iOS package structure' -RelativePath 'scripts/check_mobile_ios_package.ps1'
+Invoke-ExternalCheck -Name 'Mobile capability contract' -FilePath $python -Arguments @(
+    (Join-Path $repoRoot 'scripts/check_mobile_capability_contract.py')
+)
 Invoke-RepoScriptCheck -Name 'Waveshare V1/V2 pin map' -RelativePath 'scripts/check_waveshare_pinmap.ps1'
 Invoke-RepoScriptCheck -Name 'Firmware configuration safety' -RelativePath 'scripts/check_firmware_config.ps1'
 Invoke-RepoScriptCheck -Name 'Firmware flashing safety' -RelativePath 'scripts/check_firmware_flash_safety.ps1'

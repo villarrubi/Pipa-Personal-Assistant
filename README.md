@@ -397,6 +397,12 @@ Programador, puedes usar `./scripts/pipa_preflight.ps1 -SkipStartupCheck`.
 Ese modo deja un aviso explícito y no sustituye la verificación posterior del
 arranque.
 
+El preflight incluye `scripts/check_mobile_capability_contract.py`: construye
+la matriz de integraciones del agente y la compara con las allowlists de tipos
+del parser TCP Swift. Así, añadir un flag de WhatsApp, Discord, Apple Music,
+League o cualquier integración nueva exige actualizar ambos lados de forma
+explícita.
+
 ## Cuando llegue el Waveshare
 
 La secuencia operativa detallada está en

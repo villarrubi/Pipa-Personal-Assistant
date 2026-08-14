@@ -26,6 +26,7 @@ $requiredFragments = @(
     './scripts/check_log_safety.ps1',
     './scripts/check_firmware_log_safety.ps1',
     './scripts/check_mobile_ios_package.ps1',
+    'python scripts/check_mobile_capability_contract.py',
     'python scripts/check_mobile_confirmation_contract.py',
     './scripts/check_waveshare_pinmap.ps1',
     './scripts/check_firmware_config.ps1',
