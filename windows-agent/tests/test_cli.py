@@ -151,6 +151,12 @@ class CliTests(unittest.TestCase):
         arguments = pipa_cli._parser().parse_args(["league-search", "solo"])
         self.assertEqual(pipa_cli._route(arguments), ("POST", "/league/search", {"queue": "solo"}))
 
+        arguments = pipa_cli._parser().parse_args(["league-wait", "45"])
+        self.assertEqual(
+            pipa_cli._route(arguments),
+            ("POST", "/league/search/wait", {"seconds": 45}),
+        )
+
         expected_music_actions = {
             "music-play": "play_pause",
             "music-next": "next",

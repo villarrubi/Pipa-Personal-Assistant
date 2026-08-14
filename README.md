@@ -61,6 +61,9 @@ que las solicitó y caducan si no se confirman.
 - Abrir una URL validada desde una frase, siempre con confirmación.
 - Abrir League y comenzar/cancelar matchmaking en colas permitidas; una
   búsqueda confirmada puede abrir el cliente si todavía no está listo.
+- Esperar hasta cinco minutos a que League encuentre una partida con
+  `league-wait` o la frase `avísame cuando encuentre una partida`; solo
+  observa el estado y deja la aceptación en manos del usuario.
 - El estado de League se reduce a datos seguros y la búsqueda falla cerrada si
   el cliente devuelve un estado de matchmaking desconocido. Si ya hay una
   partida encontrada, se avisa sin aceptarla ni rechazarla; ambos pasos siguen
@@ -263,6 +266,8 @@ También acepta formas equivalentes como `busca una partida de LoL`, `manda un
 mensaje de WhatsApp a mamá diciendo llego` y `haz una llamada de Discord con
 amigo`; el parser solo cambia la forma de la petición, no la política de
 confirmación ni los pasos manuales.
+También entiende `avísame cuando encuentre una partida` y espera como máximo
+120 segundos por defecto; puedes indicar `durante 45 segundos`.
 También reconoce `busca algo en internet sobre el tiempo`, `busca en Google
 documentación de Pipa`, `quiero escuchar Daft Punk`, `inicia llamada con amigo
 en Discord` y `cancela la cola del LoL`.

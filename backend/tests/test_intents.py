@@ -221,6 +221,19 @@ class IntegrationIntentTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assert_intent(phrase, "league_cancel", {})
 
+    def test_league_wait_accepts_a_bounded_read_only_watch(self):
+        self.assert_intent(
+            "avísame cuando encuentre una partida",
+            "league_wait",
+            {"seconds": 120},
+        )
+        self.assert_intent(
+            "espera a que el LoL encuentre una partida durante 45 segundos",
+            "league_wait",
+            {"seconds": 45},
+        )
+        self.assertIsNone(parse_text_intent("avísame cuando encuentre una partida durante 301 segundos"))
+
     def test_voice_variants_keep_the_same_safe_tool_routes(self):
         cases = (
             ("busca algo en internet sobre el tiempo", "web_search", {"query": "el tiempo"}),

@@ -432,6 +432,15 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "requires_confirmation": False,
     },
     {
+        "id": "league_wait",
+        "tool_name": "league_wait",
+        "phrase": "espera a que League encuentre una partida <segundos>",
+        "description": "Observa matchmaking durante un tiempo limitado; la aceptación sigue siendo manual.",
+        "safety": "safe",
+        "requires_confirmation": False,
+        "parameters": [_parameter("seconds", "Segundos", "integer", 3)],
+    },
+    {
         "id": "league_cancel",
         "tool_name": "league_cancel",
         "phrase": "cancela la búsqueda de League",

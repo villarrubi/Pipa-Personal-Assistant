@@ -33,7 +33,7 @@ from tools.contacts import resolve_discord_contact, resolve_whatsapp_contact
 from tools.diagnostics import get_self_test
 from tools.discord import open_discord_app, open_discord_call, open_discord_channel
 from tools.integration_catalog import get_command_catalog
-from tools.league import LeagueClientError, with_client, with_client_or_launch
+from tools.league import MAX_MATCH_WAIT_SECONDS, LeagueClientError, with_client, with_client_or_launch
 from tools.media import send_media_action
 from tools.readiness import inspect_readiness
 from tools.security_policy import LOCAL_CONFIRMATION_PATHS
@@ -282,6 +282,10 @@ class LeagueQueueRequest(StrictRequest):
     queue: str = Field(min_length=1, max_length=64)
 
 
+class LeagueWaitRequest(StrictRequest):
+    seconds: int = Field(ge=1, le=MAX_MATCH_WAIT_SECONDS)
+
+
 class MediaRequest(StrictRequest):
     action: str = Field(min_length=1, max_length=32)
 
@@ -507,6 +511,14 @@ def api_league_search(request: LeagueQueueRequest):
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail="La cola de League no es válida.") from error
+    except LeagueClientError as error:
+        raise HTTPException(status_code=503, detail="League no está disponible ahora.") from error
+
+
+@app.post("/league/search/wait")
+def api_league_wait(request: LeagueWaitRequest):
+    try:
+        return with_client(lambda client: client.wait_for_match(request.seconds))
     except LeagueClientError as error:
         raise HTTPException(status_code=503, detail="League no está disponible ahora.") from error
 

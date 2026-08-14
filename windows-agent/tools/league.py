@@ -52,6 +52,8 @@ _CLIENT_NAMES = frozenset({"leagueclientux.exe", "leagueclientux"})
 _MAX_TOKEN_LENGTH = 1024
 _CLIENT_START_TIMEOUT_SECONDS = 30.0
 _CLIENT_START_POLL_SECONDS = 0.5
+MAX_MATCH_WAIT_SECONDS = 300
+_MATCH_WAIT_POLL_SECONDS = 1.0
 _MATCHMAKING_OPERATION_LOCK = threading.Lock()
 _SEARCHING_STATES = frozenset({"searching", "inprogress", "in_progress"})
 _MATCH_FOUND_STATES = frozenset(
@@ -356,6 +358,59 @@ class LeagueClientApi:
             ):
                 raise LeagueClientError("League Client no confirmó la cancelación de matchmaking.")
             return {"cancelled": True}
+
+    def wait_for_match(self, timeout_seconds: int) -> dict[str, object]:
+        """Observe matchmaking for a bounded period without accepting a match.
+
+        The LCU has no notification contract that we can safely expose to a
+        remote device. Polling this small, read-only endpoint keeps the
+        behavior deterministic while making the useful part of “avísame”
+        available. A found match is reported to the caller; the accept button
+        remains a deliberate human action.
+        """
+
+        if (
+            isinstance(timeout_seconds, bool)
+            or not isinstance(timeout_seconds, int)
+            or not 1 <= timeout_seconds <= MAX_MATCH_WAIT_SECONDS
+        ):
+            raise ValueError(f"El tiempo de espera debe estar entre 1 y {MAX_MATCH_WAIT_SECONDS} segundos.")
+
+        deadline = time.monotonic() + timeout_seconds
+        while True:
+            current = self.search_status()
+            if current["supported"] is not True or current["state"] == "unknown":
+                raise LeagueClientError("No se pudo confirmar el estado de matchmaking.")
+            if current["match_found"]:
+                return {
+                    "found": True,
+                    "searching": False,
+                    "match_found": True,
+                    "state": "match_found",
+                    "timed_out": False,
+                }
+            if current["searching"] is not True:
+                return {
+                    "found": False,
+                    "searching": False,
+                    "match_found": False,
+                    "state": current["state"],
+                    "timed_out": False,
+                }
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return {
+                    "found": False,
+                    "searching": True,
+                    "match_found": False,
+                    "state": "searching",
+                    "timed_out": True,
+                }
+            # This is intentionally outside _MATCHMAKING_OPERATION_LOCK:
+            # another authenticated request must still be able to cancel the
+            # active queue while this read-only watcher is sleeping.
+            time.sleep(min(_MATCH_WAIT_POLL_SECONDS, remaining))
 
 
 def with_client(callback):

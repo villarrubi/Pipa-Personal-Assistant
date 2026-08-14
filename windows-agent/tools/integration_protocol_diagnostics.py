@@ -57,6 +57,7 @@ _READ_ONLY_INTEGRATION_CASES: tuple[tuple[str, dict[str, Any]], ...] = (
     ("integration_status", {}),
     ("league_status", {}),
     ("league_search_status", {}),
+    ("league_wait", {"seconds": 1}),
 )
 READ_ONLY_INTEGRATION_CASE_COUNT = len(_READ_ONLY_INTEGRATION_CASES)
 

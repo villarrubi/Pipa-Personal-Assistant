@@ -184,6 +184,7 @@ _VOICE_INTENT_CASES = (
     ),
     ("busca una partida de ARAM", "league_search", {"queue": "aram"}),
     ("busca partida en el LoL", "league_search", {"queue": "normal_draft"}),
+    ("avísame cuando encuentre una partida", "league_wait", {"seconds": 120}),
     ("cancela la búsqueda del LoL", "league_cancel", {}),
 )
 

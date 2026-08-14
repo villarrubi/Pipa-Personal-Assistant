@@ -103,6 +103,7 @@ python .\windows-agent\pipa_cli.py discord-call-channel 12345678901234567 --conf
 python .\windows-agent\pipa_cli.py league-status
 python .\windows-agent\pipa_cli.py league-search-status
 python .\windows-agent\pipa_cli.py league-search solo --confirm
+python .\windows-agent\pipa_cli.py league-wait 120
 python .\windows-agent\pipa_cli.py open-app codex --confirm
 python .\windows-agent\pipa_cli.py codex-open --confirm
 python .\windows-agent\pipa_cli.py lock --confirm
@@ -235,7 +236,7 @@ configuración.
 | POST | `/open-url` | Abrir URL HTTP(S) validada |
 | POST | `/web/search` | Abrir búsqueda web |
 | POST | `/music/open`, `/music/search` | Abrir Apple Music o una búsqueda |
-| GET/POST/DELETE | `/league/status`, `/league/search`, `/league/search/status` | Estado y matchmaking allowlisted |
+| GET/POST/DELETE | `/league/status`, `/league/search`, `/league/search/status`, `/league/search/wait` | Estado, matchmaking y espera acotada allowlisted |
 | GET/POST | `/audio/*`, `/media/action` | Volumen y teclas multimedia |
 | GET/POST/DELETE | `/timers` | Temporizadores en memoria |
 | POST | `/whatsapp/open`, `/whatsapp/compose`, `/whatsapp/contact/compose`, `/whatsapp/contact/open`, `/whatsapp/phone/open` | Abrir WhatsApp o preparar/abrir chat, sin enviar |
@@ -284,6 +285,9 @@ dispositivo sí exige firma Ed25519 y confirmación para herramientas externas.
   consultas de estado y la cancelación nunca abren procesos automáticamente.
   La aceptación de una partida no está automatizada: el usuario debe aceptarla
   manualmente cuando aparezca.
+  `league_wait` observa el estado local durante 1–300 segundos. Si detecta una
+  partida encontrada, solo devuelve un estado resumido para que la persona pulse
+  Aceptar; no usa endpoints de aceptación ni cancela la búsqueda al expirar.
   Si League devuelve un estado de matchmaking que Pipa todavía no conoce,
   la búsqueda y la cancelación fallan cerradas y no crean lobby ni inician cola.
   El estado público expone `searching`, `match_found`, `not_searching` o
@@ -348,6 +352,8 @@ busca algo en internet sobre el tiempo
 busca en Google documentación de Pipa
 quiero escuchar Daft Punk
 cancela la cola del LoL
+avísame cuando encuentre una partida
+espera a que el LoL encuentre una partida durante 45 segundos
 prepara WhatsApp para +34 600 123 456 y dile Hola Mamá
 manda un mensaje a +34 600 123 456 por WhatsApp y dile Hola
 manda un mensaje a mama por WhatsApp y dile Hola

@@ -7,6 +7,7 @@ from unittest.mock import ANY, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+import tools.league as league_module  # noqa: E402
 from tools.agent_catalog import build_agent_catalog  # noqa: E402
 from tools.apps import AppsConfigError  # noqa: E402
 from tools.browser import open_validated_url  # noqa: E402
@@ -79,6 +80,7 @@ class IntegrationTests(unittest.TestCase):
                 "league_search",
                 "league_status",
                 "league_search_status",
+                "league_wait",
                 "league_cancel",
                 "audio_volume",
                 "media_action",
@@ -1150,6 +1152,73 @@ class IntegrationTests(unittest.TestCase):
                 "state": "match_found",
             },
         )
+
+    def test_league_wait_reports_a_found_match_without_accepting_it(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+        with (
+            patch.object(
+                api,
+                "_request",
+                side_effect=[{"searchState": "Searching"}, {"searchState": "Found"}],
+            ) as request,
+            patch("tools.league.time.sleep") as sleep,
+        ):
+            result = api.wait_for_match(30)
+
+        self.assertTrue(result["found"])
+        self.assertTrue(result["match_found"])
+        self.assertFalse(result["timed_out"])
+        self.assertEqual(request.call_count, 2)
+        sleep.assert_called_once()
+
+    def test_league_wait_times_out_without_changing_matchmaking(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+        with (
+            patch.object(
+                api,
+                "_request",
+                side_effect=[{"searchState": "Searching"}, {"searchState": "Searching"}],
+            ) as request,
+            patch("tools.league.time.monotonic", side_effect=[0, 0, 301]),
+            patch("tools.league.time.sleep") as sleep,
+        ):
+            result = api.wait_for_match(300)
+
+        self.assertFalse(result["found"])
+        self.assertTrue(result["searching"])
+        self.assertTrue(result["timed_out"])
+        self.assertEqual(request.call_count, 2)
+        sleep.assert_called_once_with(1.0)
+
+    def test_league_wait_does_not_block_a_concurrent_cancel(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+
+        def assert_lock_is_available(_delay):
+            acquired = league_module._MATCHMAKING_OPERATION_LOCK.acquire(blocking=False)
+            if acquired:
+                league_module._MATCHMAKING_OPERATION_LOCK.release()
+            self.assertTrue(acquired)
+
+        with (
+            patch.object(
+                api,
+                "_request",
+                side_effect=[{"searchState": "Searching"}, {"searchState": "Found"}],
+            ),
+            patch("tools.league.time.sleep", side_effect=assert_lock_is_available),
+        ):
+            result = api.wait_for_match(30)
+
+        self.assertTrue(result["found"])
+
+    def test_league_wait_rejects_unbounded_timeouts(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+        with self.assertRaises(ValueError):
+            api.wait_for_match(301)
 
     def test_league_does_not_restart_search_when_a_match_is_waiting_for_acceptance(self):
         connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})

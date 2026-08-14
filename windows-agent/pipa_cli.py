@@ -287,6 +287,11 @@ def _parser() -> argparse.ArgumentParser:
     league_search = commands.add_parser("league-search", help="Inicia matchmaking en una cola allowlisted.")
     league_search.add_argument("queue", nargs="?", default="normal_draft")
     add_confirmation_flag(league_search)
+    league_wait = commands.add_parser(
+        "league-wait",
+        help="Espera un tiempo limitado a que aparezca una partida; no la acepta.",
+    )
+    league_wait.add_argument("seconds", nargs="?", type=int, default=120)
     league_cancel = commands.add_parser("league-cancel", help="Cancela la búsqueda activa.")
     add_confirmation_flag(league_cancel)
     audio_volume = commands.add_parser("audio-volume", help="Consulta o ajusta el volumen.")
@@ -413,6 +418,8 @@ def _route(arguments: argparse.Namespace) -> tuple[str, str, dict[str, object] |
         return "GET", "/league/search/status", None
     if command == "league-search":
         return "POST", "/league/search", {"queue": arguments.queue}
+    if command == "league-wait":
+        return "POST", "/league/search/wait", {"seconds": arguments.seconds}
     if command == "league-cancel":
         return "DELETE", "/league/search", None
     if command == "audio-volume":

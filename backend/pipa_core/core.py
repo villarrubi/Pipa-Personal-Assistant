@@ -790,6 +790,13 @@ class PipaCore:
                 return "Ya había una búsqueda activa."
             if result.get("started"):
                 return "Búsqueda de partida iniciada."
+        if tool_name == "league_wait":
+            if result.get("found") is True:
+                return "League ha encontrado una partida; acéptala manualmente."
+            if result.get("timed_out") is True:
+                return "No apareció una partida durante el tiempo indicado; la búsqueda sigue activa."
+            if result.get("searching") is False:
+                return "League ya no está buscando partida."
         if tool_name == "league_cancel" and result.get("already_not_searching") is True:
             return "League no estaba buscando partida."
         return captions.get(tool_name, "Acción completada.")

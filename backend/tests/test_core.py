@@ -122,6 +122,16 @@ class CoreTests(unittest.TestCase):
                 "League no estaba buscando partida.",
             ),
             (
+                "league_wait",
+                {"success": True, "found": True, "match_found": True},
+                "League ha encontrado una partida; acéptala manualmente.",
+            ),
+            (
+                "league_wait",
+                {"success": True, "found": False, "searching": True, "timed_out": True},
+                "No apareció una partida durante el tiempo indicado; la búsqueda sigue activa.",
+            ),
+            (
                 "timer_list",
                 {"success": True, "timers": [{"timer_id": "private-id", "label": "private label"}]},
                 "Temporizadores registrados: 1.",

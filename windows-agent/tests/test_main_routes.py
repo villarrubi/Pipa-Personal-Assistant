@@ -211,6 +211,21 @@ class MainRouteTests(unittest.TestCase):
         self.assertNotIn("token", error.exception.detail)
         with_client_or_launch.assert_called_once()
 
+    @patch("main.with_client")
+    def test_league_wait_route_only_observes_matchmaking(self, with_client):
+        with_client.return_value = {
+            "found": True,
+            "searching": False,
+            "match_found": True,
+            "timed_out": False,
+        }
+
+        response = main.api_league_wait(main.LeagueWaitRequest(seconds=45))
+
+        self.assertTrue(response["found"])
+        callback = with_client.call_args.args[0]
+        self.assertEqual(callback(SimpleNamespace(wait_for_match=lambda seconds: seconds)), 45)
+
     @patch("main.resolve_whatsapp_contact", return_value=("mama", "34600123456"))
     @patch("main.webbrowser.open", return_value=True)
     def test_whatsapp_contact_open_never_prepares_a_message(self, open_browser, resolve_contact):
@@ -248,6 +263,7 @@ class MainRouteTests(unittest.TestCase):
                 "/discord/contact/call",
                 "/self-test",
                 "/readiness",
+                "/league/search/wait",
             }.issubset(paths)
         )
 

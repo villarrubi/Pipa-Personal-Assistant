@@ -27,7 +27,7 @@ from tools.discord import (
     open_discord_call,
     open_discord_channel,
 )
-from tools.league import resolve_queue_id, with_client, with_client_or_launch
+from tools.league import MAX_MATCH_WAIT_SECONDS, resolve_queue_id, with_client, with_client_or_launch
 from tools.media import send_media_action
 from tools.system import get_network_status, get_power_status, get_system_status, lock_pc
 from tools.text_policy import validate_bounded_text
@@ -154,6 +154,9 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
         required_text={"queue": 32},
         check=lambda arguments: resolve_queue_id(arguments["queue"]),
     )
+    league_wait_arguments = _argument_schema(
+        required_integers={"seconds": (1, MAX_MATCH_WAIT_SECONDS)},
+    )
     media_action_arguments = _argument_schema(
         required_text={"action": 16},
         choices={"action": ("play_pause", "next", "previous", "stop")},
@@ -252,6 +255,12 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
 
     def league_search_status(_arguments):
         return with_client(lambda client: client.search_status())
+
+    def league_wait(arguments):
+        seconds = arguments.get("seconds")
+        if isinstance(seconds, bool) or not isinstance(seconds, int):
+            raise ValueError("seconds debe ser entero")
+        return with_client(lambda client: client.wait_for_match(seconds))
 
     def music_open(_arguments):
         return without_destination(open_apple_music())
@@ -455,6 +464,11 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
             ),
             ToolDefinition("league_status", league_status, argument_validator=no_arguments),
             ToolDefinition("league_search_status", league_search_status, argument_validator=no_arguments),
+            ToolDefinition(
+                "league_wait",
+                league_wait,
+                argument_validator=league_wait_arguments,
+            ),
             ToolDefinition(
                 "league_cancel",
                 league_cancel,

@@ -101,6 +101,15 @@ def _league_queue_intent(queue_text: str) -> ParsedIntent | None:
     return ParsedIntent("league_search", {"queue": queue})
 
 
+def _league_wait_intent(seconds_text: str | None) -> ParsedIntent | None:
+    """Build a bounded read-only matchmaking watcher intent."""
+
+    seconds = 120 if not seconds_text else int(seconds_text)
+    if not 1 <= seconds <= 300:
+        return None
+    return ParsedIntent("league_wait", {"seconds": seconds})
+
+
 def parse_text_intent(text: str) -> ParsedIntent | None:
     original = " ".join(text.strip().split())
     normalized = _fold_phrase(original)
@@ -767,6 +776,15 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     )
     if music_search_suffix:
         return _music_intent(music_search_suffix.group(1))
+
+    league_wait = re.fullmatch(
+        r"(?:espera|avisame|avisa(?:me)?) (?:a que|cuando) "
+        r"(?:(?:el )?(?:league|lol) )?(?:encuentre|aparezca|salga) "
+        r"(?:una )?(?:partida|match)(?: durante (\d{1,3}) segundos?)?",
+        normalized,
+    )
+    if league_wait:
+        return _league_wait_intent(league_wait.group(1))
 
     league_search = re.fullmatch(
         r"(?:(?:quiero(?: que)? )?(?:busca(?:me)?|buscar|encuentra|inicia(?:r)?|empieza(?:r)?|comienza(?:r)?|juega|jugar)) "
