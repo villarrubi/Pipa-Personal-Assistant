@@ -30,6 +30,9 @@ además un proyecto Xcode listo para abrir en
    configurado por el usuario; el cliente rechaza DNS, comodines y direcciones
    públicas.
 6. Mostrar `confirm_request` en una UI visible y enviar `confirm` una sola vez.
+   La app conserva `expires_at` en la confirmación: si la pantalla queda abierta
+   más allá de los 30 segundos del agente, deshabilita `Aceptar` y cierra la
+   sesión antes de aceptar una acción antigua.
 
 Para comprobar el proyecto sin firmar una aplicación:
 

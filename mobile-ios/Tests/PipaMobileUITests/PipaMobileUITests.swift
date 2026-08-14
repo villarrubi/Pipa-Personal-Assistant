@@ -301,6 +301,7 @@ final class PipaMobileUITests: XCTestCase {
             confirmationID: "confirmation-1",
             toolName: "whatsapp_compose",
             summary: "Preparar un mensaje de WhatsApp; el envío será manual.",
+            expiresAt: Int(Date().timeIntervalSince1970) + 30,
             localPreview: "prepara WhatsApp para +34 600 123 456 y dile Hola",
             localPreviewToolName: "whatsapp_compose",
             localRequestDigest: String(repeating: "a", count: 64),
@@ -310,6 +311,7 @@ final class PipaMobileUITests: XCTestCase {
             confirmationID: "confirmation-2",
             toolName: "discord_call_channel",
             summary: "Preparar una llamada de Discord; el inicio será manual.",
+            expiresAt: Int(Date().timeIntervalSince1970) + 30,
             localPreview: "prepara WhatsApp para +34 600 123 456 y dile Hola",
             localPreviewToolName: "whatsapp_compose",
             localRequestDigest: String(repeating: "a", count: 64),
@@ -319,6 +321,7 @@ final class PipaMobileUITests: XCTestCase {
             confirmationID: "confirmation-3",
             toolName: "music_search",
             summary: "Buscar en Apple Music.",
+            expiresAt: Int(Date().timeIntervalSince1970) + 30,
             localPreview: "busca Daft Punk en Apple Music",
             localPreviewToolName: nil,
             localRequestDigest: nil,
@@ -335,6 +338,7 @@ final class PipaMobileUITests: XCTestCase {
             confirmationID: "confirmation-4",
             toolName: "whatsapp_compose",
             summary: "Preparar un mensaje de WhatsApp; el envío será manual.",
+            expiresAt: Int(Date().timeIntervalSince1970) + 30,
             localPreview: "prepara WhatsApp y dile Hola",
             localPreviewToolName: "whatsapp_compose",
             localRequestDigest: String(repeating: "a", count: 64),
@@ -344,6 +348,7 @@ final class PipaMobileUITests: XCTestCase {
             confirmationID: "confirmation-5",
             toolName: "whatsapp_compose",
             summary: "Preparar un mensaje de WhatsApp; el envío será manual.",
+            expiresAt: Int(Date().timeIntervalSince1970) + 30,
             localPreview: "prepara WhatsApp y dile Hola",
             localPreviewToolName: "whatsapp_compose",
             localRequestDigest: String(repeating: "a", count: 64),
@@ -765,5 +770,31 @@ final class PipaMobileUITests: XCTestCase {
         let model = PipaMobileViewModel(settingsStore: store)
 
         XCTAssertFalse(model.serverFingerprintVerified)
+    }
+
+    func testConfirmationRetainsExpiryAndDetectsStaleApproval() {
+        let expired = PipaMobileConfirmation(
+            confirmationID: "confirmation",
+            toolName: "league_search",
+            summary: "Buscar una partida en League.",
+            expiresAt: Int(Date().timeIntervalSince1970) - 1,
+            localPreview: nil,
+            localPreviewToolName: nil,
+            localRequestDigest: nil,
+            serverRequestDigest: nil
+        )
+        let current = PipaMobileConfirmation(
+            confirmationID: "confirmation-2",
+            toolName: "whatsapp_compose",
+            summary: "Preparar un mensaje de WhatsApp; el envío será manual.",
+            expiresAt: Int(Date().timeIntervalSince1970) + 30,
+            localPreview: nil,
+            localPreviewToolName: nil,
+            localRequestDigest: nil,
+            serverRequestDigest: nil
+        )
+
+        XCTAssertTrue(expired.isExpired)
+        XCTAssertFalse(current.isExpired)
     }
 }

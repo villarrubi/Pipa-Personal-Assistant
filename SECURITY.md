@@ -79,6 +79,9 @@ de recuperación y acceso.
   trazas, textos de excepción, rutas ni puertos dinámicos. La respuesta HTTP
   siempre es genérica y no devuelve mensajes, tokens ni detalles del adaptador.
 - Confirmaciones de 30 segundos, de un solo uso y ligadas a sesión.
+- El cliente iOS conserva el `expires_at` autenticado de cada confirmación;
+  una aprobación que ya venció se bloquea localmente y cierra la sesión antes
+  de intentar enviarla al agente.
 - Confirmaciones acotadas globalmente y por sesión para evitar acumulación o
   agotamiento de memoria.
 - Los registros anti-replay de Trusted Unlock tienen un límite absoluto además

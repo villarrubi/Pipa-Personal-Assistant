@@ -588,6 +588,14 @@ public struct PipaMobileRootView: View {
                         .font(.headline)
                     Text(pending.summary)
                         .fixedSize(horizontal: false, vertical: true)
+                    if pending.isExpired {
+                        Label(
+                            "La confirmación ha caducado; vuelve a conectar.",
+                            systemImage: "clock.badge.exclamationmark"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                    }
                     if let localPreview = pending.localPreview {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Comando preparado en este iPhone")
@@ -615,7 +623,7 @@ public struct PipaMobileRootView: View {
                             model.resolveConfirmation(accepted: true)
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(!pending.localPreviewMatchesServerAction)
+                        .disabled(pending.isExpired || !pending.localPreviewMatchesServerAction)
                     }
                 }
                 .accessibilityElement(children: .contain)

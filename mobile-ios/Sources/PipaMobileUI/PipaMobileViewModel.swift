@@ -329,6 +329,10 @@ public struct PipaMobileConfirmation {
     public let confirmationID: String
     public let toolName: String
     public let summary: String
+    /// Unix timestamp supplied by the authenticated agent. Keeping it in the
+    /// model lets the UI fail closed instead of presenting an old approval as
+    /// if it could still authorize an external action.
+    public let expiresAt: Int
     /// Optional preview retained only in the iPhone process. It is derived
     /// from the text/typed fields the user just submitted and is never sent
     /// back in the confirmation protocol.
@@ -341,6 +345,10 @@ public struct PipaMobileConfirmation {
     public let localRequestDigest: String?
     /// The same binding returned by the Core for this one-use confirmation.
     public let serverRequestDigest: String?
+
+    public var isExpired: Bool {
+        expiresAt <= Int(Date().timeIntervalSince1970)
+    }
 
     public var localPreviewMatchesServerAction: Bool {
         guard let localPreviewToolName else { return true }
@@ -674,6 +682,13 @@ public final class PipaMobileViewModel: ObservableObject {
         guard !requestInProgress,
               let pending = pendingConfirmation,
               client != nil else { return }
+        if pending.isExpired {
+            // Do not send a stale approval. Closing the authenticated session
+            // also invalidates the pending confirmation on the agent side.
+            disconnect()
+            statusMessage = "La confirmación ha caducado; vuelve a conectar."
+            return
+        }
         pendingConfirmation = nil
         clearLocalPreview()
         startRequest(failureMessage: "No se pudo resolver la confirmación.") { activeClient in
@@ -812,6 +827,7 @@ public final class PipaMobileViewModel: ObservableObject {
                     confirmationID: confirmationID,
                     toolName: toolName,
                     summary: summary,
+                    expiresAt: expiresAt,
                     localPreview: pendingLocalPreview,
                     localPreviewToolName: pendingLocalPreviewToolName,
                     localRequestDigest: pendingLocalRequestDigest,
