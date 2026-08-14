@@ -36,7 +36,7 @@ public final class PipaMobileAppleMusicController: ObservableObject {
     private let player = SystemMusicPlayer.shared
     private var songs: [Song] = []
     #endif
-    private var searchGeneration: UInt64 = 0
+    private var operationGeneration: UInt64 = 0
 
     public init() {}
 
@@ -52,11 +52,12 @@ public final class PipaMobileAppleMusicController: ObservableObject {
     public func authorize() {
         #if os(iOS)
         guard !requestInProgress else { return }
-        requestInProgress = true
+        let generation = beginAsyncOperation()
         Task { [weak self] in
-            defer { self?.requestInProgress = false }
-            let status = await MusicAuthorization.request()
             guard let self else { return }
+            defer { self.finishAsyncOperation(generation) }
+            let status = await MusicAuthorization.request()
+            guard self.operationGeneration == generation, !Task.isCancelled else { return }
             self.applyAuthorization(status)
         }
         #else
@@ -74,20 +75,14 @@ public final class PipaMobileAppleMusicController: ObservableObject {
         }
         #if os(iOS)
         guard !requestInProgress else { return }
-        searchGeneration &+= 1
-        let generation = searchGeneration
-        requestInProgress = true
+        let generation = beginAsyncOperation()
         statusMessage = "Buscando en Apple Music…"
         Task { [weak self] in
             guard let self else { return }
-            defer {
-                if self.searchGeneration == generation {
-                    self.requestInProgress = false
-                }
-            }
+            defer { self.finishAsyncOperation(generation) }
             do {
                 let authorization = await MusicAuthorization.request()
-                guard self.searchGeneration == generation, !Task.isCancelled else { return }
+                guard self.operationGeneration == generation, !Task.isCancelled else { return }
                 guard authorization == .authorized else {
                     self.applyAuthorization(authorization)
                     return
@@ -97,7 +92,7 @@ public final class PipaMobileAppleMusicController: ObservableObject {
                 var request = MusicCatalogSearchRequest(term: query, types: [Song.self])
                 request.limit = 5
                 let response = try await request.response()
-                guard self.searchGeneration == generation, !Task.isCancelled else { return }
+                guard self.operationGeneration == generation, !Task.isCancelled else { return }
                 let foundSongs = Array(response.songs)
                 guard !foundSongs.isEmpty else {
                     self.songs = []
@@ -115,7 +110,7 @@ public final class PipaMobileAppleMusicController: ObservableObject {
                 }
                 self.statusMessage = "Elige una canción para reproducirla en este iPhone."
             } catch {
-                guard self.searchGeneration == generation, !Task.isCancelled else { return }
+                guard self.operationGeneration == generation, !Task.isCancelled else { return }
                 self.songs = []
                 self.searchResults = []
                 self.statusMessage = "No se pudo buscar en Apple Music."
@@ -139,19 +134,21 @@ public final class PipaMobileAppleMusicController: ObservableObject {
             return
         }
         guard !requestInProgress else { return }
-        requestInProgress = true
+        let generation = beginAsyncOperation()
         Task { [weak self] in
             guard let self else { return }
-            defer { self.requestInProgress = false }
+            defer { self.finishAsyncOperation(generation) }
             do {
                 self.player.queue = [song]
                 try await self.player.play()
+                guard self.operationGeneration == generation, !Task.isCancelled else { return }
                 let title = Self.safeMusicText(song.title, fallback: "Canción")
                 let artist = Self.safeMusicText(song.artistName, fallback: "Artista desconocido")
                 self.currentTrack = title
                 self.isPlaying = true
                 self.statusMessage = "Reproduciendo: \(title) — \(artist)"
             } catch {
+                guard self.operationGeneration == generation, !Task.isCancelled else { return }
                 self.statusMessage = "No se pudo reproducir la canción seleccionada."
             }
         }
@@ -172,15 +169,17 @@ public final class PipaMobileAppleMusicController: ObservableObject {
             isPlaying = false
             statusMessage = "Apple Music pausado."
         } else {
-            requestInProgress = true
+            let generation = beginAsyncOperation()
             Task { [weak self] in
                 guard let self else { return }
-                defer { self.requestInProgress = false }
+                defer { self.finishAsyncOperation(generation) }
                 do {
                     try await self.player.play()
+                    guard self.operationGeneration == generation, !Task.isCancelled else { return }
                     self.isPlaying = true
                     self.statusMessage = "Apple Music reproduciendo."
                 } catch {
+                    guard self.operationGeneration == generation, !Task.isCancelled else { return }
                     self.statusMessage = "No se pudo reanudar Apple Music."
                 }
             }
@@ -197,15 +196,17 @@ public final class PipaMobileAppleMusicController: ObservableObject {
             return
         }
         guard !requestInProgress else { return }
-        requestInProgress = true
+        let generation = beginAsyncOperation()
         Task { [weak self] in
             guard let self else { return }
-            defer { self.requestInProgress = false }
+            defer { self.finishAsyncOperation(generation) }
             do {
                 try await self.player.skipToNextEntry()
+                guard self.operationGeneration == generation, !Task.isCancelled else { return }
                 self.isPlaying = true
                 self.statusMessage = "Siguiente pista de Apple Music."
             } catch {
+                guard self.operationGeneration == generation, !Task.isCancelled else { return }
                 self.statusMessage = "No hay una siguiente pista disponible."
             }
         }
@@ -222,15 +223,17 @@ public final class PipaMobileAppleMusicController: ObservableObject {
             return
         }
         guard !requestInProgress else { return }
-        requestInProgress = true
+        let generation = beginAsyncOperation()
         Task { [weak self] in
             guard let self else { return }
-            defer { self.requestInProgress = false }
+            defer { self.finishAsyncOperation(generation) }
             do {
                 try await self.player.skipToPreviousEntry()
+                guard self.operationGeneration == generation, !Task.isCancelled else { return }
                 self.isPlaying = true
                 self.statusMessage = "Pista anterior de Apple Music."
             } catch {
+                guard self.operationGeneration == generation, !Task.isCancelled else { return }
                 self.statusMessage = "No hay una pista anterior disponible."
             }
         }
@@ -264,13 +267,26 @@ public final class PipaMobileAppleMusicController: ObservableObject {
     /// Drop search results and the displayed track when the app leaves the
     /// foreground.  This does not stop the system player: playback is an
     /// explicit user choice, while the result list is only ephemeral UI data.
-    public func clearEphemeralSearchState() {
-        searchGeneration &+= 1
+    public func clearEphemeralState() {
+        operationGeneration &+= 1
+        requestInProgress = false
         #if os(iOS)
         songs = []
         #endif
         searchResults = []
         currentTrack = ""
+    }
+
+    private func beginAsyncOperation() -> UInt64 {
+        operationGeneration &+= 1
+        requestInProgress = true
+        return operationGeneration
+    }
+
+    private func finishAsyncOperation(_ generation: UInt64) {
+        if operationGeneration == generation {
+            requestInProgress = false
+        }
     }
 
     #if os(iOS)

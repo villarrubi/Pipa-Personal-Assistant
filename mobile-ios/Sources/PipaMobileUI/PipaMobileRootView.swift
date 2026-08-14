@@ -111,7 +111,7 @@ public struct PipaMobileRootView: View {
             if phase != .active {
                 model.disconnect()
                 localWakeOnLan.cancel()
-                localAppleMusic.clearEphemeralSearchState()
+                localAppleMusic.clearEphemeralState()
                 clearLocalIntegrationInputs()
 #if os(iOS)
                 speechRecognizer.cancel()

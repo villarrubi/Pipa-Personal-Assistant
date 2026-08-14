@@ -71,7 +71,7 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertFalse(controller.isPlaying)
         XCTAssertFalse(controller.requestInProgress)
         XCTAssertTrue(controller.currentTrack.isEmpty)
-        controller.clearEphemeralSearchState()
+        controller.clearEphemeralState()
         XCTAssertTrue(controller.searchResults.isEmpty)
         XCTAssertTrue(controller.currentTrack.isEmpty)
 #if os(iOS)
