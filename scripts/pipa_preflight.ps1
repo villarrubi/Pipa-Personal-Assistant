@@ -2,6 +2,7 @@
 param(
     [switch]$SkipPythonTests,
     [switch]$CheckFirmware,
+    [switch]$CheckCredentialProvider,
     [switch]$RequireHardware,
     [switch]$SkipStartupCheck
 )
@@ -33,7 +34,7 @@ function Invoke-ExternalCheck {
     param(
         [Parameter(Mandatory)] [string]$Name,
         [Parameter(Mandatory)] [string]$FilePath,
-        [Parameter(Mandatory)] [string[]]$Arguments,
+        [string[]]$Arguments = @(),
         [string[]]$RequiredTrueFields = @()
     )
 
@@ -306,6 +307,15 @@ if ($CheckFirmware) {
         # Keep the local preflight on the same explicit environment used by CI.
         # This avoids leaking build flags into the caller's PowerShell session.
         Invoke-ExternalCheck -Name 'Firmware secure-session build' -FilePath $pio -Arguments @('run', '-d', (Join-Path $repoRoot 'firmware'), '-e', 'secure-session-v2')
+    }
+}
+
+if ($CheckCredentialProvider) {
+    $providerSmokeTest = Join-Path $repoRoot 'trusted-unlock/build/Release/PipaProviderTest.exe'
+    if (-not (Test-Path -LiteralPath $providerSmokeTest -PathType Leaf)) {
+        Write-CheckResult -Name 'Credential Provider smoke test' -Success $false -Detail ' (build/Release/PipaProviderTest.exe missing)'
+    } else {
+        Invoke-ExternalCheck -Name 'Credential Provider smoke test' -FilePath $providerSmokeTest -Arguments @()
     }
 }
 

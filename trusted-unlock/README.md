@@ -28,6 +28,13 @@ El smoke test debe terminar con `SMOKE TEST COMPLETADO`, mantener autologon en
 `FALSE` y confirmar que no se entrega ninguna serialización. La CI repite una
 build x64 limpia en `build-ci`; los binarios nunca deben entrar en Git.
 
+Si la build local ya existe, el preflight puede repetir ese smoke test sin
+registrar la DLL ni tocar el Registro:
+
+```powershell
+.\scripts\pipa_preflight.ps1 -CheckCredentialProvider -SkipStartupCheck
+```
+
 Instalación controlada
 ----------------------
 

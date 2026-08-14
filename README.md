@@ -120,6 +120,10 @@ que las solicitó y caducan si no se confirman.
   configuración, incluida la política de logs: no abre aplicaciones, no
   envía mensajes y no toca League.
   En CI o en un PC sin agente residente puede añadirse `-SkipResidentAgent`.
+  Si ya existe una build local del Credential Provider, añade
+  `-CheckCredentialProvider` a `pipa_preflight.ps1` para ejecutar también el
+  smoke test x64; exige que AutoLogon siga desactivado y que no se entregue
+  ninguna credencial.
 - Ejecutar `python .\windows-agent\pipa_cli.py self-test` para validar la
   configuración de aplicaciones, URLs, rutas de voz, colas de League y
   gateway sin abrir aplicaciones ni contactar con League Client; incluye un
