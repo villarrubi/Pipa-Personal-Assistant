@@ -6,10 +6,26 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "windows-agent"))
 sys.path.insert(0, str(ROOT))
 
-from backend.pipa_core.protocol import ProtocolError, parse_client_message, server_message  # noqa: E402
+from backend.pipa_core.protocol import (  # noqa: E402
+    ProtocolError,
+    parse_client_message,
+    parse_json_object,
+    server_message,
+)
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_strict_json_object_rejects_duplicate_and_escaped_keys(self):
+        with self.assertRaises(ProtocolError):
+            parse_json_object('{"type":"wake","type":"ping"}')
+        with self.assertRaises(ProtocolError):
+            parse_json_object('{"a":1,"\\u0061":2}')
+
+        self.assertEqual(
+            parse_json_object('{"nested":{"ok":true},"items":[null,"texto"]}'),
+            {"nested": {"ok": True}, "items": [None, "texto"]},
+        )
+
     def test_parses_challenge_request(self):
         message = parse_client_message(
             {"protocol_version": 1, "type": "challenge_request", "device_id": "waveshare-01"}

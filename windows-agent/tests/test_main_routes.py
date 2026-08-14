@@ -470,6 +470,17 @@ class MainRouteTests(unittest.TestCase):
             self.assertNotIn("x" * 100, str(response))
         self.assertEqual(websocket.closed[-1][0], 1008)
 
+    def test_websocket_rejects_duplicate_json_fields(self):
+        websocket = FakeWebSocket(
+            ['{"protocol_version":1,"type":"challenge_request","type":"ping"}'] * main.MAX_PROTOCOL_ERRORS
+        )
+
+        asyncio.run(main.api_pipa_websocket(websocket))
+
+        self.assertEqual(len(websocket.sent), main.MAX_PROTOCOL_ERRORS)
+        self.assertTrue(all(response["code"] == "protocol_error" for response in websocket.sent))
+        self.assertEqual(websocket.closed[-1][0], 1008)
+
 
 if __name__ == "__main__":
     unittest.main()

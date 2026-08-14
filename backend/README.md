@@ -46,8 +46,9 @@ Después de autenticar:
 - `tool_call`, `confirm`
 
 El parser rechaza versiones desconocidas, campos inesperados, textos, listas y
-argumentos de herramientas sobredimensionados, telemetría inválida y tipos ambiguos. Cambios incompatibles
-requieren aumentar `protocol_version`.
+argumentos de herramientas sobredimensionados, telemetría inválida, tipos
+ambiguos y objetos JSON con claves repetidas (también si una clave está
+escapada). Cambios incompatibles requieren aumentar `protocol_version`.
 
 `device_status.audio_state` es opcional para clientes antiguos y, cuando está
 presente, solo admite los estados cerrados `disabled`, `probe_only`,

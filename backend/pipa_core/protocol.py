@@ -38,6 +38,36 @@ class ProtocolError(ValueError):
     """A message does not satisfy the Pipα wire contract."""
 
 
+def _reject_duplicate_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Decode JSON objects without allowing ambiguous repeated keys."""
+
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ProtocolError("JSON object contains duplicate fields")
+        result[key] = value
+    return result
+
+
+def parse_json_object(raw: str | bytes | bytearray) -> dict[str, Any]:
+    """Parse one wire JSON object with strict duplicate-key handling.
+
+    ``json.loads`` otherwise keeps only the last occurrence of a repeated
+    field. That is safe for ordinary local data but ambiguous at a protocol
+    boundary, especially when a signature or a state machine is involved.
+    """
+
+    try:
+        payload = json.loads(raw, object_pairs_hook=_reject_duplicate_fields)
+    except ProtocolError:
+        raise
+    except (TypeError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ProtocolError("message is not valid JSON") from error
+    if not isinstance(payload, dict):
+        raise ProtocolError("message must be a JSON object")
+    return payload
+
+
 def _string(payload: Mapping[str, Any], name: str, *, maximum: int = 256) -> str:
     value = payload.get(name)
     if (

@@ -17,7 +17,7 @@ from typing import Any
 
 from backend.pipa_core.connection import AuthenticatedConnection, ConnectionResult
 from backend.pipa_core.core import PipaCore
-from backend.pipa_core.protocol import ProtocolError, parse_client_message, server_message
+from backend.pipa_core.protocol import ProtocolError, parse_client_message, parse_json_object, server_message
 
 LOGGER = logging.getLogger("pipa.serial")
 MAX_LINE_BYTES = 12_000
@@ -118,10 +118,10 @@ class SerialGateway:
                             break
                         continue
                     try:
-                        payload = json.loads(raw.decode("utf-8"))
+                        payload = parse_json_object(raw)
                         result = protocol.process(parse_client_message(payload))
                         protocol_errors = 0
-                    except (UnicodeDecodeError, json.JSONDecodeError, ProtocolError):
+                    except ProtocolError:
                         protocol_errors += 1
                         result = ConnectionResult(
                             [server_message("error", code="protocol_error")],

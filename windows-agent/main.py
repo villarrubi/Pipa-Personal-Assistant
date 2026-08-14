@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import os
 import platform
@@ -54,7 +53,7 @@ from backend.pipa_core.connection import (
     AuthenticatedConnection,
 )
 from backend.pipa_core.core import PipaCore
-from backend.pipa_core.protocol import ProtocolError, parse_client_message, server_message
+from backend.pipa_core.protocol import ProtocolError, parse_client_message, parse_json_object, server_message
 from backend.pipa_core.tools import ToolRouter
 
 _serial_gateway = None
@@ -701,12 +700,12 @@ async def api_pipa_websocket(websocket: WebSocket):
                 if len(raw.encode("utf-8")) > MAX_WEBSOCKET_MESSAGE_BYTES:
                     await websocket.close(code=1009, reason="message too large")
                     return
-                payload = json.loads(raw)
+                payload = parse_json_object(raw)
                 message = parse_client_message(payload)
             except TimeoutError:
                 await websocket.close(code=1001, reason="connection timeout")
                 return
-            except (json.JSONDecodeError, ProtocolError):
+            except ProtocolError:
                 protocol_errors += 1
                 await websocket.send_json(server_message("error", code="protocol_error"))
                 if protocol_errors >= MAX_PROTOCOL_ERRORS:

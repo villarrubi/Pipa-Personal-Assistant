@@ -192,6 +192,17 @@ class SerialProtocolSessionTests(unittest.TestCase):
             self.assertEqual(response["code"], "protocol_error")
             self.assertNotIn("x" * 100, raw.decode("utf-8"))
 
+    def test_duplicate_serial_json_fields_are_rejected(self):
+        gateway = SerialGateway(self.core, "COM7")
+        duplicate = b'{"protocol_version":1,"type":"challenge_request","type":"ping"}\n'
+        connection = FakeSerialConnection([duplicate], gateway)
+
+        gateway._serve_connection(connection)
+
+        self.assertEqual(len(connection.writes), 1)
+        response = json.loads(connection.writes[0].decode("utf-8"))
+        self.assertEqual(response["code"], "protocol_error")
+
     def test_oversized_serial_responses_are_replaced_by_a_bounded_error(self):
         gateway = SerialGateway(self.core, "COM7")
         connection = FakeSerialConnection([], gateway)
