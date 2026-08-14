@@ -22,6 +22,7 @@ from trusted_unlock_devices import (  # noqa: E402
     DeviceNotFoundError,
     DeviceStoreError,
     InMemoryDeviceStore,
+    _is_registry_enumeration_end,
     public_key_fingerprint,
     public_key_to_base64,
     verifier_from_store,
@@ -100,6 +101,10 @@ class TrustedUnlockDeviceStoreTests(unittest.TestCase):
     def test_mobile_registry_path_is_separate_from_trusted_unlock(self):
         self.assertNotEqual(MOBILE_REGISTRY_PATH, REGISTRY_PATH)
         self.assertEqual(MOBILE_REGISTRY_PATH, r"SOFTWARE\Pipa\Mobile\Devices")
+
+    def test_registry_enumeration_only_accepts_the_explicit_end_code(self):
+        self.assertTrue(_is_registry_enumeration_end(OSError(259, "no more data")))
+        self.assertFalse(_is_registry_enumeration_end(OSError(5, "access denied")))
 
     def test_mobile_pairing_commands_are_explicit(self):
         parser = build_parser()

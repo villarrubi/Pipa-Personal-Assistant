@@ -134,6 +134,9 @@ de recuperación y acceso.
 - Los JSON recibidos por los transportes y los ficheros locales de apps/contactos
   rechazan claves duplicadas, incluidas claves equivalentes mediante escapes
   Unicode, para evitar interpretaciones ambiguas entre capas.
+- La enumeración del almacén de dispositivos del Registro solo interpreta el
+  código Win32 explícito de fin de lista como final normal; cualquier error de
+  lectura intermedio cierra el camino móvil en lugar de usar una lista parcial.
 - La actualización del agente usa una ruta de apagado solo en loopback y con
   cabecera específica para que el propio servidor cierre limpiamente; el
   fallback de proceso exige la línea de comandos exacta y nunca termina un PID

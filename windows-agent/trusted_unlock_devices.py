@@ -98,6 +98,12 @@ def is_administrator() -> bool:
         return False
 
 
+def _is_registry_enumeration_end(error: OSError) -> bool:
+    """Recognize only Win32's explicit end-of-enumeration condition."""
+
+    return getattr(error, "winerror", None) == 259 or getattr(error, "errno", None) == 259
+
+
 class InMemoryDeviceStore:
     """Small store used by tests; it has no persistence or OS privileges."""
 
@@ -246,8 +252,10 @@ class WindowsRegistryDeviceStore:
             while True:
                 try:
                     device_id = winreg.EnumKey(root, index)
-                except OSError:
-                    break
+                except OSError as error:
+                    if _is_registry_enumeration_end(error):
+                        break
+                    raise DeviceStoreError("could not enumerate trusted device store") from error
                 index += 1
                 validate_device_id(device_id)
 
