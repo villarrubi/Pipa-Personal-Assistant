@@ -873,6 +873,10 @@ class IntegrationTests(unittest.TestCase):
             {"channel_id": "12345678901234567"},
         )
         self.assertEqual(
+            parse_text_intent("abre el canal 12345678901234567 de Discord").arguments,
+            {"channel_id": "12345678901234567"},
+        )
+        self.assertEqual(
             parse_text_intent("llama a mamá por Discord").arguments,
             {"contact": "mamá"},
         )
@@ -895,6 +899,10 @@ class IntegrationTests(unittest.TestCase):
         )
         self.assertEqual(
             parse_text_intent("abre el canal de mamá en Discord").arguments,
+            {"contact": "mamá"},
+        )
+        self.assertEqual(
+            parse_text_intent("abre el canal de mamá de Discord").arguments,
             {"contact": "mamá"},
         )
         self.assertEqual(

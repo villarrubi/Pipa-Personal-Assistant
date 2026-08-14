@@ -439,7 +439,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     discord_call_server_channel_suffix = re.fullmatch(
         r"(?:llama(?:r)?|haz una llamada) (?:al|a(?:l)? )?(?:canal )?([0-9]{17,20}) "
-        r"(?:del|de|en el) (?:servidor|guild) ([0-9]{17,20}) (?:por|en) discord",
+        r"(?:del|de|en el) (?:servidor|guild) ([0-9]{17,20}) (?:por|en|de) discord",
         normalized,
     )
     if discord_call_server_channel_suffix:
@@ -453,7 +453,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     discord_call_channel_suffix = re.fullmatch(
         r"(?:llama(?:r)?|haz una llamada) (?:al|a(?:l)? )?(?:canal )?([0-9]{17,20}) "
-        r"(?:por|en) discord",
+        r"(?:por|en|de) discord",
         normalized,
     )
     if discord_call_channel_suffix:
@@ -464,7 +464,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
 
     discord_open_server_channel_suffix = re.fullmatch(
         r"(?:abre|abrir) (?:el )?(?:canal )?([0-9]{17,20}) "
-        r"(?:del|de|en el) (?:servidor|guild) ([0-9]{17,20}) (?:por|en) discord",
+        r"(?:del|de|en el) (?:servidor|guild) ([0-9]{17,20}) (?:por|en|de) discord",
         normalized,
     )
     if discord_open_server_channel_suffix:
@@ -477,14 +477,14 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         )
 
     discord_open_channel_suffix = re.fullmatch(
-        r"(?:abre|abrir) (?:el )?(?:canal )?([0-9]{17,20}) (?:por|en) discord",
+        r"(?:abre|abrir) (?:el )?(?:canal )?([0-9]{17,20}) (?:por|en|de) discord",
         normalized,
     )
     if discord_open_channel_suffix:
         return ParsedIntent("discord_open", {"channel_id": discord_open_channel_suffix.group(1)})
 
     discord_channel_contact = re.fullmatch(
-        r"(?:abre|abrir) (?:el )?canal de (.+?) (?:por|en) discord",
+        r"(?:abre|abrir) (?:el )?canal de (.+?) (?:por|en|de) discord",
         original,
         flags=re.IGNORECASE,
     )
@@ -492,7 +492,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent("discord_contact", {"contact": discord_channel_contact.group(1).strip()})
 
     discord_chat_contact = re.fullmatch(
-        r"(?:abre|abrir) (?:el )?chat de (.+?) (?:por|en) discord",
+        r"(?:abre|abrir) (?:el )?chat de (.+?) (?:por|en|de) discord",
         original,
         flags=re.IGNORECASE,
     )
@@ -529,7 +529,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent("discord_call_channel", {"channel_id": discord_call_channel.group(1)})
 
     discord_contact = re.fullmatch(
-        r"abre (?:el )?(.+?) (?:por|en) discord",
+        r"abre (?:el )?(.+?) (?:por|en|de) discord",
         original,
         flags=re.IGNORECASE,
     )
