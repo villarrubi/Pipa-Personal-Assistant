@@ -12,6 +12,7 @@ if (-not (Test-Path -LiteralPath $workflowPath -PathType Leaf)) {
 
 $workflow = Get-Content -LiteralPath $workflowPath -Raw
 $requiredFragments = @(
+    './scripts/check_ci_coverage.ps1',
     './scripts/check_powershell_syntax.ps1',
     './scripts/check_agent_startup.ps1',
     './scripts/check_log_safety.ps1',
@@ -33,6 +34,14 @@ $requiredFragments = @(
     './scripts/check_repo_hygiene.ps1',
     './scripts/check_git_history.ps1',
     './scripts/test_security_patterns.ps1',
+    'ruff check backend windows-agent scripts',
+    'ruff format --check backend windows-agent scripts',
+    'python -m compileall -q backend windows-agent scripts',
+    'swift test --package-path mobile-ios',
+    'xcodebuild -project mobile-ios/PipaMobileApp/PipaMobile.xcodeproj',
+    'cmake -S trusted-unlock -B trusted-unlock/build-ci -A x64',
+    'cmake --build trusted-unlock/build-ci --config Release',
+    '.\trusted-unlock\build-ci\Release\PipaProviderTest.exe',
     'run_pio_with_retry waveshare-185c',
     'run_pio_with_retry waveshare-185c-v1',
     'run_pio_with_retry secure-session-v2',
