@@ -57,6 +57,8 @@ jobs:
         run: ./scripts/check_mobile_ios_package.ps1
       - name: Check mobile capability contract
         run: python scripts/check_mobile_capability_contract.py
+      - name: Check mobile catalog contract
+        run: python scripts/check_mobile_catalog_contract.py
       - name: Check mobile confirmation contract
         run: python scripts/check_mobile_confirmation_contract.py
       - name: Check Waveshare V1/V2 pin map

@@ -113,6 +113,9 @@ Invoke-RepoScriptCheck -Name 'iOS package structure' -RelativePath 'scripts/chec
 Invoke-ExternalCheck -Name 'Mobile capability contract' -FilePath $python -Arguments @(
     (Join-Path $repoRoot 'scripts/check_mobile_capability_contract.py')
 )
+Invoke-ExternalCheck -Name 'Mobile catalog contract' -FilePath $python -Arguments @(
+    (Join-Path $repoRoot 'scripts/check_mobile_catalog_contract.py')
+)
 Invoke-RepoScriptCheck -Name 'Waveshare V1/V2 pin map' -RelativePath 'scripts/check_waveshare_pinmap.ps1'
 Invoke-RepoScriptCheck -Name 'Firmware configuration safety' -RelativePath 'scripts/check_firmware_config.ps1'
 Invoke-RepoScriptCheck -Name 'Firmware flashing safety' -RelativePath 'scripts/check_firmware_flash_safety.ps1'

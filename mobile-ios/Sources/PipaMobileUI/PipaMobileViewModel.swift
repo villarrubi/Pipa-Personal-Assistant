@@ -38,10 +38,7 @@ public struct PipaMobileCommandParameter: Identifiable {
               Self.isValidName(name),
               !label.isEmpty,
               PipaMobileTextPolicy.isSafeDisplayText(label, maxBytes: 128),
-              [
-                  "text", "message", "phone", "integer", "queue", "action", "app", "contact",
-                  "channel_id", "guild_id", "url",
-              ].contains(kind),
+              Self.structuredParameterKinds.contains(kind),
               (1...4096).contains(maxLength),
               label.utf8.count <= 128 else {
             return nil
@@ -70,6 +67,11 @@ public struct PipaMobileCommandParameter: Identifiable {
         self.maxLength = maxLength
         self.options = options
     }
+
+    private static let structuredParameterKinds: Set<String> = [
+        "text", "message", "phone", "integer", "queue", "action", "app", "contact",
+        "channel_id", "guild_id", "url",
+    ]
 
     private static func isValidName(_ value: String) -> Bool {
         guard let first = value.utf8.first,

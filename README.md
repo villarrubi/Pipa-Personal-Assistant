@@ -402,6 +402,9 @@ la matriz de integraciones del agente y la compara con las allowlists de tipos
 del parser TCP Swift. Así, añadir un flag de WhatsApp, Discord, Apple Music,
 League o cualquier integración nueva exige actualizar ambos lados de forma
 explícita.
+El mismo preflight comprueba que los tipos de campos estructurados del
+catálogo (`phone`, `channel_id`, `queue`, etc.) estén sincronizados entre el
+validador Python y el formulario Swift.
 
 ## Cuando llegue el Waveshare
 
