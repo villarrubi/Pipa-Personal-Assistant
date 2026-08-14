@@ -12,6 +12,13 @@ if (-not (Test-Path -LiteralPath $workflowPath -PathType Leaf)) {
 
 $workflow = Get-Content -LiteralPath $workflowPath -Raw
 $requiredFragments = @(
+    'workflow_dispatch:',
+    'concurrency:',
+    'cancel-in-progress: true',
+    'timeout-minutes: 20',
+    'timeout-minutes: 45',
+    'timeout-minutes: 30',
+    'timeout-minutes: 10',
     './scripts/check_ci_coverage.ps1',
     './scripts/check_powershell_syntax.ps1',
     './scripts/check_agent_startup.ps1',
