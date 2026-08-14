@@ -397,8 +397,11 @@ public final class PipaSecureRecordLayer {
 
     /// Open a binary payload whose metadata was authenticated as AAD.
     public func openBinary(frame: [String: Any], additionalData: Data) throws -> Data {
-        let recordFrame = frame.filter { Self.recordFields.contains($0.key) }
-        return try openRaw(frame: recordFrame, additionalData: additionalData)
+        guard Set(frame.keys) == Self.recordFields else {
+            closed = true
+            throw PipaMobileError.invalidRecord
+        }
+        return try openRaw(frame: frame, additionalData: additionalData)
     }
 
     private func openRaw(frame: [String: Any], additionalData: Data) throws -> Data {

@@ -154,6 +154,9 @@ de recuperación y acceso.
 - El canal JSON v2 cifra el objeto completo, autentica una AAD fija y exige un
   sobre estricto antes de entregar el contenido al parser del Core; permanece
   opt-in y aislado del WebSocket v1.
+- El cliente iOS exige también un sobre exacto en los records binarios y cierra
+  la sesión ante campos desconocidos; valida localmente firmware y capacidades
+  antes de enviar device_hello, en lugar de esperar al rechazo del servidor.
 - El cliente móvil de referencia prueba en memoria el handshake, el anuncio de
   `display`/`touch`, la confirmación y la reducción de resultados para web,
   Apple Music, WhatsApp, Discord y League. El cliente TCP de referencia prueba

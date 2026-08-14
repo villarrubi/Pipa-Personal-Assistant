@@ -229,6 +229,36 @@ final class PipaMobileProtocolTests: XCTestCase {
         }
     }
 
+    func testBinaryRecordRejectsUnknownFieldsAndClosesTheLayer() throws {
+        let sharedSecret = Data((1...32).map(UInt8.init))
+        let transcriptHash = Data((32...63).map(UInt8.init))
+        let client = try PipaSecureRecordLayer(
+            sessionID: "binary-record-test",
+            sharedSecretData: sharedSecret,
+            transcriptHash: transcriptHash,
+            role: .client
+        )
+        let server = try PipaSecureRecordLayer(
+            sessionID: "binary-record-test",
+            sharedSecretData: sharedSecret,
+            transcriptHash: transcriptHash,
+            role: .server
+        )
+        let additionalData = Data("pipa/test/v2".utf8)
+        var frame = try client.sealBinary(
+            payload: Data([1, 2, 3, 4]),
+            additionalData: additionalData
+        )
+        frame["unexpected"] = true
+
+        XCTAssertThrowsError(try server.openBinary(frame: frame, additionalData: additionalData))
+        XCTAssertThrowsError(try server.openBinary(frame: frame, additionalData: additionalData)) { error in
+            guard case PipaMobileError.sessionClosed = error else {
+                return XCTFail("Expected the binary record layer to fail closed")
+            }
+        }
+    }
+
     func testRecordLayerMatchesTheSharedPythonVector() throws {
         let fixtureURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -451,6 +481,17 @@ final class PipaMobileProtocolTests: XCTestCase {
             XCTFail("oversized tool arguments must be rejected locally")
         } catch PipaMobileError.payloadTooLarge {
             // Expected.
+        }
+
+        XCTAssertThrowsError(try PipaMobileTCPClient(
+            identity: identity,
+            serverPublicKeyData: Data(repeating: 0x42, count: 32),
+            serverID: "pipa-agent-v2",
+            capabilities: ["display\u{202E}"]
+        )) { error in
+            guard case PipaMobileError.invalidIdentity = error else {
+                return XCTFail("Unsafe device capabilities must be rejected locally")
+            }
         }
     }
 }

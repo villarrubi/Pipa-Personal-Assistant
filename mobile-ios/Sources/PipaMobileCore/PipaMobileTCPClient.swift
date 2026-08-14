@@ -52,10 +52,17 @@ public actor PipaMobileTCPClient {
               PipaMobileIdentity.isValidIdentifier(serverID),
               !firmwareVersion.isEmpty,
               firmwareVersion.utf8.count <= 32,
+              firmwareVersion == firmwareVersion.trimmingCharacters(in: .whitespacesAndNewlines),
+              PipaMobileTextPolicy.isSafeDisplayText(firmwareVersion, maxBytes: 32),
               !capabilities.isEmpty,
               capabilities.count <= 16,
               Set(capabilities).count == capabilities.count,
-              capabilities.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 32 }) else {
+              capabilities.allSatisfy({
+                  !$0.isEmpty &&
+                      $0.utf8.count <= 32 &&
+                      $0 == $0.trimmingCharacters(in: .whitespacesAndNewlines) &&
+                      PipaMobileTextPolicy.isSafeDisplayText($0, maxBytes: 32)
+              }) else {
             throw PipaMobileError.invalidIdentity
         }
         self.identity = identity
