@@ -36,6 +36,7 @@ public final class PipaMobileAppleMusicController: ObservableObject {
     private let player = SystemMusicPlayer.shared
     private var songs: [Song] = []
     #endif
+    private var searchGeneration: UInt64 = 0
 
     public init() {}
 
@@ -73,13 +74,20 @@ public final class PipaMobileAppleMusicController: ObservableObject {
         }
         #if os(iOS)
         guard !requestInProgress else { return }
+        searchGeneration &+= 1
+        let generation = searchGeneration
         requestInProgress = true
         statusMessage = "Buscando en Apple Music…"
         Task { [weak self] in
             guard let self else { return }
-            defer { self.requestInProgress = false }
+            defer {
+                if self.searchGeneration == generation {
+                    self.requestInProgress = false
+                }
+            }
             do {
                 let authorization = await MusicAuthorization.request()
+                guard self.searchGeneration == generation, !Task.isCancelled else { return }
                 guard authorization == .authorized else {
                     self.applyAuthorization(authorization)
                     return
@@ -89,6 +97,7 @@ public final class PipaMobileAppleMusicController: ObservableObject {
                 var request = MusicCatalogSearchRequest(term: query, types: [Song.self])
                 request.limit = 5
                 let response = try await request.response()
+                guard self.searchGeneration == generation, !Task.isCancelled else { return }
                 let foundSongs = Array(response.songs)
                 guard !foundSongs.isEmpty else {
                     self.songs = []
@@ -106,6 +115,7 @@ public final class PipaMobileAppleMusicController: ObservableObject {
                 }
                 self.statusMessage = "Elige una canción para reproducirla en este iPhone."
             } catch {
+                guard self.searchGeneration == generation, !Task.isCancelled else { return }
                 self.songs = []
                 self.searchResults = []
                 self.statusMessage = "No se pudo buscar en Apple Music."
@@ -249,6 +259,18 @@ public final class PipaMobileAppleMusicController: ObservableObject {
         #if os(iOS)
         isPlaying = player.state.playbackStatus == .playing
         #endif
+    }
+
+    /// Drop search results and the displayed track when the app leaves the
+    /// foreground.  This does not stop the system player: playback is an
+    /// explicit user choice, while the result list is only ephemeral UI data.
+    public func clearEphemeralSearchState() {
+        searchGeneration &+= 1
+        #if os(iOS)
+        songs = []
+        #endif
+        searchResults = []
+        currentTrack = ""
     }
 
     #if os(iOS)

@@ -71,6 +71,9 @@ final class PipaMobileUITests: XCTestCase {
         XCTAssertFalse(controller.isPlaying)
         XCTAssertFalse(controller.requestInProgress)
         XCTAssertTrue(controller.currentTrack.isEmpty)
+        controller.clearEphemeralSearchState()
+        XCTAssertTrue(controller.searchResults.isEmpty)
+        XCTAssertTrue(controller.currentTrack.isEmpty)
 #if os(iOS)
         XCTAssertTrue(controller.isNativePlaybackAvailable)
 #else

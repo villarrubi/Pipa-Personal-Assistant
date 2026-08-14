@@ -65,7 +65,9 @@ anterior, pausa/reproducción, siguiente y detener actúan solo sobre ese
 reproductor. Esta ruta no
 envía la búsqueda al PC, no guarda tokens y no cambia las confirmaciones del
 agente Windows. Requiere una cuenta/suscripción compatible y queda pendiente
-de validación física en Xcode/iPhone.
+de validación física en Xcode/iPhone. Al pasar la app a segundo plano se
+descartan los resultados y la pista mostrada; la reproducción explícitamente
+iniciada no se detiene por ese cambio de UI.
 
 Antes de probarla en un dispositivo, usa un Bundle ID explícito para el target
 y activa el servicio MusicKit en su App ID desde Certificates, Identifiers &
