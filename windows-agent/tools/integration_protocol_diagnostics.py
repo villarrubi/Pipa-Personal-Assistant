@@ -49,6 +49,17 @@ _INTEGRATION_CASES: tuple[tuple[str, dict[str, Any]], ...] = (
 )
 INTEGRATION_CASE_COUNT = len(_INTEGRATION_CASES)
 
+# Read-only integration status calls do not need a touch confirmation, but
+# they still belong in the protocol smoke test. Keeping them in a separate
+# matrix makes the distinction explicit and prevents a future status route
+# from accidentally inheriting the outward-action test's assumptions.
+_READ_ONLY_INTEGRATION_CASES: tuple[tuple[str, dict[str, Any]], ...] = (
+    ("integration_status", {}),
+    ("league_status", {}),
+    ("league_search_status", {}),
+)
+READ_ONLY_INTEGRATION_CASE_COUNT = len(_READ_ONLY_INTEGRATION_CASES)
+
 # These phrases use the same parser path as a future voice-capable device.
 # Keep destinations synthetic and direct so the diagnostic never needs local
 # contact aliases or a real application while still exercising every named
@@ -88,7 +99,7 @@ def _synthetic_catalog(executed: list[str]) -> ToolCatalog:
 
     real_catalog = build_agent_catalog(TimerManager())
     definitions: list[ToolDefinition] = []
-    for tool_name, _arguments in _INTEGRATION_CASES:
+    for tool_name, _arguments in (*_INTEGRATION_CASES, *_READ_ONLY_INTEGRATION_CASES):
         real_definition = real_catalog.get(tool_name)
 
         def simulated_handler(_values: dict[str, Any], *, name: str = tool_name) -> dict[str, Any]:
@@ -105,6 +116,28 @@ def _synthetic_catalog(executed: list[str]) -> ToolCatalog:
             )
         )
     return ToolCatalog(definitions)
+
+
+def _check_read_only_cases(simulator, executed: list[str]) -> None:
+    """Verify that status routes execute directly and never request touch."""
+
+    for tool_name, arguments in _READ_ONLY_INTEGRATION_CASES:
+        executed_before = len(executed)
+        responses = simulator.send(
+            "tool_call",
+            name=tool_name,
+            arguments=arguments,
+        )
+        if any(item.get("type") == "confirm_request" for item in responses):
+            raise ValueError(f"read-only route unexpectedly requested confirmation: {tool_name}")
+        result = next((item for item in responses if item.get("type") == "tool_result"), None)
+        if (
+            not isinstance(result, dict)
+            or result.get("tool_name") != tool_name
+            or result.get("success") is not True
+            or len(executed) != executed_before + 1
+        ):
+            raise ValueError(f"read-only route did not execute safely: {tool_name}")
 
 
 def _check_voice_cases(simulator, executed: list[str]) -> None:
@@ -196,9 +229,11 @@ def run_integration_protocol_self_test() -> dict[str, object]:
                 raise ValueError(f"{tool_name} leaked arguments after confirmation")
 
         _check_voice_cases(simulator, executed)
+        _check_read_only_cases(simulator, executed)
 
         expected_tools = [name for name, _arguments in _INTEGRATION_CASES]
         expected_tools.extend(tool_name for _phrase, tool_name, _arguments in _VOICE_INTEGRATION_CASES)
+        expected_tools.extend(name for name, _arguments in _READ_ONLY_INTEGRATION_CASES)
         if executed != expected_tools:
             raise ValueError("synthetic handlers did not execute in the expected order")
     finally:
@@ -207,6 +242,7 @@ def run_integration_protocol_self_test() -> dict[str, object]:
     return {
         "commands_checked": INTEGRATION_CASE_COUNT,
         "voice_commands_checked": VOICE_INTEGRATION_CASE_COUNT,
+        "read_only_commands_checked": READ_ONLY_INTEGRATION_CASE_COUNT,
         "confirmation_gated": True,
         "executed_only_after_confirmation": True,
         "result_redacted": True,

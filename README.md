@@ -203,6 +203,8 @@ que las solicitó y caducan si no se confirman.
   sintéticos, exige confirmación y no abre aplicaciones ni contacta servicios.
   También recorre cinco frases naturales de voz por el mismo parser y comprueba
   que sus argumentos no aparecen en la confirmación ni en el resultado del dispositivo.
+  Incluye además las consultas seguras de estado de integraciones y League, que
+  deben ejecutarse sin confirmación táctil.
 - El contrato de audio cifrado ya tiene un consumidor por chunks en Windows:
   exige codec listo, indicador visible, consentimiento y transporte seguro;
   entrega memoria efímera a un futuro STT local, borra el buffer y cierra la

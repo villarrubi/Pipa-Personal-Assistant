@@ -405,6 +405,9 @@ efímero, exige confirmación y comprueba la redacción del resultado, sin abrir
 aplicaciones, contactar con League ni modificar claves persistentes.
 Además recorre cinco frases naturales de voz por el mismo parser y comprueba
 que sus argumentos no aparecen en la confirmación ni en el resultado del dispositivo.
+También consulta tres rutas de estado seguras (`integration_status`,
+`league_status` y `league_search_status`) y comprueba que se ejecutan sin pedir
+toque, mientras que las acciones externas siguen bloqueadas hasta confirmar.
 La matriz pública de integraciones se valida además contra un contrato único:
 Apple Music no anuncia reproducción automática, WhatsApp no anuncia envío,
 Discord no anuncia inicio de llamada, League no anuncia aceptación de partida y

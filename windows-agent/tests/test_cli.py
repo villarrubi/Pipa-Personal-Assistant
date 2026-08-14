@@ -277,10 +277,11 @@ class CliTests(unittest.TestCase):
     def test_integration_protocol_test_is_local_and_does_not_require_hardware(self, protocol_test):
         protocol_test.return_value = {
             "commands_checked": 18,
+            "read_only_commands_checked": 3,
             "confirmation_gated": True,
             "executed_only_after_confirmation": True,
             "result_redacted": True,
-            "simulated_handlers_executed": 18,
+            "simulated_handlers_executed": 26,
             "external_actions_executed": False,
             "persistent_keys_touched": False,
         }
