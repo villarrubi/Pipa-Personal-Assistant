@@ -79,6 +79,7 @@ que las solicitó y caducan si no se confirman.
 - Pedir una llamada de Discord por ID de canal validado: abre el destino y
   deja el botón `Llamar` para la persona.
 - Consultar el estado de matchmaking de League y evitar duplicar una búsqueda.
+- Avisar cuando League encuentra una partida, dejando la aceptación al usuario.
 - Consultar por separado el estado de búsqueda de League, la batería/red del
   PC y listar o cancelar temporizadores locales.
 - Probar las integraciones desde `windows-agent/pipa_cli.py` sin tener el

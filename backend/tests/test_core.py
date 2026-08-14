@@ -101,6 +101,17 @@ class CoreTests(unittest.TestCase):
             ),
             (
                 "league_search_status",
+                {
+                    "success": True,
+                    "supported": True,
+                    "searching": False,
+                    "match_found": True,
+                    "state": "match_found",
+                },
+                "League ha encontrado una partida; acéptala manualmente.",
+            ),
+            (
+                "league_search_status",
                 {"success": True, "supported": True, "searching": False, "state": "unknown"},
                 "No se pudo confirmar el estado de búsqueda de League.",
             ),

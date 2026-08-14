@@ -54,6 +54,17 @@ _CLIENT_START_TIMEOUT_SECONDS = 30.0
 _CLIENT_START_POLL_SECONDS = 0.5
 _MATCHMAKING_OPERATION_LOCK = threading.Lock()
 _SEARCHING_STATES = frozenset({"searching", "inprogress", "in_progress"})
+_MATCH_FOUND_STATES = frozenset(
+    {
+        "found",
+        "match_found",
+        "matchfound",
+        "ready",
+        "ready-check",
+        "ready_check",
+        "readycheck",
+    }
+)
 _NOT_SEARCHING_STATES = frozenset(
     {
         "none",
@@ -240,9 +251,10 @@ class LeagueClientApi:
             # A 404 must be treated as unsupported, not as an empty response.
             details = self._request("GET", "/lol-lobby/v2/lobby/matchmaking/search")
         except LeagueClientError:
-            return {"supported": False, "searching": False, "details": None}
+            return {"supported": False, "searching": False, "match_found": False, "details": None}
 
         searching = False
+        match_found = False
         state = "unknown"
         if isinstance(details, dict):
             raw_state = details.get("searchState", details.get("state", "unknown"))
@@ -250,10 +262,18 @@ class LeagueClientApi:
                 normalized_state = raw_state.strip().casefold()
                 if normalized_state in _SEARCHING_STATES:
                     state = "searching"
+                elif normalized_state in _MATCH_FOUND_STATES:
+                    state = "match_found"
                 elif normalized_state in _NOT_SEARCHING_STATES:
                     state = "not_searching"
             searching = state == "searching" or details.get("searching") is True
-        return {"supported": True, "searching": searching, "state": state}
+            match_found = state == "match_found"
+        return {
+            "supported": True,
+            "searching": searching,
+            "match_found": match_found,
+            "state": state,
+        }
 
     def start_search(self, queue: str) -> dict[str, object]:
         queue_id = resolve_queue_id(queue)
@@ -266,6 +286,10 @@ class LeagueClientApi:
         if search["supported"] is False:
             raise LeagueClientError(
                 "La API local de matchmaking no está disponible en esta versión de League."
+            )
+        if search["match_found"]:
+            raise LeagueClientError(
+                "League ya encontró una partida; la aceptación debe hacerse manualmente."
             )
         if search["state"] == "unknown":
             # Never interpret an unfamiliar client state as idle: doing so

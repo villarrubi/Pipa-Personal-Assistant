@@ -768,6 +768,8 @@ class PipaCore:
         if tool_name == "league_search_status":
             if result.get("supported") is False:
                 return "El estado de búsqueda de League no está disponible."
+            if result.get("match_found") is True:
+                return "League ha encontrado una partida; acéptala manualmente."
             if result.get("searching") is True:
                 return "League está buscando partida."
             if result.get("state") == "unknown":
@@ -776,6 +778,8 @@ class PipaCore:
         if tool_name == "league_status":
             search = result.get("search")
             if isinstance(search, dict):
+                if search.get("match_found") is True:
+                    return "League ha encontrado una partida; acéptala manualmente."
                 if search.get("searching") is True:
                     return "League está buscando partida."
                 if search.get("supported") is False:

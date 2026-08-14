@@ -1000,6 +1000,38 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(result["already_searching"])
         self.assertEqual(request.call_count, 2)
 
+    def test_league_reports_a_found_match_without_accepting_it(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+        with patch.object(api, "_request", return_value={"searchState": "Found"}):
+            result = api.search_status()
+
+        self.assertEqual(
+            result,
+            {
+                "supported": True,
+                "searching": False,
+                "match_found": True,
+                "state": "match_found",
+            },
+        )
+
+    def test_league_does_not_restart_search_when_a_match_is_waiting_for_acceptance(self):
+        connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
+        api = LeagueClientApi(connection)
+        with patch.object(
+            api,
+            "_request",
+            side_effect=[
+                {"gameConfig": {"queueId": 400}},
+                {"searchState": "ReadyCheck"},
+            ],
+        ) as request:
+            with self.assertRaises(LeagueClientError):
+                api.start_search("normal")
+
+        self.assertEqual(request.call_count, 2)
+
     def test_league_search_does_not_create_a_lobby_when_matchmaking_is_unavailable(self):
         connection = LeagueClientConnection(**{"to" + "ken": "tok" + "en", "port": 1234})
         api = LeagueClientApi(connection)
@@ -1159,7 +1191,10 @@ class IntegrationTests(unittest.TestCase):
             result = api.status()
 
         self.assertEqual(result["lobby"], {"present": True, "queue_id": 420, "queue": "ranked_solo"})
-        self.assertEqual(result["search"], {"supported": True, "searching": True, "state": "searching"})
+        self.assertEqual(
+            result["search"],
+            {"supported": True, "searching": True, "match_found": False, "state": "searching"},
+        )
 
     def test_device_text_input_reaches_integrations_only_after_tap_confirmation(self):
         cases = (
