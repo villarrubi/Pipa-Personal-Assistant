@@ -62,6 +62,7 @@ class AudioStreamSummary:
 
 AudioChunkConsumer = Callable[[memoryview, bool], None]
 AudioTranscriptProvider = Callable[[memoryview, bool], object]
+AudioTranscriptReset = Callable[[], None]
 AudioTranscriptDispatcher = Callable[[str], object]
 
 
@@ -506,6 +507,8 @@ class SecureAudioTranscriber:
         receiver: SecureAudioReceiver,
         provider: AudioTranscriptProvider,
         gate: AudioCaptureGate,
+        *,
+        reset_provider: AudioTranscriptReset | None = None,
     ) -> None:
         if not isinstance(receiver, SecureAudioReceiver):
             raise TypeError("receiver must be SecureAudioReceiver")
@@ -513,8 +516,11 @@ class SecureAudioTranscriber:
             raise TypeError("provider must be callable")
         if not isinstance(gate, AudioCaptureGate):
             raise TypeError("gate must be AudioCaptureGate")
+        if reset_provider is not None and not callable(reset_provider):
+            raise TypeError("reset_provider must be callable")
         self._transcript: str | None = None
         self._provider: AudioTranscriptProvider | None = provider
+        self._reset_provider: AudioTranscriptReset | None = reset_provider
         self._provider_closed = False
         self._finalized = False
         self._consumer = SecureAudioConsumer(receiver, self._consume_chunk, gate)
@@ -564,18 +570,43 @@ class SecureAudioTranscriber:
     def cancel(self) -> None:
         if self.closed:
             return
-        self._consumer.cancel()
+        try:
+            self._consumer.cancel()
+            self._reset_provider_state()
+        except AudioFrameError:
+            self.close()
+            raise
         self._transcript = None
         self._finalized = False
 
     def close(self) -> None:
         if self._provider_closed:
             return
+        reset_provider = self._reset_provider
         self._provider_closed = True
         self._provider = None
+        self._reset_provider = None
         self._transcript = None
         self._finalized = False
-        self._consumer.close()
+        try:
+            if reset_provider is not None:
+                reset_provider()
+        except Exception:
+            # The provider is no longer reusable even if its own cleanup
+            # failed. Drop every reference and close the authenticated audio
+            # session rather than attempting a new stream with stale state.
+            pass
+        finally:
+            self._consumer.close()
+
+    def _reset_provider_state(self) -> None:
+        reset_provider = self._reset_provider
+        if reset_provider is None:
+            return
+        try:
+            reset_provider()
+        except Exception as error:
+            raise AudioFrameError("audio provider reset failed") from error
 
     def _consume_chunk(self, view: memoryview, final: bool) -> None:
         if self._transcript is not None:

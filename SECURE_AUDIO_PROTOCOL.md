@@ -66,7 +66,10 @@ nuevo.
 - Windows también incluye `SecureAudioTranscriber`, un adaptador inyectable
   que entrega esos chunks al futuro proveedor STT y acepta únicamente una
   transcripción final validada por la política de texto; no elige proveedor,
-  abre micrófono, guarda audio ni conecta el agente residente.
+  abre micrófono, guarda audio ni conecta el agente residente. Un proveedor
+  STT que mantenga estado de streaming debe proporcionar `reset_provider` para
+  que cancelar, cerrar o fallar el stream borre su estado antes de reutilizarlo;
+  si ese reinicio falla, el transcriptor se cierra y no acepta otra captura.
 - `SecureAudioCommandBridge` encapsula el paso siguiente: solo después de
   finalizar el stream entrega una única transcripción al dispatcher del Core y
   cierra el transcriptor tanto si el dispatcher termina correctamente como si

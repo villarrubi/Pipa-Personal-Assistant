@@ -289,6 +289,42 @@ class SecureAudioTests(unittest.TestCase):
         finally:
             transcriber.close()
 
+    def test_transcriber_resets_provider_state_when_capture_is_cancelled(self):
+        sender = SecureAudioSender(self._session("client"), "stream-transcript-reset")
+        frame = sender.seal_chunk(b"\x01\x02" * 4, final=False)
+        reset_calls: list[bool] = []
+        transcriber = SecureAudioTranscriber(
+            SecureAudioReceiver(self._session("server")),
+            lambda _view, _is_final: None,
+            self._listening_gate(),
+            reset_provider=lambda: reset_calls.append(True),
+        )
+
+        self.assertFalse(transcriber.consume_frame(frame))
+        transcriber.cancel()
+
+        self.assertEqual(reset_calls, [True])
+        self.assertFalse(transcriber.closed)
+        self.assertIsNone(transcriber.transcript)
+        transcriber.close()
+        self.assertEqual(reset_calls, [True, True])
+
+    def test_transcriber_closes_if_provider_reset_fails(self):
+        sender = SecureAudioSender(self._session("client"), "stream-transcript-reset-failure")
+        frame = sender.seal_chunk(b"\x01\x02" * 4, final=False)
+        transcriber = SecureAudioTranscriber(
+            SecureAudioReceiver(self._session("server")),
+            lambda _view, _is_final: None,
+            self._listening_gate(),
+            reset_provider=lambda: (_ for _ in ()).throw(RuntimeError("private provider state")),
+        )
+
+        self.assertFalse(transcriber.consume_frame(frame))
+        with self.assertRaises(AudioFrameError):
+            transcriber.cancel()
+
+        self.assertTrue(transcriber.closed)
+
     def test_command_bridge_dispatches_only_a_final_transcript_and_closes(self):
         sender = SecureAudioSender(self._session("client"), "stream-bridge")
         first = sender.seal_chunk(b"\x01\x02" * 4, final=False)
