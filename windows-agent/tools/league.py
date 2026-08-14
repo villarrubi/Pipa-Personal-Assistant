@@ -288,9 +288,7 @@ class LeagueClientApi:
                 "La API local de matchmaking no está disponible en esta versión de League."
             )
         if search["match_found"]:
-            raise LeagueClientError(
-                "League ya encontró una partida; la aceptación debe hacerse manualmente."
-            )
+            raise LeagueClientError("League ya encontró una partida; la aceptación debe hacerse manualmente.")
         if search["state"] == "unknown":
             # Never interpret an unfamiliar client state as idle: doing so
             # could create a second lobby or queue while the client is already
