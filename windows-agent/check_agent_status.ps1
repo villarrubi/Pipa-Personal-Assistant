@@ -26,9 +26,17 @@ if ($null -eq $task) {
     if (Test-Path -LiteralPath $schtasks -PathType Leaf) {
         try {
             $xmlOutput = @(& $schtasks /Query /TN "$TaskPath$TaskName" /XML 2>&1)
+            $xmlText = $xmlOutput -join "`n"
+            $taskMissing = $xmlText -match '(?i)(cannot find|no puede encontrar|no se puede encontrar|no existe|not exist|path specified|ruta especificada)'
             if ($LASTEXITCODE -eq 0 -and $xmlOutput.Count -gt 0) {
-                $taskXml = [xml]($xmlOutput -join "`n")
-            } elseif (($xmlOutput -join " ") -notmatch '(?i)(cannot find|no puede encontrar|no se puede encontrar|no existe|not exist|path specified|ruta especificada)') {
+                $taskXml = [xml]$xmlText
+                $taskQueryFailed = $false
+            } elseif ($taskMissing) {
+                # A missing task is a valid, verifiable state. Do not keep
+                # the earlier Get-ScheduledTask failure as if the scheduler
+                # were inaccessible.
+                $taskQueryFailed = $false
+            } else {
                 $taskQueryFailed = $true
             }
         } catch {

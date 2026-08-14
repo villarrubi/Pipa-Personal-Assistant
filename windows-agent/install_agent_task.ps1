@@ -27,6 +27,30 @@ $runKeyPath = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 $runValueName = 'Pipa Windows Agent'
 $startupDirectory = [Environment]::GetFolderPath('Startup')
 $startupShortcut = Join-Path $startupDirectory 'Pipa Windows Agent.lnk'
+$currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$currentUser = [string]$currentIdentity.Name
+$currentUserLeaf = ($currentUser -split '\\')[-1]
+$currentUserSid = if ($null -ne $currentIdentity.User) {
+    [string]$currentIdentity.User.Value
+} else {
+    ''
+}
+
+function Test-CurrentUserPrincipal {
+    param([string]$Value)
+
+    return (
+        [string]::Equals($Value, $currentUser, [StringComparison]::OrdinalIgnoreCase) -or
+        (
+            $Value.IndexOf('\', [StringComparison]::Ordinal) -lt 0 -and
+            [string]::Equals($Value, $currentUserLeaf, [StringComparison]::OrdinalIgnoreCase)
+        ) -or
+        (
+            -not [string]::IsNullOrWhiteSpace($currentUserSid) -and
+            [string]::Equals($Value, $currentUserSid, [StringComparison]::OrdinalIgnoreCase)
+        )
+    )
+}
 
 function Test-SafeTask {
     param(
@@ -55,7 +79,7 @@ function Test-SafeTask {
         [string]::Equals([string]$action.Execute, $powershell, [StringComparison]::OrdinalIgnoreCase) -and
         [string]::Equals([string]$action.Arguments, $arguments, [StringComparison]::Ordinal)
     $limitedPrincipal = [string]$Task.Principal.RunLevel -notmatch '(?i)Highest|Admin'
-    $currentUserPrincipal = [string]$Task.Principal.UserId -eq $currentUser
+    $currentUserPrincipal = Test-CurrentUserPrincipal ([string]$Task.Principal.UserId)
     return $exactAction -and $limitedPrincipal -and $currentUserPrincipal
 }
 
@@ -150,7 +174,6 @@ function Register-WithStartupShortcut {
 }
 
 if ($PSCmdlet.ShouldProcess("$TaskPath$TaskName", $actionDescription)) {
-    $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent().Name
     $fullTaskName = "$TaskPath$TaskName"
     $existingTask = $null
     try {

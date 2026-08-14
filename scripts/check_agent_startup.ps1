@@ -75,10 +75,16 @@ if ($installer -match '(?i)(-RunLevel\s+Highest|/RL\s+HIGHEST|-Verb\s+RunAs)') {
 if ($status.IndexOf('$taskQueryFailed = $true', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'El diagnostico no distingue una tarea ilegible de una tarea ausente.'
 }
-foreach ($requiredStatusPattern in @('currentUserSid', 'currentUserLeaf', 'Test-CurrentUserId')) {
+foreach ($requiredStatusPattern in @('currentUserSid', 'currentUserLeaf', 'Test-CurrentUserId', '$taskMissing', '$taskQueryFailed = $false')) {
     if ($status.IndexOf($requiredStatusPattern, [System.StringComparison]::Ordinal) -lt 0) {
         throw "El diagnostico no valida la identidad actual de forma exacta: $requiredStatusPattern"
     }
+}
+
+if ($installer.IndexOf('Test-CurrentUserPrincipal', [System.StringComparison]::Ordinal) -lt 0 -or
+    $installer.IndexOf('currentUserLeaf', [System.StringComparison]::Ordinal) -lt 0 -or
+    $installer.IndexOf('currentUserSid', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'El instalador no acepta las representaciones equivalentes del usuario actual.'
 }
 
 if (($launcher + $installer + $status) -match '(?i)(start_agent\.bat|\.cmd|\.vbs)') {
