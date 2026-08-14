@@ -176,10 +176,39 @@ function Register-WithStartupShortcut {
 if ($PSCmdlet.ShouldProcess("$TaskPath$TaskName", $actionDescription)) {
     $fullTaskName = "$TaskPath$TaskName"
     $existingTask = $null
+    $taskQueryFailed = $false
     try {
         $existingTask = Get-ScheduledTask -TaskName $TaskName -TaskPath $TaskPath -ErrorAction Stop
     } catch {
         $existingTask = $null
+        $taskQueryFailed = $true
+    }
+
+    if ($taskQueryFailed) {
+        # An unreadable scheduler is not evidence that the task is absent.
+        # Use schtasks only as a read-only discriminator. A path/access error
+        # stays ambiguous and must stop before any fallback is written.
+        $schtasks = Join-Path $env:WINDIR 'System32\schtasks.exe'
+        $queryOutput = @()
+        $schtasksExitCode = 1
+        if (Test-Path -LiteralPath $schtasks -PathType Leaf) {
+            $previousErrorAction = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try {
+                $queryOutput = @(& $schtasks '/Query' '/TN' $fullTaskName '/FO' 'LIST' 2>&1)
+                $schtasksExitCode = $LASTEXITCODE
+            } finally {
+                $ErrorActionPreference = $previousErrorAction
+            }
+        }
+        $queryText = $queryOutput -join ' '
+        if ($schtasksExitCode -eq 0) {
+            throw "La tarea '$fullTaskName' existe pero no se puede verificar desde esta sesion; no se modifica nada."
+        }
+        if ($queryText -notmatch '(?i)(file specified|archivo especificado)') {
+            throw "No se pudo verificar si existe '$fullTaskName'; no se instala ningun fallback ambiguo."
+        }
+        $taskQueryFailed = $false
     }
 
     if ($null -ne $existingTask -and (Test-SafeTask -Task $existingTask)) {

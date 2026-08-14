@@ -269,7 +269,20 @@ con permiso explícito del sistema y sin enviar la consulta al agente.
 
 ## Instalación del agente
 
-Desde PowerShell en la raíz:
+La instalación reproducible desde PowerShell en la raíz es:
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+  -File .\windows-agent\setup_agent.ps1
+```
+
+Este script crea `windows-agent/.venv` si no existe, exige Python 3.12,
+instala las dependencias fijadas, comprueba el código actual y registra la tarea de
+inicio oculta para el usuario actual. No eleva privilegios, no borra un entorno
+existente y se detiene si encuentra un `.venv` incompleto. Para revisar sin
+cambiar nada usa `-WhatIf`; para preparar solo el entorno usa `-SkipTask`.
+
+La secuencia manual equivalente, útil para diagnostico, es:
 
 ```powershell
 python -m venv .\windows-agent\.venv

@@ -8,6 +8,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $relativeFiles = @(
     'windows-agent/check_agent_status.ps1',
     'windows-agent/install_agent_task.ps1',
+    'windows-agent/setup_agent.ps1',
     'windows-agent/start_agent_hidden.ps1',
     'windows-agent/uninstall_agent_task.ps1',
     'scripts/pipa_preflight.ps1',

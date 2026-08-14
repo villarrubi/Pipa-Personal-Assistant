@@ -6,6 +6,21 @@ la LAN ni reutilizarse como servicio de desbloqueo.
 
 ## Instalar y ejecutar
 
+Para una instalacion reproducible (entorno virtual, dependencias fijadas y
+tarea de inicio oculta para el usuario actual):
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+  -File .\windows-agent\setup_agent.ps1
+```
+
+El instalador exige Python 3.12, no eleva privilegios, no borra un entorno
+existente y verifica que `python.exe` y `pythonw.exe` esten presentes antes de
+registrar la tarea. `-WhatIf` no modifica nada; `-SkipTask` solo prepara el
+entorno y las dependencias.
+
+Secuencia manual equivalente:
+
 ```powershell
 python -m venv .\.venv
 .\.venv\Scripts\python.exe -m pip install -r .\requirements.txt
