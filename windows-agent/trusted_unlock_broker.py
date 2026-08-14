@@ -62,6 +62,10 @@ class BrokerRequestError(Exception):
     """A request is malformed or asks for an unsupported operation."""
 
 
+class UnlockDisabledError(BrokerRequestError):
+    """The Trusted Unlock runtime is intentionally disabled."""
+
+
 def _require_identifier(value: Any, field_name: str) -> str:
     if not isinstance(value, str) or _REQUEST_ID_PATTERN.fullmatch(value) is None:
         raise BrokerRequestError(f"{field_name} must be a printable string")
@@ -100,6 +104,8 @@ def _issued_ticket_dict(ticket: IssuedTicket) -> dict[str, object]:
 
 
 def _error_code(error: Exception) -> str:
+    if isinstance(error, UnlockDisabledError):
+        return "unlock_disabled"
     mapping = {
         UnknownDeviceError: "unknown_device",
         UnknownChallengeError: "unknown_challenge",
@@ -175,7 +181,11 @@ class TrustedUnlockBroker:
             return {"ok": True, "request_id": request_id, "result": result}
         except Exception as error:  # Convert expected failures into safe wire responses.
             if isinstance(error, BrokerRequestError):
-                message = "Solicitud no válida."
+                message = (
+                    "Trusted Unlock está desactivado."
+                    if isinstance(error, UnlockDisabledError)
+                    else "Solicitud no válida."
+                )
             elif isinstance(error, (TrustedUnlockError, TicketError)):
                 # Error codes are useful to the local administrator, but the
                 # exception text can contain a requested device identifier or
@@ -210,6 +220,7 @@ class TrustedUnlockBroker:
             ttl_seconds = payload.get("ttl_seconds", 30)
             if isinstance(ttl_seconds, bool) or not isinstance(ttl_seconds, int):
                 raise BrokerRequestError("ttl_seconds must be an integer")
+            self._require_unlock_enabled()
             challenge = self._verifier.create_challenge(device_id, ttl_seconds=ttl_seconds)
             return {"challenge": challenge.as_dict()}
 
@@ -222,6 +233,7 @@ class TrustedUnlockBroker:
                 response = SignedChallenge(**response_data)
             except (TypeError, ValueError) as error:
                 raise BrokerRequestError("response has invalid fields") from error
+            self._require_unlock_enabled()
             authorization = self._verifier.verify_response(response)
             ticket = self._ticket_issuer.issue(authorization)
             return {
@@ -234,6 +246,7 @@ class TrustedUnlockBroker:
             token = payload.get("token")
             if not isinstance(token, str) or not token:
                 raise BrokerRequestError("token must be a non-empty string")
+            self._require_unlock_enabled()
             ticket = self._ticket_issuer.consume(token)
             return {
                 "consumed": True,
@@ -243,6 +256,13 @@ class TrustedUnlockBroker:
             }
 
         raise BrokerRequestError("unsupported broker command")
+
+    @staticmethod
+    def _require_unlock_enabled() -> None:
+        # This guard is deliberately called only after wire-shape validation,
+        # but before any challenge or ticket state can be mutated.
+        if not UNLOCK_ENABLED:
+            raise UnlockDisabledError("Trusted Unlock is disabled")
 
     @staticmethod
     def _encode_response(

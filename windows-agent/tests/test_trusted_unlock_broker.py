@@ -1,4 +1,3 @@
-import base64
 import json
 import sys
 import unittest
@@ -133,73 +132,53 @@ class TrustedUnlockBrokerTests(unittest.TestCase):
     def test_named_pipe_requires_first_instance_flag(self):
         self.assertNotEqual(FILE_FLAG_FIRST_PIPE_INSTANCE, 0)
 
-    def test_authenticated_flow_issues_and_consumes_one_use_ticket(self):
-        challenge_response = self.request(
-            "challenge.create",
-            {"device_id": "phone-main", "ttl_seconds": 30},
-        )
-        challenge_data = challenge_response["result"]["challenge"]
+    def test_disabled_broker_never_creates_or_consumes_authorization_state(self):
+        for command, payload in (
+            ("challenge.create", {"device_id": "phone-main", "ttl_seconds": 30}),
+            (
+                "challenge.submit",
+                {
+                    "response": {
+                        "challenge_id": "challenge-1",
+                        "device_id": "phone-main",
+                        "signature": "A" * 86,
+                    }
+                },
+            ),
+            ("ticket.consume", {"token": "opaque-token"}),
+        ):
+            response = self.request(command, payload)
+            self.assertFalse(response["ok"])
+            self.assertEqual(response["error"]["code"], "unlock_disabled")
+            self.assertEqual(response["error"]["message"], "Trusted Unlock está desactivado.")
 
-        from trusted_unlock_protocol import Challenge
-
-        challenge = Challenge(**challenge_data)
-        signed = self.device.sign(challenge)
-        submit_response = self.request(
-            "challenge.submit",
-            {
-                "response": {
-                    "challenge_id": signed.challenge_id,
-                    "device_id": signed.device_id,
-                    "signature": signed.signature,
-                }
-            },
-        )
-
-        self.assertTrue(submit_response["ok"])
-        self.assertFalse(submit_response["result"]["unlock_enabled"])
-        self.assert_no_windows_credential_payload(submit_response["result"])
-        ticket = submit_response["result"]["ticket"]
-        consumed = self.request("ticket.consume", {"token": ticket["token"]})
-
-        self.assertTrue(consumed["ok"])
-        self.assertTrue(consumed["result"]["consumed"])
-        self.assertFalse(consumed["result"]["unlock_enabled"])
-        self.assert_no_windows_credential_payload(consumed["result"])
-
-        replay = self.request("ticket.consume", {"token": ticket["token"]})
-        self.assertFalse(replay["ok"])
-        self.assertEqual(replay["error"]["code"], "ticket_replay")
+        health = self.request("health")
+        self.assertEqual(health["result"]["pending_challenges"], 0)
+        self.assertEqual(health["result"]["pending_tickets"], 0)
 
     def test_unknown_device_is_rejected(self):
         response = self.request("challenge.create", {"device_id": "unknown"})
 
         self.assertFalse(response["ok"])
-        self.assertEqual(response["error"]["code"], "unknown_device")
-        self.assertEqual(response["error"]["message"], "Autorización rechazada.")
+        self.assertEqual(response["error"]["code"], "unlock_disabled")
+        self.assertEqual(response["error"]["message"], "Trusted Unlock está desactivado.")
         self.assertNotIn("unknown", response["error"]["message"])
 
-    def test_invalid_signature_does_not_echo_device_or_signature(self):
-        challenge_response = self.request(
-            "challenge.create",
-            {"device_id": "phone-main", "ttl_seconds": 30},
-        )
-        challenge = challenge_response["result"]["challenge"]
+    def test_disabled_authorization_does_not_echo_supplied_values(self):
         response = self.request(
             "challenge.submit",
             {
                 "response": {
-                    "challenge_id": challenge["challenge_id"],
+                    "challenge_id": "challenge-1",
                     "device_id": "phone-main",
-                    "signature": base64.urlsafe_b64encode(b"invalid-signature".ljust(64, b"!"))
-                    .decode("ascii")
-                    .rstrip("="),
+                    "signature": "A" * 86,
                 }
             },
         )
 
         self.assertFalse(response["ok"])
-        self.assertEqual(response["error"]["code"], "invalid_response")
-        self.assertEqual(response["error"]["message"], "Autorización rechazada.")
+        self.assertEqual(response["error"]["code"], "unlock_disabled")
+        self.assertEqual(response["error"]["message"], "Trusted Unlock está desactivado.")
         self.assertNotIn("phone-main", json.dumps(response))
         self.assertNotIn("A" * 32, json.dumps(response))
 
@@ -208,8 +187,8 @@ class TrustedUnlockBrokerTests(unittest.TestCase):
         response = self.request("ticket.consume", {"token": candidate})
 
         self.assertFalse(response["ok"])
-        self.assertEqual(response["error"]["code"], "unknown_ticket")
-        self.assertEqual(response["error"]["message"], "Autorización rechazada.")
+        self.assertEqual(response["error"]["code"], "unlock_disabled")
+        self.assertEqual(response["error"]["message"], "Trusted Unlock está desactivado.")
         self.assertNotIn(candidate, json.dumps(response))
 
     def test_malformed_wire_request_is_bounded_and_safe(self):

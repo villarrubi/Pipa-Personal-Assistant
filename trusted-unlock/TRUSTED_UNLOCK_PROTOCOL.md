@@ -26,8 +26,10 @@ solo necesita conocer la clave pública asociada al dispositivo.
 
 La implementación ya incluye un ticket interno de una sola operación en
 `windows-agent/trusted_unlock_ticket.py`. El ticket es un identificador opaco
-de vida muy corta; sirve para probar el límite entre el verificador y el futuro
-IPC, pero todavía no contiene ni produce una credencial de Windows.
+de vida muy corta y se prueba de forma aislada, pero el broker en ejecución
+está en modo `health-only` mientras `unlock_enabled=false`: no crea desafíos,
+no emite tickets y no los consume. Así, ninguna integración futura puede
+confundir una autorización experimental con permiso de inicio de sesión.
 
 La firma cubre todos los campos del desafío. Por tanto, no se puede cambiar la
 operación, el dispositivo, el nonce o la caducidad sin invalidar la firma.
@@ -58,6 +60,9 @@ proceso ocupa el nombre del pipe, el broker falla en lugar de conectarse a él.
 - El cliente del pipe valida también las respuestas: rechaza JSON duplicado,
   campos desconocidos, sobres con forma incorrecta y errores con texto no
   acotado antes de entregar un resultado al proceso llamador.
+- Mientras Trusted Unlock siga desactivado, el broker solo responde a
+  `health`; cualquier otra operación devuelve `unlock_disabled` sin mutar su
+  estado pendiente.
 
 ## Emparejamiento y revocación
 

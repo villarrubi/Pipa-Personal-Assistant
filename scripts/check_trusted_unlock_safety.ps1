@@ -10,9 +10,10 @@ $credentialProviderPath = Join-Path $repoRoot 'trusted-unlock/src/CredentialProv
 $brokerPath = Join-Path $repoRoot 'windows-agent/trusted_unlock_broker.py'
 $brokerClientPath = Join-Path $repoRoot 'windows-agent/trusted_unlock_broker_client.py'
 $brokerTestsPath = Join-Path $repoRoot 'windows-agent/tests/test_trusted_unlock_broker.py'
+$ticketTestsPath = Join-Path $repoRoot 'windows-agent/tests/test_trusted_unlock_ticket.py'
 $uninstallPath = Join-Path $repoRoot 'trusted-unlock/uninstall.ps1'
 
-foreach ($path in @($providerPath, $credentialProviderPath, $brokerPath, $brokerClientPath, $brokerTestsPath, $uninstallPath)) {
+foreach ($path in @($providerPath, $credentialProviderPath, $brokerPath, $brokerClientPath, $brokerTestsPath, $ticketTestsPath, $uninstallPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Falta el archivo de seguridad Trusted Unlock: $path"
     }
@@ -23,6 +24,7 @@ $credentialProvider = Get-Content -LiteralPath $credentialProviderPath -Raw
 $broker = Get-Content -LiteralPath $brokerPath -Raw
 $brokerClient = Get-Content -LiteralPath $brokerClientPath -Raw
 $brokerTests = Get-Content -LiteralPath $brokerTestsPath -Raw
+$ticketTests = Get-Content -LiteralPath $ticketTestsPath -Raw
 $uninstall = Get-Content -LiteralPath $uninstallPath -Raw
 $installer = Get-Content -LiteralPath (Join-Path $repoRoot 'trusted-unlock/install.ps1') -Raw
 
@@ -67,11 +69,21 @@ if ($credentialProvider.IndexOf('return E_NOTIMPL;', [System.StringComparison]::
 if ($broker.IndexOf('UNLOCK_ENABLED: Final[bool] = False', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'El broker no declara Trusted Unlock desactivado.'
 }
+if ($broker.IndexOf('class UnlockDisabledError', [System.StringComparison]::Ordinal) -lt 0 -or
+    $broker.IndexOf('def _require_unlock_enabled', [System.StringComparison]::Ordinal) -lt 0 -or
+    $broker.IndexOf('self._require_unlock_enabled()', [System.StringComparison]::Ordinal) -lt 0 -or
+    $broker.IndexOf('"unlock_disabled"', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'El broker no conserva el modo health-only mientras Trusted Unlock esta desactivado.'
+}
 if ($broker.IndexOf('unsupported broker command', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'El broker no conserva una lista cerrada de comandos.'
 }
 if ($brokerTests.IndexOf('assertFalse(response["result"]["unlock_enabled"])', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'Las pruebas del broker no comprueban unlock_enabled=false.'
+}
+if ($brokerTests.IndexOf('never_creates_or_consumes_authorization_state', [System.StringComparison]::Ordinal) -lt 0 -or
+    $brokerTests.IndexOf('unlock_disabled', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'Las pruebas del broker no comprueban el rechazo fail-closed de autorizacion.'
 }
 
 foreach ($marker in @(
@@ -109,9 +121,12 @@ if ($brokerClient.IndexOf('if pipe_name != PIPE_NAME:', [System.StringComparison
     $brokerTests.IndexOf('rejects_non_local_pipe_names', [System.StringComparison]::Ordinal) -lt 0) {
     throw 'El cliente del broker no conserva la validacion de pipe fijo/local.'
 }
-if ($brokerTests.IndexOf('16 * 1024 + 1', [System.StringComparison]::Ordinal) -lt 0 -or
-    $brokerTests.IndexOf('ticket_replay', [System.StringComparison]::Ordinal) -lt 0) {
-    throw 'Las pruebas del broker no cubren limites y anti-replay.'
+if ($brokerTests.IndexOf('16 * 1024 + 1', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'Las pruebas del broker no cubren el limite de tamano.'
+}
+if ($ticketTests.IndexOf('TicketReplayError', [System.StringComparison]::Ordinal) -lt 0 -or
+    $ticketTests.IndexOf('consumed_ticket_cache_is_bounded', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'Las pruebas de tickets no cubren anti-replay y limites.'
 }
 foreach ($marker in @('Test-ExactValueNames', 'GetValueNames()', 'no se elimin')) {
     if ($uninstall.IndexOf($marker, [System.StringComparison]::Ordinal) -lt 0) {
