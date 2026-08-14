@@ -63,6 +63,7 @@ python .\windows-agent\pipa_cli.py mobile-test
 python .\windows-agent\pipa_cli.py mobile-config
 python .\windows-agent\secure_identity_admin.py show
 python .\windows-agent\pipa_cli.py capabilities
+python .\windows-agent\pipa_cli.py apps-status
 python .\windows-agent\pipa_cli.py integration-status
 python .\windows-agent\pipa_cli.py commands
 python .\windows-agent\pipa_cli.py protocol

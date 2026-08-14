@@ -20,6 +20,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from tools.app_diagnostics import inspect_apps  # noqa: E402
 from tools.capabilities import get_capabilities  # noqa: E402
 from tools.diagnostics import get_self_test  # noqa: E402
 from tools.integration_diagnostics import run_integration_self_test  # noqa: E402
@@ -117,6 +118,10 @@ def _parser() -> argparse.ArgumentParser:
     commands.add_parser(
         "local-capabilities",
         help="Muestra la matriz del código actual sin depender del agente residente.",
+    )
+    commands.add_parser(
+        "apps-status",
+        help="Comprueba aplicaciones configuradas sin abrirlas ni mostrar sus rutas.",
     )
     commands.add_parser("integration-status", help="Muestra solo el estado de las integraciones.")
     commands.add_parser(
@@ -571,6 +576,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0 if result["success"] else 1
         if arguments.command == "local-capabilities":
             result = _local_capabilities()
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0 if result["success"] else 1
+        if arguments.command == "apps-status":
+            result = inspect_apps()
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 0 if result["success"] else 1
         if arguments.command == "mobile-test":

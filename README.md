@@ -167,6 +167,9 @@ que las solicitó y caducan si no se confirman.
   `firmware-snippet` cuando se vaya a provisionar la placa.
 - Consultar la matriz local de capacidades con
   `python .\windows-agent\pipa_cli.py capabilities`.
+- Comprobar qué aplicaciones configuradas tienen un lanzador resoluble, sin
+  abrirlas ni mostrar sus rutas, con
+  `python .\windows-agent\pipa_cli.py apps-status`.
 - Consultar el catálogo de frases y sus confirmaciones con
   `python .\windows-agent\pipa_cli.py commands`.
 - Inspeccionar cómo se interpreta una frase con `pipa_cli.py intent` sin
