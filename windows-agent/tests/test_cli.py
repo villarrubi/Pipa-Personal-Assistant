@@ -276,11 +276,11 @@ class CliTests(unittest.TestCase):
     @patch("pipa_cli.run_integration_protocol_self_test")
     def test_integration_protocol_test_is_local_and_does_not_require_hardware(self, protocol_test):
         protocol_test.return_value = {
-            "commands_checked": 5,
+            "commands_checked": 18,
             "confirmation_gated": True,
             "executed_only_after_confirmation": True,
             "result_redacted": True,
-            "simulated_handlers_executed": 5,
+            "simulated_handlers_executed": 18,
             "external_actions_executed": False,
             "persistent_keys_touched": False,
         }

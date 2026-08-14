@@ -12,6 +12,12 @@ from trusted_unlock_protocol import (
     SignedChallenge,
 )
 
+from .capability_contract import (
+    _CAPABILITY_BOOLEAN_FIELDS,
+    _CAPABILITY_GROUPS,
+    _CAPABILITY_LIST_FIELDS,
+    _CAPABILITY_STRING_FIELDS,
+)
 from .confirmations import ConfirmationError
 from .intents import parse_text_intent
 from .memory import MemoryStore
@@ -58,7 +64,6 @@ MAX_CAPABILITY_GROUPS = 16
 MAX_CAPABILITY_FIELDS = 16
 MAX_CAPABILITY_KEY_LENGTH = 64
 MAX_CAPABILITY_TEXT_LENGTH = 128
-_CAPABILITY_GROUPS = frozenset({"web_search", "apple_music", "whatsapp", "discord", "league", "codex"})
 _DEVICE_CONFIRMATION_SUMMARIES = {
     "open_app": "Abrir una aplicación configurada.",
     "open_codex": "Abrir Codex.",
@@ -81,37 +86,6 @@ _DEVICE_CONFIRMATION_SUMMARIES = {
     "system_lock": "Bloquear el ordenador.",
     "open_url": "Abrir una URL validada.",
 }
-_CAPABILITY_BOOLEAN_FIELDS = frozenset(
-    {
-        "available",
-        "app_configured",
-        "launcher_resolved",
-        "search",
-        "playback",
-        "media_control",
-        "requires_manual_selection",
-        "open_web",
-        "open_contact",
-        "contact_aliases_configured",
-        "prepare_message",
-        "send_message",
-        "requires_manual_send",
-        "open_app",
-        "open_channel",
-        "start_call",
-        "requires_manual_call",
-        "client_ready",
-        "open_client",
-        "matchmaking",
-        "cancel_matchmaking",
-        "accept_match",
-        "requires_manual_accept",
-        "writes_to_chat",
-        "requires_confirmation",
-    }
-)
-_CAPABILITY_STRING_FIELDS = frozenset({"execution"})
-_CAPABILITY_LIST_FIELDS = frozenset({"queues"})
 _PRE_HELLO_MESSAGE_TYPES = frozenset({"ping", "device_status", "device_hello", "abort"})
 
 

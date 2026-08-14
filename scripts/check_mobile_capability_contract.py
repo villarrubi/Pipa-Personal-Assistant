@@ -76,7 +76,7 @@ def _core_contract() -> tuple[set[str], set[str], set[str], set[str]]:
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
 
-    from backend.pipa_core.core import (  # noqa: PLC0415
+    from backend.pipa_core.capability_contract import (  # noqa: PLC0415
         _CAPABILITY_BOOLEAN_FIELDS,
         _CAPABILITY_GROUPS,
         _CAPABILITY_LIST_FIELDS,

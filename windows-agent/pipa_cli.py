@@ -141,7 +141,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     commands.add_parser(
         "integration-protocol-test",
-        help="Simula las cinco integraciones con confirmación, sin ejecutar acciones reales.",
+        help="Simula todas las acciones externas con confirmación, sin ejecutar acciones reales.",
     )
     commands.add_parser("commands", help="Muestra frases y acciones disponibles, sin ejecutar nada.")
     commands.add_parser("protocol", help="Muestra herramientas y estado del gateway.")

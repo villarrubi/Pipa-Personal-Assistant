@@ -196,7 +196,7 @@ que las solicitó y caducan si no se confirman.
 - Ejecutar desde la CLI una acción externa solo con `--confirm`; las consultas
   de estado siguen siendo de solo lectura.
 - Probar todo el protocolo de dispositivo con un simulador efímero.
-- Recorrer las cinco integraciones desde un simulador autenticado con
+- Recorrer todas las acciones externas de integración desde un simulador autenticado con
   `python .\windows-agent\pipa_cli.py integration-protocol-test`; usa handlers
   sintéticos, exige confirmación y no abre aplicaciones ni contacta servicios.
 - El contrato de audio cifrado ya tiene un consumidor por chunks en Windows:

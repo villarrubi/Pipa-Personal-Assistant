@@ -19,15 +19,35 @@ from tools.agent_catalog import build_agent_catalog
 from tools.timers import TimerManager
 
 _INTEGRATION_CASES: tuple[tuple[str, dict[str, Any]], ...] = (
+    ("open_app", {"app": "calculadora"}),
+    ("open_codex", {}),
     ("web_search", {"query": "Pipa private demo query"}),
+    ("music_open", {}),
     ("music_search", {"term": "Pipa private demo song"}),
+    ("whatsapp_open", {}),
     (
         "whatsapp_compose",
         {"phone": "+34600000000", "message": "Pipa private demo message"},
     ),
-    ("discord_call_channel", {"channel_id": "12345678901234567"}),
+    ("whatsapp_contact", {"contact": "demo alias", "message": "Pipa private demo message"}),
+    ("whatsapp_contact_open", {"contact": "demo alias"}),
+    ("whatsapp_phone_open", {"phone": "+34600000000"}),
+    ("discord_open_app", {}),
+    (
+        "discord_open",
+        {"channel_id": "12345678901234567", "guild_id": "98765432109876543"},
+    ),
+    ("discord_contact", {"contact": "demo alias"}),
+    (
+        "discord_call_channel",
+        {"channel_id": "12345678901234567", "guild_id": "98765432109876543"},
+    ),
+    ("discord_call", {"contact": "demo alias"}),
+    ("league_open", {}),
     ("league_search", {"queue": "ranked_solo"}),
+    ("league_cancel", {}),
 )
+INTEGRATION_CASE_COUNT = len(_INTEGRATION_CASES)
 
 
 def _synthetic_catalog(executed: list[str]) -> ToolCatalog:
@@ -55,7 +75,7 @@ def _synthetic_catalog(executed: list[str]) -> ToolCatalog:
 
 
 def run_integration_protocol_self_test() -> dict[str, object]:
-    """Exercise five real tool contracts through an authenticated simulator."""
+    """Exercise every outward integration tool through an authenticated simulator."""
 
     executed: list[str] = []
     simulator = create_simulator(
@@ -104,7 +124,7 @@ def run_integration_protocol_self_test() -> dict[str, object]:
         simulator.close()
 
     return {
-        "commands_checked": len(_INTEGRATION_CASES),
+        "commands_checked": INTEGRATION_CASE_COUNT,
         "confirmation_gated": True,
         "executed_only_after_confirmation": True,
         "result_redacted": True,
