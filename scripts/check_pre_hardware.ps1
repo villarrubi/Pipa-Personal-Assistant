@@ -92,6 +92,9 @@ if ($null -eq $python) {
     Invoke-PipaJsonCheck -Name 'Current-source self-test' -Python $python -Arguments @(
         '-B', $cli, 'local-self-test'
     )
+    Invoke-PipaJsonCheck -Name 'Device protocol self-test' -Python $python -Arguments @(
+        '-B', $cli, 'device-test'
+    )
     Invoke-PipaJsonCheck -Name 'Current-source capabilities' -Python $python -Arguments @(
         '-B', $cli, 'local-capabilities'
     )
