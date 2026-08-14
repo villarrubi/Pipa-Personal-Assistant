@@ -60,6 +60,10 @@ proceso ocupa el nombre del pipe, el broker falla en lugar de conectarse a él.
 - El cliente del pipe valida también las respuestas: rechaza JSON duplicado,
   campos desconocidos, sobres con forma incorrecta y errores con texto no
   acotado antes de entregar un resultado al proceso llamador.
+- El cliente usa una llamada Named Pipe con tiempo límite para toda la
+  petición/respuesta; no deja una lectura bloqueada indefinidamente. El broker
+  cierra solo la conexión que envía un mensaje mayor que el límite y mantiene
+  vivo su bucle de servicio.
 - Mientras Trusted Unlock siga desactivado, el broker solo responde a
   `health`; cualquier otra operación devuelve `unlock_disabled` sin mutar su
   estado pendiente.

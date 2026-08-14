@@ -98,6 +98,7 @@ foreach ($marker in @(
     'CreateNamedPipe(',
     'PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE',
     'PIPE_REJECT_REMOTE_CLIENTS',
+    'ERROR_MORE_DATA',
     'MAX_MESSAGE_BYTES + 1'
 )) {
     if ($broker.IndexOf($marker, [System.StringComparison]::Ordinal) -lt 0) {
@@ -110,6 +111,8 @@ if ($broker -match '(?i)Everyone|Authenticated Users|WorldSid|AF_INET|http\.serv
 foreach ($marker in @(
     'object_pairs_hook=_reject_duplicate_fields',
     'def _decode_response',
+    'CallNamedPipe',
+    'MAX_MESSAGE_BYTES + 1',
     'successful broker response has invalid fields',
     'broker error is invalid'
 )) {

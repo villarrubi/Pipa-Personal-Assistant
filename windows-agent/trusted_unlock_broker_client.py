@@ -110,37 +110,20 @@ class WindowsNamedPipeBrokerClient:
             raise ValueError("request is too large")
 
         import pywintypes
-        import win32con
-        import win32file
         import win32pipe
 
         try:
-            win32pipe.WaitNamedPipe(self._pipe_name, self._timeout_ms)
-            handle = win32file.CreateFile(
+            # CallNamedPipe bounds the complete request/response exchange;
+            # opening a handle followed by a blocking ReadFile would make
+            # timeout_ms apply only to discovery, not to a stalled broker.
+            raw_response = win32pipe.CallNamedPipe(
                 self._pipe_name,
-                win32con.GENERIC_READ | win32con.GENERIC_WRITE,
-                0,
-                None,
-                win32con.OPEN_EXISTING,
-                0,
-                None,
-            )
-            win32pipe.SetNamedPipeHandleState(
-                handle,
-                win32pipe.PIPE_READMODE_MESSAGE,
-                None,
-                None,
+                encoded,
+                MAX_MESSAGE_BYTES + 1,
+                self._timeout_ms,
             )
         except pywintypes.error as error:
             raise BrokerClientError("pipe_unavailable", "broker pipe is unavailable") from error
-
-        try:
-            win32file.WriteFile(handle, encoded)
-            _, raw_response = win32file.ReadFile(handle, MAX_MESSAGE_BYTES + 1)
-        except pywintypes.error as error:
-            raise BrokerClientError("pipe_error", "broker pipe communication failed") from error
-        finally:
-            win32file.CloseHandle(handle)
 
         if len(raw_response) > MAX_MESSAGE_BYTES:
             raise BrokerClientError("invalid_response", "broker response is too large")

@@ -326,7 +326,7 @@ class WindowsNamedPipeBroker:
         import pywintypes
         import win32file
         import win32pipe
-        from winerror import ERROR_BROKEN_PIPE, ERROR_NO_DATA, ERROR_PIPE_CONNECTED
+        from winerror import ERROR_BROKEN_PIPE, ERROR_MORE_DATA, ERROR_NO_DATA, ERROR_PIPE_CONNECTED
 
         security_attributes, _descriptor, _dacl = self._security_attributes()
         reject_remote_clients = int(
@@ -364,7 +364,11 @@ class WindowsNamedPipeBroker:
                     try:
                         _, raw_request = win32file.ReadFile(pipe, MAX_MESSAGE_BYTES + 1)
                     except pywintypes.error as error:
-                        if error.winerror in (ERROR_BROKEN_PIPE, ERROR_NO_DATA):
+                        # ERROR_MORE_DATA means the message exceeded the
+                        # bounded ReadFile buffer. Close only this client;
+                        # never let an oversized local request terminate the
+                        # broker loop or reach the protocol parser.
+                        if error.winerror in (ERROR_BROKEN_PIPE, ERROR_MORE_DATA, ERROR_NO_DATA):
                             break
                         raise
 
