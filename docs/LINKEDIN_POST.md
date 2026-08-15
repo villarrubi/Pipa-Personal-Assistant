@@ -5,40 +5,16 @@
 > restricción de facturación/límite de gasto de la cuenta, no por un fallo del
 > código.
 
-He estado construyendo **Pipα**, un asistente personal local que conecta un
-agente de Windows, firmware para una pantalla Waveshare ESP32-S3 y un cliente
-iOS experimental.
+¿Qué se puede construir con unos 25 € de hardware y muchas horas de código? En mi caso, Pipα: mi propio asistente personal.
 
-La idea no era solo conseguir que ejecutase comandos, sino diseñar bien los
-límites desde el principio:
+Con un dispositivo externo conectado al ordenador, puedo darle instrucciones por voz: crear y editar archivos, abrir VSCode y programar por voz, enviar mensajes por WhatsApp y llamadas por discord... Prácticamente cualquier cosa que se me ocurra y le pueda configurar. ¡Incluso me enciende el ordenador y me loggea él solo!
 
-🔒 El agente HTTP/WebSocket escucha únicamente en `127.0.0.1`.
+Además, lo he conectado a una pequeña pantalla de 7", que me saca las noticias del día y me permite controlar pipa desde fuera por si acaso. Además de una interfaz que me muestra notificaciones del móvil, me dice el tiempo y hora, etc.
 
-✅ Las acciones externas requieren confirmación. WhatsApp es manual por defecto
-y su envío por Cloud API es un opt-in local; Pipa no inicia llamadas de Discord
-ni acepta partidas de League por su cuenta.
+Esto lo he construido con un Waveshare ESP32-S3, que me permite tener una interfaz física para interactuar con Pipa mediante pantalla táctil, audio y comunicación directa con el ordenador.
 
-🔑 Las sesiones seguras usan identidades Ed25519, intercambio X25519 y cifrado
-ChaCha20-Poly1305. El transporte móvil está desactivado por defecto.
-
-🧪 Antes de compartir el repositorio he pasado una revisión local de publicación:
-459 pruebas Python, análisis estático de seguridad sobre 72 módulos, cinco
-variantes de firmware compiladas, smoke test del Credential Provider, auditoría
-de dependencias sin vulnerabilidades conocidas y Gitleaks sobre los 231 commits
-del historial.
-
-También he reforzado la CI, los controles contra filtraciones, el README, la
-guía de contribución y el checklist de publicación. Las Actions externas están
-fijadas por SHA y Dependabot queda preparado para vigilar Python y GitHub
-Actions.
-
-Y, sobre todo, el estado real está documentado sin maquillaje: el hardware aún
-necesita validación física, Trusted Unlock permanece desactivado y el firmware
-no se considera de producción hasta validar Secure Boot, cifrado de Flash y
-recuperación. El código propio se publica bajo MIT, conservando el copyright y
-la citación de `villarrubi`, mientras que las dependencias mantienen sus
-propios avisos.
+Los próximos pasos serán desarrollar una aplicación para poderlo vincular con el móvil, así que tocará aprender a desarrollar en iOS para ver las compatibilidades y que podemos hacer.
 
 Repositorio: https://github.com/villarrubi/Pipa-Personal-Assistant
 
-#Python #Cybersecurity #IoT #ESP32 #Swift #Windows #BuildInPublic #SoftwareEngineering
+#Python #IoT #ESP32 #Swift #Windows #BuildInPublic #SoftwareEngineering #PersonalAssistant
