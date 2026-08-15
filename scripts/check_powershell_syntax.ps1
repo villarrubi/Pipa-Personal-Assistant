@@ -5,7 +5,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$relativeFiles = @(
+$asciiOnlyFiles = @(
     'windows-agent/check_agent_status.ps1',
     'windows-agent/install_agent_task.ps1',
     'windows-agent/setup_agent.ps1',
@@ -29,18 +29,15 @@ $relativeFiles = @(
     'scripts/test_security_patterns.ps1'
 )
 
+$relativeFiles = @(git -C $repoRoot ls-files -- '*.ps1')
+if ($LASTEXITCODE -ne 0 -or $relativeFiles.Count -eq 0) {
+    throw 'No se pudo enumerar los scripts PowerShell rastreados por Git.'
+}
+
 foreach ($relativeFile in $relativeFiles) {
     $path = Join-Path $repoRoot ($relativeFile -replace '/', '\')
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "No se encuentra el script PowerShell: $relativeFile"
-    }
-
-    # Windows PowerShell 5.1 can decode UTF-8 without a BOM as an ANSI code
-    # page. Keep startup scripts ASCII-only so paths, API markers and messages
-    # cannot be corrupted on older installations.
-    $bytes = [System.IO.File]::ReadAllBytes($path)
-    if (@($bytes | Where-Object { $_ -gt 127 }).Count -gt 0) {
-        throw "El script PowerShell debe ser ASCII para Windows PowerShell 5.1: $relativeFile"
     }
 
     $tokens = $null
@@ -56,4 +53,19 @@ foreach ($relativeFile in $relativeFiles) {
     }
 }
 
-Write-Host "Sintaxis PowerShell OK: $($relativeFiles.Count) scripts comprobados." -ForegroundColor Green
+# Windows PowerShell 5.1 can decode UTF-8 without a BOM as an ANSI code page.
+# Keep the compatibility-critical scripts that run setup and repository gates
+# ASCII-only so paths, API markers and messages cannot be corrupted.
+foreach ($relativeFile in $asciiOnlyFiles) {
+    $path = Join-Path $repoRoot ($relativeFile -replace '/', '\')
+    $bytes = [System.IO.File]::ReadAllBytes($path)
+    if (@($bytes | Where-Object { $_ -gt 127 }).Count -gt 0) {
+        throw "El script PowerShell debe ser ASCII para Windows PowerShell 5.1: $relativeFile"
+    }
+}
+
+Write-Host (
+    "Sintaxis PowerShell OK: {0} scripts rastreados; {1} compatibles con ASCII." -f
+    $relativeFiles.Count,
+    $asciiOnlyFiles.Count
+) -ForegroundColor Green

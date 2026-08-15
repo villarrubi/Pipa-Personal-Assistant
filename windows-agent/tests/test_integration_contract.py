@@ -214,6 +214,19 @@ class IntegrationContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_integration_capabilities(capabilities)
 
+    def test_whatsapp_cloud_mode_is_explicit_and_keeps_confirmation(self):
+        capabilities = build_integration_capabilities(
+            apple_music_configured=False,
+            league_available=False,
+            league_ready=False,
+            codex_configured=False,
+            whatsapp_automatic_send=True,
+        )
+
+        self.assertTrue(capabilities["whatsapp"]["send_message"])
+        self.assertFalse(capabilities["whatsapp"]["requires_manual_send"])
+        self.assertTrue(capabilities["whatsapp"]["requires_confirmation"])
+
 
 if __name__ == "__main__":
     unittest.main()

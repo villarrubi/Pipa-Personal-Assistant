@@ -241,8 +241,6 @@ public struct PipaMobileIntegration: Identifiable {
             "requires_confirmation": true,
         ],
         "whatsapp": [
-            "send_message": false,
-            "requires_manual_send": true,
             "requires_confirmation": true,
         ],
         "discord": [
@@ -279,6 +277,13 @@ public struct PipaMobileIntegration: Identifiable {
               }) else {
             return nil
         }
+        if id == "whatsapp" {
+            guard let sendsMessage = payload["send_message"] as? Bool,
+                  let requiresManualSend = payload["requires_manual_send"] as? Bool,
+                  sendsMessage != requiresManualSend else {
+                return nil
+            }
+        }
 
         self.id = id
         self.title = title
@@ -299,6 +304,8 @@ public struct PipaMobileIntegration: Identifiable {
             } else {
                 detail = "Busca; selecciona y reproduce la pista manualmente."
             }
+        } else if id == "whatsapp", payload["send_message"] as? Bool == true {
+            detail = "WhatsApp Cloud API activa; cada mensaje sigue necesitando confirmación explícita."
         } else if id == "whatsapp", payload["requires_manual_send"] as? Bool == true {
             if payload["contact_aliases_configured"] as? Bool == false {
                 let target = appConfigured ? "App disponible" : "WhatsApp Web disponible"

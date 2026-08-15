@@ -88,6 +88,23 @@ foreach ($fixture in $ignoreFixtures) {
     }
 }
 
+# Broad ignore rules such as *token* and *credential* can hide real source
+# files from both Git and this scanner. Keep representative source and docs
+# visible so future security work cannot be omitted silently.
+$visibleSourceFixtures = @(
+    'backend/pipa_core/token_policy.py',
+    'windows-agent/credential_rotation.py',
+    'windows-agent/tests/test_token_policy.py',
+    'docs/secret_handling.md',
+    'trusted-unlock/src/CredentialAudit.cpp'
+)
+foreach ($fixture in $visibleSourceFixtures) {
+    git -C $repoRoot check-ignore --no-index --quiet -- $fixture
+    if ($LASTEXITCODE -eq 0) {
+        $violations.Add("La politica .gitignore ocultaria codigo o documentacion legitima: $fixture")
+    }
+}
+
 $safeDeviceConfig = Join-Path $repoRoot 'firmware/include/pipa_device_config.h'
 if (Test-Path -LiteralPath $safeDeviceConfig -PathType Leaf) {
     $configText = Get-Content -LiteralPath $safeDeviceConfig -Raw

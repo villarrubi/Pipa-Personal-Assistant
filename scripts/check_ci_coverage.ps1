@@ -19,6 +19,11 @@ $requiredFragments = @(
     'timeout-minutes: 45',
     'timeout-minutes: 30',
     'timeout-minutes: 10',
+    'python -m pip install -r windows-agent/requirements-dev.txt',
+    'gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e',
+    'GITLEAKS_VERSION: 8.30.1',
+    'python scripts/check_documentation.py',
+    'python scripts/check_python_security.py',
     './scripts/check_workflow_security.ps1',
     './scripts/check_ci_coverage.ps1',
     './scripts/check_powershell_syntax.ps1',
@@ -61,7 +66,8 @@ $requiredFragments = @(
     'run_pio_with_retry secure-session-v2',
     'run_pio_with_retry secure-session-vector',
     'run_pio_with_retry audio-i2s-lab',
-    'gh-action-pip-audit'
+    'gh-action-pip-audit',
+    'inputs: windows-agent/requirements-dev.txt'
 )
 
 $missing = @(

@@ -21,6 +21,7 @@ from tools.commands import (
     open_web_search,
 )
 from tools.contacts import resolve_discord_contact, resolve_whatsapp_contact
+from tools.control_config import whatsapp_automatic_send_active
 from tools.discord import (
     build_discord_channel_url,
     open_discord_app,
@@ -39,6 +40,7 @@ from tools.whatsapp import (
     open_whatsapp_chat,
     open_whatsapp_compose,
     open_whatsapp_web,
+    send_whatsapp_cloud_message,
 )
 
 
@@ -199,6 +201,9 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
     def whatsapp_compose(arguments):
         phone = _text(arguments, "phone")
         message = _text(arguments, "message")
+        automatic_send = arguments.get("_automatic_send")
+        if automatic_send is True or (automatic_send is None and whatsapp_automatic_send_active()):
+            return send_whatsapp_cloud_message(phone, message)
         return open_whatsapp_compose(phone, message)
 
     def whatsapp_contact(arguments):
@@ -210,6 +215,9 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
         # The alias is only an input to local resolution.  Do not echo it in
         # the result: the action needs the destination, not a copy of the
         # user's private contact label.
+        automatic_send = arguments.get("_automatic_send")
+        if automatic_send is True or (automatic_send is None and whatsapp_automatic_send_active()):
+            return send_whatsapp_cloud_message(phone, message)
         return open_whatsapp_compose(phone, message)
 
     def whatsapp_contact_open(arguments):
@@ -286,10 +294,20 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
 
     def prepare_whatsapp_contact(arguments):
         _contact_name, phone = resolve_whatsapp_contact(_text(arguments, "contact"))
-        prepared = {"_resolved_phone": phone}
+        prepared = {
+            "_resolved_phone": phone,
+            "_automatic_send": whatsapp_automatic_send_active(),
+        }
         if "message" in arguments:
             prepared["message"] = _text(arguments, "message")
         return prepared
+
+    def prepare_whatsapp_compose(arguments):
+        return {
+            "phone": _text(arguments, "phone"),
+            "message": _text(arguments, "message"),
+            "_automatic_send": whatsapp_automatic_send_active(),
+        }
 
     def prepare_discord_contact(arguments):
         _contact_name, channel_id, guild_id = resolve_discord_contact(_text(arguments, "contact"))
@@ -417,17 +435,20 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                 whatsapp_compose,
                 safety="unsafe",
                 confirm_summary=lambda args: (
-                    f"Preparar WhatsApp para {_text(args, 'phone')}: "
+                    f"{'Enviar' if whatsapp_automatic_send_active() else 'Preparar'} "
+                    f"WhatsApp para {_text(args, 'phone')}: "
                     f"{' '.join(_text(args, 'message').split())[:72]}"
                 ),
                 argument_validator=whatsapp_compose_arguments,
+                confirmation_preparer=prepare_whatsapp_compose,
             ),
             ToolDefinition(
                 "whatsapp_contact",
                 whatsapp_contact,
                 safety="unsafe",
                 confirm_summary=lambda args: (
-                    f"Preparar WhatsApp para contacto {_text(args, 'contact')}: "
+                    f"{'Enviar' if whatsapp_automatic_send_active() else 'Preparar'} "
+                    f"WhatsApp para contacto {_text(args, 'contact')}: "
                     f"{' '.join(_text(args, 'message').split())[:72]}"
                 ),
                 argument_validator=whatsapp_contact_message_arguments,

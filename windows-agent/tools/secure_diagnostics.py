@@ -83,12 +83,12 @@ _MOBILE_INTEGRATION_CASES = (
     (
         "whatsapp_compose",
         {"phone": "+34600000000", "message": "mensaje de diagnóstico"},
-        "Preparar un mensaje de WhatsApp; el envío será manual.",
+        "Preparar o enviar un mensaje de WhatsApp según la configuración local.",
     ),
     (
         "whatsapp_contact",
         {"contact": "contacto-diagnostico", "message": "mensaje de diagnóstico"},
-        "Preparar un mensaje de WhatsApp; el envío será manual.",
+        "Preparar o enviar un mensaje de WhatsApp según la configuración local.",
     ),
     (
         "whatsapp_contact_open",

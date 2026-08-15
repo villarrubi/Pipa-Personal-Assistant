@@ -117,6 +117,23 @@ class CliTests(unittest.TestCase):
         self.assertEqual(request.get_header("X-pipa-local-confirmation"), "1")
 
     @patch("pipa_cli.urlopen")
+    def test_request_passes_custom_timeout(self, open_url):
+        response = MagicMock()
+        response.read.return_value = json.dumps({"success": True}).encode()
+        response.__enter__.return_value = response
+        open_url.return_value = response
+
+        pipa_cli._request(
+            "http://127.0.0.1:8765",
+            "POST",
+            "/league/open",
+            {},
+            timeout=40,
+        )
+
+        self.assertEqual(open_url.call_args.kwargs["timeout"], 40)
+
+    @patch("pipa_cli.urlopen")
     def test_http_errors_do_not_echo_agent_response_body(self, open_url):
         error = HTTPError(
             "http://127.0.0.1:8765/open-url",
@@ -156,6 +173,10 @@ class CliTests(unittest.TestCase):
             pipa_cli._route(arguments),
             ("POST", "/league/search/wait", {"seconds": 45}),
         )
+        self.assertEqual(pipa_cli._request_timeout(arguments), 50)
+
+        arguments = pipa_cli._parser().parse_args(["league-open"])
+        self.assertEqual(pipa_cli._request_timeout(arguments), 40)
 
         expected_music_actions = {
             "music-play": "play_pause",

@@ -19,7 +19,7 @@ from .capability_contract import (
     _CAPABILITY_STRING_FIELDS,
 )
 from .confirmations import ConfirmationError
-from .intents import parse_text_intent
+from .intents import parse_catalog_intent, parse_text_intent
 from .memory import MemoryStore
 from .protocol import ClientMessage, server_message
 from .request_binding import compute_request_digest
@@ -77,8 +77,8 @@ _DEVICE_CONFIRMATION_SUMMARIES = {
     "discord_call_channel": "Preparar una llamada de Discord; el inicio será manual.",
     "discord_contact": "Abrir un contacto de Discord.",
     "discord_call": "Preparar una llamada de Discord; el inicio será manual.",
-    "whatsapp_compose": "Preparar un mensaje de WhatsApp; el envío será manual.",
-    "whatsapp_contact": "Preparar un mensaje de WhatsApp; el envío será manual.",
+    "whatsapp_compose": "Preparar o enviar un mensaje de WhatsApp según la configuración local.",
+    "whatsapp_contact": "Preparar o enviar un mensaje de WhatsApp según la configuración local.",
     "whatsapp_contact_open": "Abrir un chat de WhatsApp.",
     "whatsapp_phone_open": "Abrir un chat de WhatsApp.",
     "whatsapp_open": "Abrir WhatsApp Web.",
@@ -252,6 +252,7 @@ class PipaCore:
         memory: MemoryStore | None = None,
         command_catalog: Callable[[], list[dict[str, Any]]] | None = None,
         capability_catalog: Callable[[], dict[str, dict[str, Any]]] | None = None,
+        command_catalog_authoritative: bool = False,
     ) -> None:
         self.verifier = verifier
         self.router = router
@@ -259,6 +260,7 @@ class PipaCore:
         self.memory = memory or MemoryStore()
         self.command_catalog = command_catalog
         self.capability_catalog = capability_catalog
+        self.command_catalog_authoritative = command_catalog_authoritative
 
     def create_challenge(self, device_id: str):
         return self.verifier.create_challenge(device_id, operation="session")
@@ -488,7 +490,22 @@ class PipaCore:
                 session.ui_message(),
             ]
 
-        intent = parse_text_intent(bounded)
+        catalog_commands: list[dict[str, Any]] | None = None
+        if self.command_catalog is not None:
+            try:
+                catalog_commands = self.command_catalog()
+            except (OSError, ValueError):
+                # A corrupt local editor file must fail closed for text
+                # commands instead of silently restoring disabled actions.
+                catalog_commands = []
+
+        intent = parse_catalog_intent(bounded, catalog_commands) if catalog_commands is not None else None
+        if intent is None:
+            intent = parse_text_intent(bounded)
+        if self.command_catalog_authoritative and catalog_commands is not None and intent is not None:
+            enabled_tools = {command.get("tool_name") for command in catalog_commands}
+            if intent.tool_name not in enabled_tools:
+                intent = None
         if intent is None:
             session.set_state("idle", caption="Todavía no conozco ese comando.")
             return [
@@ -721,6 +738,8 @@ class PipaCore:
 
         if result.get("success") is False:
             return "No se pudo completar la acción."
+        if tool_name in {"whatsapp_compose", "whatsapp_contact"} and result.get("sent") is True:
+            return "Mensaje de WhatsApp enviado."
         captions = {
             "system_status": "Estado del ordenador consultado.",
             "integration_status": "Estado de integraciones consultado.",

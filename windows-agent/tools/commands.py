@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 
 from tools.apps import AppsConfigError, open_app
 from tools.browser import open_validated_url, without_destination
+from tools.league import LeagueClientError, wait_for_client_connection
 from tools.text_policy import validate_bounded_text
 from tools.urls import validate_external_url
 
@@ -102,8 +103,25 @@ def open_apple_music() -> dict[str, object]:
 
 
 def open_league() -> dict[str, object]:
-    """Open the configured League client; never queue or join a match."""
-    return open_app("league_of_legends")
+    """Open League and report whether its local client became ready."""
+
+    result = open_app("league_of_legends")
+    if result.get("success") is not True:
+        return result
+
+    try:
+        wait_for_client_connection()
+    except LeagueClientError:
+        return {
+            "success": False,
+            "app": "league_of_legends",
+            "message": (
+                "Riot Client se ha abierto, pero League of Legends no ha llegado a iniciar. "
+                "Comprueba el inicio de sesión, las actualizaciones y vuelve a intentarlo."
+            ),
+        }
+
+    return result | {"client_ready": True}
 
 
 def open_codex() -> dict[str, object]:

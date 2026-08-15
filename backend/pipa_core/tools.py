@@ -83,7 +83,9 @@ class ToolRouter:
         values = definition.validate_arguments(arguments)
 
         if definition.safety == "unsafe" and confirmation_id is None:
-            assert definition.confirm_summary is not None
+            confirm_summary = definition.confirm_summary
+            if confirm_summary is None:
+                raise ConfirmationError("unsafe tool is missing its confirmation summary")
             execution_arguments = None
             if definition.confirmation_preparer is not None:
                 prepared = definition.confirmation_preparer(values)
@@ -93,7 +95,7 @@ class ToolRouter:
             pending = self.confirmations.create(
                 name,
                 values,
-                definition.confirm_summary(values),
+                confirm_summary(values),
                 owner_id=owner_id,
                 call_id=call_id,
                 request_digest=request_digest,

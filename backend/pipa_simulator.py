@@ -48,7 +48,8 @@ def main() -> None:
     )
     for output in completed:
         print(json.dumps(output, ensure_ascii=True))
-    assert executed == [{"source": "smoke-test"}]
+    if executed != [{"source": "smoke-test"}]:
+        raise RuntimeError("simulator smoke test executed unexpected arguments")
 
 
 if __name__ == "__main__":

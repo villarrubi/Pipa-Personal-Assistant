@@ -61,6 +61,23 @@ terminen antes de iniciar el nuevo proceso. Si Windows no permite verificar la
 línea de comandos, no detiene ningún listener ajeno. No existe un endpoint
 remoto de reinicio.
 
+## Panel de control
+
+Con el agente iniciado, abre `http://127.0.0.1:8765/panel`. Desde ahí puedes:
+
+- añadir, editar, activar, desactivar, probar y eliminar procesos;
+- cambiar la frase principal y la disponibilidad de los comandos del catálogo;
+- escoger entre WhatsApp manual y el envío opt-in mediante Cloud API.
+
+Los procesos del panel usan directamente `config/apps.json` y el mismo
+validador que la ejecución: no admiten shells, scripts ni intérpretes. Un
+proceso nuevo se puede invocar con `abre <alias>`, `inicia <alias>` o
+`ejecuta <alias>` y continúa necesitando confirmación. Las preferencias de
+comandos y WhatsApp se guardan atómicamente en el archivo ignorado
+`config/control-panel.local.json`; el token de WhatsApp no entra en ese JSON.
+En Windows se guarda en Credenciales de Windows, o puede proporcionarse con
+`PIPA_WHATSAPP_ACCESS_TOKEN`.
+
 Para probar estas funciones sin el Waveshare existe una CLI que solo permite
 conectar con el agente local:
 
@@ -230,6 +247,8 @@ configuración.
 | --- | --- | --- |
 | GET | `/status` | Salud del agente |
 | GET | `/self-test` | Diagnóstico local sin efectos externos |
+| GET | `/panel` | Panel local de procesos, comandos y automatizaciones |
+| GET/PUT/DELETE/POST | `/control/*` | Configuración y prueba confirmada del panel |
 | GET | `/capabilities`, `/integrations/status`, `/commands` | Capacidades, estado de integraciones y frases disponibles, sin datos privados |
 | GET | `/apps` | Aplicaciones configuradas |
 | POST | `/open-app` | Abrir una app allowlisted |
@@ -239,7 +258,7 @@ configuración.
 | GET/POST/DELETE | `/league/status`, `/league/search`, `/league/search/status`, `/league/search/wait` | Estado, matchmaking y espera acotada allowlisted |
 | GET/POST | `/audio/*`, `/media/action` | Volumen y teclas multimedia |
 | GET/POST/DELETE | `/timers` | Temporizadores en memoria |
-| POST | `/whatsapp/open`, `/whatsapp/compose`, `/whatsapp/contact/compose`, `/whatsapp/contact/open`, `/whatsapp/phone/open` | Abrir WhatsApp o preparar/abrir chat, sin enviar |
+| POST | `/whatsapp/open`, `/whatsapp/compose`, `/whatsapp/contact/compose`, `/whatsapp/contact/open`, `/whatsapp/phone/open` | Abrir/preparar WhatsApp o enviar por Cloud API si existe opt-in completo |
 | POST | `/discord/open`, `/discord/channel/open`, `/discord/channel/call`, `/discord/contact/open` | Abrir Discord o preparar un canal, sin iniciar llamada |
 | POST | `/discord/contact/call` | Abrir el destino de una llamada; el usuario pulsa Llamar |
 | GET | `/pipa/protocol` | Estado del Core y gateway USB |
@@ -256,9 +275,10 @@ una UI local con orígenes explícitos.
 
 Las respuestas REST de acciones externas están minimizadas: no devuelven la URL,
 el teléfono, el ID de destino ni el alias local que el adaptador haya usado
-internamente. Los
-adaptadores sí pueden abrir el destino en el equipo, pero cualquier envío de
-WhatsApp o llamada de Discord sigue requiriendo la intervención visible del usuario.
+internamente. WhatsApp abre un borrador que la persona envía en el modo
+predeterminado; con Cloud API activa, la confirmación explícita autoriza el
+envío. Las llamadas de Discord siguen requiriendo la intervención visible del
+usuario.
 
 Ejemplo de llamada local:
 
@@ -301,7 +321,9 @@ dispositivo sí exige firma Ed25519 y confirmación para herramientas externas.
 - Codex solo se abre si existe una entrada local `codex`.
 - WhatsApp puede abrir una entrada local allowlisted llamada `whatsapp` si la
   configuras, o usar WhatsApp Web como fallback; también puede preparar
-  `wa.me`, pero el usuario pulsa `Enviar`.
+  `wa.me`, donde el usuario pulsa `Enviar`. El panel permite optar por Cloud
+  API; solo se anuncia envío automático cuando están presentes el ID de
+  teléfono y una credencial, y la acción sigue pasando por confirmación.
 - Discord puede abrir una entrada local allowlisted llamada `discord` si la
   configuras, o usar la aplicación web/ID validado; el usuario inicia la
   llamada manualmente.
@@ -393,7 +415,8 @@ una canción por sí solas. Después de elegir una pista,
 reproducción/pausa al reproductor activo. No garantiza que Apple Music sea el
 reproductor activo. La de Discord `llama a amigo por Discord`
 abre el canal del alias y deja el botón `Llamar` para la persona; no inicia una
-llamada. La de WhatsApp abre WhatsApp Web; no pulsa `Enviar`.
+llamada. En el modo predeterminado, la de WhatsApp abre WhatsApp Web y no pulsa
+`Enviar`; con Cloud API activa, la confirmación autoriza el envío por servidor.
 
 Las llamadas de Discord también pueden dirigirse a un ID de canal validado;
 Pipα abre el destino y deja el botón `Llamar` para la persona.
@@ -415,8 +438,9 @@ También consulta tres rutas de estado seguras (`integration_status`,
 `league_status` y `league_search_status`) y comprueba que se ejecutan sin pedir
 toque, mientras que las acciones externas siguen bloqueadas hasta confirmar.
 La matriz pública de integraciones se valida además contra un contrato único:
-Apple Music no anuncia reproducción automática, WhatsApp no anuncia envío,
-Discord no anuncia inicio de llamada, League no anuncia aceptación de partida y
+Apple Music no anuncia reproducción automática, WhatsApp anuncia exactamente
+uno de sus dos modos (`send_message` o `requires_manual_send`), Discord no
+anuncia inicio de llamada, League no anuncia aceptación de partida y
 Codex no anuncia escritura en chats. Si aparece una integración nueva sin una
 entrada explícita en ese contrato, el self-test falla antes de publicarla al
 móvil o al dispositivo.
@@ -526,6 +550,9 @@ El validador exige además que cada marcador de una frase tenga exactamente un
 parámetro tipado en la misma posición; los comandos con argumentos fijos no
 pueden publicar marcadores. Así, una UI móvil no puede acabar mostrando un
 formulario distinto de la acción estructurada que va a enviar.
+El parser consulta primero esas frases editadas y convierte sus marcadores en
+argumentos tipados; los sinónimos deterministas existentes continúan
+disponibles mientras la herramienta correspondiente siga activa.
 
 ## Configuración de aplicaciones
 
@@ -543,6 +570,8 @@ MSIX se puede usar `explorer.exe` con un único argumento
 `shell:AppsFolder\\...`. El fichero se limita a 128 KiB, 64
 aplicaciones y argumentos acotados; un JSON demasiado grande o ambiguo se
 rechaza antes de abrir nada.
+Cada entrada admite además `"enabled": false`: permanece visible en el panel,
+pero se elimina de la lista que puede ejecutar Pipa.
 
 Las integraciones pueden usar opcionalmente entradas locales con los IDs
 `whatsapp` y `discord`. Añádelas solo si tienes esos ejecutables instalados y
@@ -580,10 +609,10 @@ Copy-Item .\windows-agent\config\contacts.example.json `
 Cada contacto puede tener un teléfono de WhatsApp, un canal de Discord o
 ambos. Las frases `abre WhatsApp para mama`, `prepara WhatsApp para mama y
 dile Hola` y `abre el canal de amigo en Discord` resuelven el alias local,
-abren el destino y mantienen la última acción humana: pulsar `Enviar` o
-iniciar la llamada. La frase `llama a amigo por Discord` expresa explícitamente
-esa intención, pero solo abre el canal y deja el botón para la persona. No existe
-una operación automática de envío o llamada. Un alias desconocido se rechaza
+abren el destino y, en el modo predeterminado, mantienen la última acción
+humana: pulsar `Enviar` o iniciar la llamada. Con el opt-in de Cloud API, el
+mensaje de WhatsApp se envía después de confirmar; Discord siempre deja el
+botón de llamada para la persona. Un alias desconocido se rechaza
 antes de pedir confirmación y el destino validado queda fijado internamente
 para esa confirmación; así, si el fichero local cambia mientras está visible,
 la aprobación sigue correspondiendo al destino que se validó al mostrarla.

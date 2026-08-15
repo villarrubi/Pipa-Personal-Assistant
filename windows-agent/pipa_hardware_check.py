@@ -267,7 +267,8 @@ def _collect_fixture(path: str) -> HardwareDiagnostics:
 
 def _human_report(port: str, report: dict[str, object]) -> str:
     ready = report["ready"]
-    assert isinstance(ready, dict)
+    if not isinstance(ready, dict):
+        raise RuntimeError("el informe de hardware no contiene un estado ready válido")
     labels = {
         "io_expander": "Expansor IO",
         "display": "Pantalla",
@@ -275,7 +276,8 @@ def _human_report(port: str, report: dict[str, object]) -> str:
         "battery": "ADC batería",
     }
     audio = report["audio"]
-    assert isinstance(audio, dict)
+    if not isinstance(audio, dict):
+        raise RuntimeError("el informe de hardware no contiene un estado de audio válido")
     lines = [
         f"Puerto serie: {port}",
         f"Diagnósticos recibidos: {report['lines_seen']}",

@@ -591,7 +591,7 @@ class SecureAudioTranscriber:
         try:
             if reset_provider is not None:
                 reset_provider()
-        except Exception:
+        except Exception:  # nosec B110
             # The provider is no longer reusable even if its own cleanup
             # failed. Drop every reference and close the authenticated audio
             # session rather than attempting a new stream with stale state.

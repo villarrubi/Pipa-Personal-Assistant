@@ -52,11 +52,24 @@ firmware/libdeps/
 *.provisionprofile
 *.dSYM/
 *.ipa
-*secret*
-*secrets*
-*credential*
-*credentials*
-*token*
+# Conventional secret-file names. Avoid broad patterns such as *token* or
+# *credential*: they can silently hide legitimate source files and tests.
+secrets/
+credentials/
+tokens/
+*.secret
+*.secret.*
+*.secrets
+*.secrets.*
+*.credential
+*.credential.*
+*.credentials
+*.credentials.*
+*.token
+*.token.*
+*.tokens
+*.tokens.*
+session-token.txt
 *.sqlite
 *.sqlite3
 .aws/credentials

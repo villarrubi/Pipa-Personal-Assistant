@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -108,6 +110,97 @@ def _league_wait_intent(seconds_text: str | None) -> ParsedIntent | None:
     if not 1 <= seconds <= 300:
         return None
     return ParsedIntent("league_wait", {"seconds": seconds})
+
+
+def _catalog_literal_pattern(value: str) -> str:
+    """Escape visible catalog text while allowing natural whitespace runs."""
+
+    return "".join(r"\s+" if part.isspace() else re.escape(part) for part in re.split(r"(\s+)", value))
+
+
+def _catalog_value(value: str, parameter: Mapping[str, Any]) -> object | None:
+    value = value.strip()
+    maximum = parameter.get("max_length")
+    kind = parameter.get("kind")
+    options = parameter.get("options", [])
+    if (
+        not value
+        or not isinstance(maximum, int)
+        or len(value.encode("utf-8")) > maximum
+        or (options and value not in options)
+    ):
+        return None
+    if kind == "integer":
+        try:
+            return int(value)
+        except ValueError:
+            return None
+    if kind == "phone" and re.fullmatch(r"[+\d][\d\s().-]{6,24}", value) is None:
+        return None
+    if kind in {"channel_id", "guild_id"} and re.fullmatch(r"[0-9]{17,20}", value) is None:
+        return None
+    if kind == "url" and re.fullmatch(r"https?://\S+", value, flags=re.IGNORECASE) is None:
+        return None
+    return value
+
+
+def parse_catalog_intent(text: str, commands: Sequence[Mapping[str, Any]]) -> ParsedIntent | None:
+    """Match an edited catalog phrase without granting a new tool capability.
+
+    The catalog can only point at handlers already present in the router. This
+    matcher turns its visible placeholders into typed arguments; the real tool
+    validator still runs afterwards and remains authoritative.
+    """
+
+    original = " ".join(text.strip().split())
+    if not original:
+        return None
+    candidates: list[tuple[int, ParsedIntent]] = []
+    for command in commands:
+        phrase = command.get("phrase")
+        tool_name = command.get("tool_name")
+        parameters = command.get("parameters", [])
+        if not isinstance(phrase, str) or not isinstance(tool_name, str) or not isinstance(parameters, list):
+            continue
+
+        pieces: list[str] = []
+        cursor = 0
+        placeholders = list(re.finditer(r"<[^<>]+>", phrase))
+        for placeholder in placeholders:
+            pieces.append(_catalog_literal_pattern(phrase[cursor : placeholder.start()]))
+            pieces.append(r"(.+?)")
+            cursor = placeholder.end()
+        pieces.append(_catalog_literal_pattern(phrase[cursor:]))
+        match = re.fullmatch("".join(pieces), original, flags=re.IGNORECASE)
+        if match is None or len(placeholders) != len(parameters):
+            continue
+
+        arguments: dict[str, object] = {}
+        specificity = len(re.sub(r"<[^<>]+>", "", phrase))
+        valid = True
+        for parameter, raw_value in zip(parameters, match.groups(), strict=True):
+            if not isinstance(parameter, Mapping) or not isinstance(parameter.get("name"), str):
+                valid = False
+                break
+            value = _catalog_value(raw_value, parameter)
+            if value is None:
+                valid = False
+                break
+            arguments[parameter["name"]] = value
+            if parameter.get("kind") in {"phone", "integer", "channel_id", "guild_id", "url"}:
+                specificity += 50
+        if not valid:
+            continue
+        default_arguments = command.get("default_arguments")
+        if default_arguments is not None:
+            if arguments or not isinstance(default_arguments, Mapping):
+                continue
+            arguments = dict(default_arguments)
+        candidates.append((specificity, ParsedIntent(tool_name, arguments)))
+
+    if not candidates:
+        return None
+    return max(candidates, key=lambda item: item[0])[1]
 
 
 def parse_text_intent(text: str) -> ParsedIntent | None:
@@ -820,5 +913,18 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     timer = re.fullmatch(r"temporizador de (\d+) minutos?", normalized)
     if timer:
         return ParsedIntent("timer_create", {"seconds": int(timer.group(1)) * 60, "label": "Pipα timer"})
+
+    # User-defined processes remain inside the same application allowlist and
+    # confirmation gate as the explicit "abre una aplicación" command. Keep
+    # this broad fallback last so built-in integrations retain their richer,
+    # typed intents.
+    configured_process = re.fullmatch(
+        r"(?:abre|abrir|inicia|iniciar|ejecuta|ejecutar) "
+        r"(?:(?:el|la|un|una) )?(?:(?:proceso|programa|app|aplicaci[oó]n) )?(.+)",
+        original,
+        flags=re.IGNORECASE,
+    )
+    if configured_process:
+        return ParsedIntent("open_app", {"app": configured_process.group(1).strip()})
 
     return None

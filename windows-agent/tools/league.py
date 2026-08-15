@@ -183,7 +183,10 @@ class LeagueClientApi:
             raise LeagueClientError("Ruta League no permitida.")
 
         auth = base64.b64encode(f"riot:{self._connection.token}".encode()).decode("ascii")
-        context = ssl._create_unverified_context()
+        # Riot's local LCU endpoint uses a self-signed certificate. The adapter
+        # is pinned to 127.0.0.1, the current user's process and a discovered
+        # one-time client token; certificate verification is not available.
+        context = ssl._create_unverified_context()  # nosec B323
         connection = http.client.HTTPSConnection(
             "127.0.0.1",
             self._connection.port,
@@ -418,6 +421,30 @@ def with_client(callback):
     return callback(LeagueClientApi(connection))
 
 
+def wait_for_client_connection(
+    *,
+    timeout_seconds: float = _CLIENT_START_TIMEOUT_SECONDS,
+    poll_seconds: float = _CLIENT_START_POLL_SECONDS,
+) -> LeagueClientConnection:
+    """Wait for League UX to expose a usable local API connection."""
+
+    if not 0.5 <= timeout_seconds <= 120 or not 0.1 <= poll_seconds <= 5:
+        raise ValueError("Los límites de espera de League no son válidos.")
+
+    deadline = time.monotonic() + timeout_seconds
+    last_error: LeagueClientError | None = None
+    while True:
+        try:
+            return find_client_connection()
+        except LeagueClientError as error:
+            last_error = error
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise LeagueClientError("League Client no estuvo listo a tiempo.") from last_error
+        time.sleep(min(poll_seconds, remaining))
+
+
 def with_client_or_launch(
     callback: Callable[[LeagueClientApi], Any],
     launcher: Callable[[], dict[str, object]],
@@ -463,22 +490,15 @@ def _with_client_or_launch(
             raise initial_error
 
         client_started = True
-        deadline = time.monotonic() + timeout_seconds
-        connection = None
-        while time.monotonic() < deadline:
-            try:
-                connection = find_client_connection()
-                break
-            except LeagueClientError:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    break
-                time.sleep(min(poll_seconds, remaining))
-
-        if connection is None:
+        try:
+            connection = wait_for_client_connection(
+                timeout_seconds=timeout_seconds,
+                poll_seconds=poll_seconds,
+            )
+        except LeagueClientError as error:
             raise LeagueClientError(
                 "League Client no estuvo listo a tiempo para buscar partida."
-            ) from initial_error
+            ) from error
 
     result = callback(LeagueClientApi(connection))
     if client_started and isinstance(result, dict):

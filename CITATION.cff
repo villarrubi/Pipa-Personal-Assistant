@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use Pipα, please cite it as follows."
+title: "Pipα — asistente personal local"
+type: software
+version: "unreleased"
+authors:
+  - name: "villarrubi"
+license: MIT
+repository-code: "https://github.com/villarrubi/Pipa-Personal-Assistant"
+url: "https://github.com/villarrubi/Pipa-Personal-Assistant"
+abstract: >-
+  Prototipo de asistente personal local que combina un agente Windows,
+  un núcleo de comandos confirmables, firmware ESP32-S3 y un cliente iOS.
+keywords:
+  - personal-assistant
+  - privacy
+  - cybersecurity
+  - ESP32
+  - Windows
+  - iOS

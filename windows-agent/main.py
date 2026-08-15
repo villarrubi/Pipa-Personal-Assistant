@@ -10,7 +10,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -18,7 +18,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from tools.apps import load_apps, open_app
+from tools.app_diagnostics import launcher_resolved
+from tools.apps import AppsConfigError, load_apps, open_app, save_apps
 from tools.audio import get_volume, mute, set_volume, unmute
 from tools.browser import open_validated_url, without_destination
 from tools.capabilities import get_capabilities, get_integration_capabilities, get_mobile_capabilities
@@ -30,9 +31,23 @@ from tools.commands import (
     open_web_search,
 )
 from tools.contacts import resolve_discord_contact, resolve_whatsapp_contact
+from tools.control_config import (
+    ControlConfigError,
+    delete_whatsapp_access_token,
+    get_whatsapp_access_token,
+    get_whatsapp_public_status,
+    set_whatsapp_settings,
+    store_whatsapp_access_token,
+    whatsapp_automatic_send_active,
+)
 from tools.diagnostics import get_self_test
 from tools.discord import open_discord_app, open_discord_call, open_discord_channel
-from tools.integration_catalog import get_command_catalog
+from tools.integration_catalog import (
+    get_command_catalog,
+    get_command_control_catalog,
+    reset_command_control,
+    update_command_control,
+)
 from tools.league import MAX_MATCH_WAIT_SECONDS, LeagueClientError, with_client, with_client_or_launch
 from tools.media import send_media_action
 from tools.readiness import inspect_readiness
@@ -40,7 +55,12 @@ from tools.security_policy import LOCAL_CONFIRMATION_PATHS
 from tools.system import get_network_status, get_power_status, get_system_status, lock_pc
 from tools.timers import TimerManager, TimerNotFoundError, validate_timer_id
 from tools.urls import validate_external_url
-from tools.whatsapp import open_whatsapp_chat, open_whatsapp_compose, open_whatsapp_web
+from tools.whatsapp import (
+    open_whatsapp_chat,
+    open_whatsapp_compose,
+    open_whatsapp_web,
+    send_whatsapp_cloud_message,
+)
 from trusted_unlock_devices import (
     InMemoryDeviceStore,
     WindowsRegistryDeviceStore,
@@ -64,6 +84,7 @@ LOGGER = logging.getLogger("pipa.agent")
 MAX_REQUEST_BYTES = 16 * 1024
 MAX_WEBSOCKET_MESSAGE_BYTES = 12_000
 MAX_PROTOCOL_ERRORS = 5
+CONTROL_UI_DIR = Path(__file__).resolve().parent / "control-ui"
 
 
 def configure_logging() -> Path | None:
@@ -158,6 +179,11 @@ def _harden_http_response(response):
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; "
+        "form-action 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'"
+    )
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     return response
 
 
@@ -182,7 +208,7 @@ async def lifespan(_app):
 
 app = FastAPI(
     title="Pipα Windows Agent",
-    version="0.4.0",
+    version="0.5.0",
     lifespan=lifespan,
 )
 app.add_middleware(
@@ -223,8 +249,8 @@ async def protect_local_http(request, call_next):
             )
         )
     if (
-        request.method in {"POST", "DELETE"}
-        and request.url.path in LOCAL_CONFIRMATION_PATHS
+        request.method in {"POST", "PUT", "DELETE"}
+        and (request.url.path in LOCAL_CONFIRMATION_PATHS or request.url.path.startswith("/control/"))
         and request.headers.get("x-pipa-local-confirmation") != "1"
     ):
         return _harden_http_response(
@@ -321,6 +347,33 @@ class PipaChallengeRequest(StrictRequest):
     device_id: str = Field(min_length=1, max_length=64)
 
 
+class ProcessControlRequest(StrictRequest):
+    id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+    original_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+    )
+    aliases: list[str] = Field(min_length=1, max_length=32)
+    launcher: str = Field(min_length=1, max_length=1024)
+    arguments: list[str] = Field(default_factory=list, max_length=31)
+    enabled: bool = True
+
+
+class CommandControlRequest(StrictRequest):
+    enabled: bool
+    phrase: str = Field(min_length=1, max_length=256)
+
+
+class WhatsAppControlRequest(StrictRequest):
+    automatic_send: bool
+    phone_number_id: str = Field(default="", max_length=32)
+    api_version: str = Field(default="v23.0", min_length=4, max_length=8)
+    access_token: str | None = Field(default=None, max_length=4096)
+    forget_access_token: bool = False
+
+
 timer_manager = TimerManager()
 
 
@@ -343,6 +396,7 @@ def _build_pipa_core() -> PipaCore:
         ToolRouter(build_agent_catalog(timer_manager)),
         command_catalog=get_command_catalog,
         capability_catalog=get_mobile_capabilities,
+        command_catalog_authoritative=True,
     )
 
 
@@ -354,9 +408,28 @@ def root():
     return {
         "service": "pipa-windows-agent",
         "name": "Pipα Windows Agent",
-        "version": "0.4.0",
+        "version": "0.5.0",
         "status": "online",
+        "control_panel": "/panel",
     }
+
+
+@app.get("/panel", include_in_schema=False)
+def control_panel():
+    return FileResponse(CONTROL_UI_DIR / "index.html", media_type="text/html; charset=utf-8")
+
+
+@app.get("/panel/pipa-control.css", include_in_schema=False)
+def control_panel_css():
+    return FileResponse(CONTROL_UI_DIR / "pipa-control.css", media_type="text/css; charset=utf-8")
+
+
+@app.get("/panel/pipa-control.js", include_in_schema=False)
+def control_panel_js():
+    return FileResponse(
+        CONTROL_UI_DIR / "pipa-control.js",
+        media_type="application/javascript; charset=utf-8",
+    )
 
 
 @app.get("/status")
@@ -414,6 +487,148 @@ def api_commands():
     """Expose safe command help for local UIs without local account data."""
 
     return {"success": True, "commands": get_command_catalog()}
+
+
+def _control_processes() -> list[dict[str, object]]:
+    apps = load_apps(include_disabled=True)
+    return [
+        {
+            "id": app_id,
+            "aliases": app_data["aliases"],
+            "launcher": app_data["command"][0],
+            "arguments": app_data["command"][1:],
+            "enabled": app_data["enabled"],
+            "launcher_resolved": launcher_resolved(app_data["command"][0]),
+        }
+        for app_id, app_data in sorted(apps.items(), key=lambda item: item[0].casefold())
+    ]
+
+
+@app.get("/control/overview")
+def api_control_overview():
+    """Return private local configuration only to the loopback control UI."""
+
+    processes = _control_processes()
+    commands = get_command_control_catalog()
+    whatsapp = get_whatsapp_public_status()
+    return {
+        "success": True,
+        "service": {"name": "Pipα", "version": "0.5.0", "status": "online"},
+        "summary": {
+            "processes": len(processes),
+            "active_processes": sum(bool(process["enabled"]) for process in processes),
+            "commands": len(commands),
+            "active_commands": sum(bool(command["enabled"]) for command in commands),
+            "automatic_whatsapp": bool(whatsapp["active"]),
+        },
+        "processes": processes,
+        "commands": commands,
+        "whatsapp": whatsapp,
+    }
+
+
+def _matching_app_id(apps: dict[str, object], requested: str) -> str | None:
+    folded = requested.casefold()
+    return next((app_id for app_id in apps if app_id.casefold() == folded), None)
+
+
+@app.put("/control/processes")
+def api_control_save_process(request: ProcessControlRequest):
+    try:
+        apps = load_apps(include_disabled=True)
+        target_id = _matching_app_id(apps, request.id)
+        existing_id = None
+        if request.original_id is None:
+            if target_id is not None:
+                raise ValueError("El proceso ya existe.")
+        else:
+            existing_id = _matching_app_id(apps, request.original_id)
+            if existing_id is None:
+                raise ValueError("El proceso original ya no existe.")
+            if target_id is not None and target_id != existing_id:
+                raise ValueError("El proceso ya existe.")
+            del apps[existing_id]
+        apps[request.id] = {
+            "aliases": request.aliases,
+            "command": [request.launcher, *request.arguments],
+            "enabled": request.enabled,
+        }
+        save_apps(apps)
+        process = next(item for item in _control_processes() if item["id"] == request.id)
+        return {"success": True, "process": process}
+    except (AppsConfigError, ValueError) as error:
+        raise HTTPException(status_code=400, detail="No se pudo guardar ese proceso.") from error
+
+
+@app.delete("/control/processes/{app_id}")
+def api_control_delete_process(app_id: str):
+    try:
+        apps = load_apps(include_disabled=True)
+        existing_id = _matching_app_id(apps, app_id)
+        if existing_id is None:
+            raise ValueError("El proceso no existe.")
+        del apps[existing_id]
+        save_apps(apps)
+        return {"success": True, "deleted": True}
+    except (AppsConfigError, ValueError) as error:
+        raise HTTPException(status_code=400, detail="No se pudo eliminar ese proceso.") from error
+
+
+@app.post("/control/processes/{app_id}/run")
+def api_control_run_process(app_id: str):
+    try:
+        result = open_app(app_id)
+    except (AppsConfigError, ValueError) as error:
+        raise HTTPException(status_code=400, detail="No se pudo ejecutar ese proceso.") from error
+    if result.get("success") is not True:
+        raise HTTPException(status_code=409, detail="El proceso no está disponible.")
+    return result
+
+
+@app.put("/control/commands/{command_id}")
+def api_control_update_command(command_id: str, request: CommandControlRequest):
+    try:
+        command = update_command_control(command_id, enabled=request.enabled, phrase=request.phrase)
+        return {"success": True, "command": command}
+    except (ControlConfigError, ValueError) as error:
+        raise HTTPException(status_code=400, detail="No se pudo guardar ese comando.") from error
+
+
+@app.delete("/control/commands/{command_id}")
+def api_control_reset_command(command_id: str):
+    try:
+        command = reset_command_control(command_id)
+        return {"success": True, "command": command}
+    except (ControlConfigError, ValueError) as error:
+        raise HTTPException(status_code=400, detail="No se pudo restaurar ese comando.") from error
+
+
+@app.put("/control/whatsapp")
+def api_control_update_whatsapp(request: WhatsAppControlRequest):
+    try:
+        token = request.access_token.strip() if request.access_token else None
+        if request.automatic_send and request.forget_access_token:
+            raise ValueError("No se puede activar y borrar el token a la vez.")
+        if request.automatic_send and not request.phone_number_id:
+            raise ValueError("Falta el ID de teléfono.")
+        if request.automatic_send and token is None and get_whatsapp_access_token() is None:
+            raise ValueError("Falta el token.")
+
+        set_whatsapp_settings(
+            mode="cloud_api" if request.automatic_send else "manual",
+            phone_number_id=request.phone_number_id,
+            api_version=request.api_version,
+        )
+        if token is not None:
+            store_whatsapp_access_token(token)
+        if request.forget_access_token:
+            delete_whatsapp_access_token()
+        return {"success": True, "whatsapp": get_whatsapp_public_status()}
+    except (ControlConfigError, ValueError) as error:
+        raise HTTPException(
+            status_code=400,
+            detail="No se pudo guardar la automatización de WhatsApp.",
+        ) from error
 
 
 @app.get("/self-test")
@@ -596,6 +811,8 @@ def api_cancel_timer(timer_id: str):
 @app.post("/whatsapp/compose")
 def api_whatsapp_compose(request: WhatsAppRequest):
     try:
+        if whatsapp_automatic_send_active():
+            return send_whatsapp_cloud_message(request.phone, request.message)
         return open_whatsapp_compose(request.phone, request.message)
     except ValueError as error:
         raise HTTPException(status_code=400, detail="La solicitud de WhatsApp no es válida.") from error
@@ -610,6 +827,8 @@ def api_whatsapp_open():
 def api_whatsapp_contact_compose(request: ContactMessageRequest):
     try:
         _contact_name, phone = resolve_whatsapp_contact(request.contact)
+        if whatsapp_automatic_send_active():
+            return send_whatsapp_cloud_message(phone, request.message)
         return open_whatsapp_compose(phone, request.message)
     except ValueError as error:
         raise HTTPException(

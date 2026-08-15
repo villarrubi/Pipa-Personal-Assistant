@@ -11,6 +11,12 @@ import re
 from copy import deepcopy
 from typing import Any
 
+from tools.control_config import (
+    get_command_preferences,
+    reset_command_preference,
+    set_command_preference,
+    whatsapp_automatic_send_active,
+)
 from tools.league import QUEUE_IDS
 from tools.text_policy import validate_bounded_text
 
@@ -66,8 +72,6 @@ _INTEGRATION_SAFETY_CONTRACT: dict[str, dict[str, bool]] = {
         "requires_confirmation": True,
     },
     "whatsapp": {
-        "send_message": False,
-        "requires_manual_send": True,
         "requires_confirmation": True,
     },
     "discord": {
@@ -103,6 +107,13 @@ def validate_integration_capabilities(capabilities: object) -> None:
         for field, expected in expected_fields.items():
             if type(values.get(field)) is not bool or values[field] is not expected:
                 raise ValueError(f"{integration}.{field} crosses the integration safety contract")
+    whatsapp = capabilities.get("whatsapp", {})
+    if (
+        type(whatsapp.get("send_message")) is not bool
+        or type(whatsapp.get("requires_manual_send")) is not bool
+        or whatsapp["send_message"] == whatsapp["requires_manual_send"]
+    ):
+        raise ValueError("whatsapp delivery mode is inconsistent")
 
 
 def _parameter(
@@ -141,6 +152,7 @@ def build_integration_capabilities(
     discord_launcher_resolved: bool | None = None,
     whatsapp_contacts_configured: bool = False,
     discord_contacts_configured: bool = False,
+    whatsapp_automatic_send: bool = False,
 ) -> dict[str, dict[str, Any]]:
     """Build the stable feature matrix without exposing local configuration."""
 
@@ -173,8 +185,8 @@ def build_integration_capabilities(
             "open_contact": True,
             "contact_aliases_configured": whatsapp_contacts_configured,
             "prepare_message": True,
-            "send_message": False,
-            "requires_manual_send": True,
+            "send_message": whatsapp_automatic_send,
+            "requires_manual_send": not whatsapp_automatic_send,
             "requires_confirmation": True,
         },
         "discord": {
@@ -720,5 +732,64 @@ def get_command_catalog() -> list[dict[str, Any]]:
     # An explicit empty list advertises that a no-argument action supports
     # the structured tool path. Older agents that omit this field still use
     # the text-editor fallback in compatible clients.
-    commands = [deepcopy(command) for command in _COMMANDS]
+    preferences = get_command_preferences()
+    automatic_whatsapp = whatsapp_automatic_send_active()
+    commands = []
+    for source in _COMMANDS:
+        preference = preferences.get(source["id"], {})
+        if preference.get("enabled", True) is not True:
+            continue
+        command = deepcopy(source)
+        if "phrase" in preference:
+            command["phrase"] = preference["phrase"]
+        if automatic_whatsapp and command["id"] in {"whatsapp_compose", "whatsapp_contact"}:
+            command["description"] = (
+                "Envía el mensaje con WhatsApp Cloud API después de la confirmación explícita."
+            )
+        commands.append(command)
     return validate_command_catalog(commands)
+
+
+def get_command_control_catalog() -> list[dict[str, Any]]:
+    """Return every built-in command plus its editable local presentation state."""
+
+    preferences = get_command_preferences()
+    automatic_whatsapp = whatsapp_automatic_send_active()
+    result: list[dict[str, Any]] = []
+    for source in _COMMANDS:
+        preference = preferences.get(source["id"], {})
+        command = deepcopy(source)
+        command["phrase"] = preference.get("phrase", source["phrase"])
+        if automatic_whatsapp and command["id"] in {"whatsapp_compose", "whatsapp_contact"}:
+            command["description"] = (
+                "Envía el mensaje con WhatsApp Cloud API después de la confirmación explícita."
+            )
+        # Validate the edited descriptor against the same contract exported to
+        # devices before returning it to the control panel.
+        validated = validate_command_catalog([command])[0]
+        validated["enabled"] = preference.get("enabled", True)
+        validated["default_phrase"] = source["phrase"]
+        validated["customized"] = bool(preference)
+        result.append(validated)
+    return result
+
+
+def update_command_control(command_id: str, *, enabled: bool, phrase: str) -> dict[str, Any]:
+    """Validate and persist the editable state of one known command."""
+
+    source = next((command for command in _COMMANDS if command["id"] == command_id), None)
+    if source is None:
+        raise ValueError("El comando no existe.")
+    candidate = deepcopy(source)
+    candidate["phrase"] = phrase
+    validated = validate_command_catalog([candidate])[0]
+    stored_phrase = None if validated["phrase"] == source["phrase"] else validated["phrase"]
+    set_command_preference(command_id, enabled=enabled, phrase=stored_phrase)
+    return next(command for command in get_command_control_catalog() if command["id"] == command_id)
+
+
+def reset_command_control(command_id: str) -> dict[str, Any]:
+    if not any(command["id"] == command_id for command in _COMMANDS):
+        raise ValueError("El comando no existe.")
+    reset_command_preference(command_id)
+    return next(command for command in get_command_control_catalog() if command["id"] == command_id)

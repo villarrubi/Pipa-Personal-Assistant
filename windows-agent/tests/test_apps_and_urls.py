@@ -152,6 +152,7 @@ class AppsAndUrlsTests(unittest.TestCase):
         self.assertEqual(popen.call_args.args[0], [r"C:\Windows\System32\demo.exe"])
         if sys.platform == "win32":
             self.assertIn("creationflags", popen.call_args.kwargs)
+            self.assertEqual(popen.call_args.kwargs["cwd"], r"C:\Windows\System32")
 
     def test_http_urls_are_allowed(self):
         self.assertEqual(

@@ -79,9 +79,11 @@ class SecureMobileClientTests(unittest.TestCase):
         self.assertEqual(details["capabilities"]["apple_music"]["playback"], False)
         pending = client.send_text("acción externa de prueba")
 
-        self.assertEqual(pending[0]["type"], "error")
-        self.assertEqual(pending[0]["code"], "unsupported_text_intent")
+        self.assertEqual(pending[0]["type"], "confirm_request")
         self.assertEqual(executed, [])
+        rejected = client.confirm(pending[0]["confirmation_id"], False)
+        self.assertEqual(rejected[0]["type"], "tool_result")
+        self.assertFalse(rejected[0]["success"])
 
         pending = client.call_tool("external_test", {}, call_id="mobile-call")
         self.assertEqual(pending[0]["type"], "confirm_request")

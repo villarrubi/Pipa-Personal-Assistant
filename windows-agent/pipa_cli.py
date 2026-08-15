@@ -320,7 +320,14 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _request(base_url: str, method: str, path: str, payload: dict[str, object] | None = None) -> dict:
+def _request(
+    base_url: str,
+    method: str,
+    path: str,
+    payload: dict[str, object] | None = None,
+    *,
+    timeout: float = 5,
+) -> dict:
     body = None if payload is None else json.dumps(payload).encode("utf-8")
     headers = {"Accept": "application/json"}
     if body is not None:
@@ -331,7 +338,8 @@ def _request(base_url: str, method: str, path: str, payload: dict[str, object] |
         headers["X-Pipa-Local-Confirmation"] = "1"
     request = Request(base_url + path, method=method, headers=headers, data=body)
     try:
-        with urlopen(request, timeout=5) as response:
+        # _local_base_url rejects every non-loopback destination before this call.
+        with urlopen(request, timeout=timeout) as response:  # nosec B310
             raw = response.read(64 * 1024)
     except HTTPError as error:
         # Do not reflect the agent's response body. It can contain request
@@ -340,6 +348,8 @@ def _request(base_url: str, method: str, path: str, payload: dict[str, object] |
         raise RuntimeError(f"El agente rechazó la solicitud (HTTP {error.code}).") from error
     except URLError as error:
         raise RuntimeError("No se pudo conectar con el agente local.") from error
+    except TimeoutError as error:
+        raise RuntimeError("El agente tardó demasiado en responder.") from error
     try:
         result = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -347,6 +357,16 @@ def _request(base_url: str, method: str, path: str, payload: dict[str, object] |
     if not isinstance(result, dict):
         raise RuntimeError("El agente devolvió una respuesta inesperada.")
     return result
+
+
+def _request_timeout(arguments: argparse.Namespace) -> float:
+    """Give bounded long-running League operations time to complete."""
+
+    if arguments.command in {"league-open", "league-search"}:
+        return 40
+    if arguments.command == "league-wait":
+        return min(310, max(5, int(arguments.seconds) + 5))
+    return 5
 
 
 def _route(arguments: argparse.Namespace) -> tuple[str, str, dict[str, object] | None]:
@@ -748,7 +768,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "Usa preview para inspeccionarla sin ejecutar nada."
             )
         method, path, payload = _route(arguments)
-        result = _request(arguments.base_url, method, path, payload)
+        result = _request(
+            arguments.base_url,
+            method,
+            path,
+            payload,
+            timeout=_request_timeout(arguments),
+        )
     except (RuntimeError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1

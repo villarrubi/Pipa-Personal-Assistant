@@ -105,10 +105,11 @@ de recuperación y acceso.
   por lo que las aplicaciones deben arrancar mediante un binario directo.
 - Los alias de contactos viven únicamente en `windows-agent/config/contacts.local.json`;
   se validan con destinos acotados, no se publican en capacidades, catálogo,
-  respuestas ni resultados de acciones y solo preparan WhatsApp o abren Discord.
+  respuestas ni resultados de acciones y solo preparan WhatsApp o, tras un
+  opt-in local explícito, entregan el mensaje a Cloud API; Discord solo se abre.
   Un alias inexistente se rechaza antes de crear una confirmación y se vuelve a
-  validar al consumirla. Envío y llamada siguen requiriendo una acción humana
-  visible.
+  validar al consumirla. El envío por API sigue requiriendo confirmación y la
+  llamada conserva una acción humana visible.
 - Las configuraciones locales de aplicaciones y contactos se leen con un límite
   de 128 KiB y un número máximo de entradas; JSON sobredimensionado, ambiguo o
   con lanzadores de shell se rechaza antes de ejecutar una aplicación.
@@ -177,10 +178,11 @@ de recuperación y acceso.
   públicas (`available`, límites manuales y colas). El Core rechaza grupos,
   campos desconocidos, valores anidados o tipos inesperados; un catálogo
   inválido se descarta completo.
-- El cliente iOS repite localmente el contrato de límites manuales: exige que
-  Apple Music mantenga `playback=false`, WhatsApp `send_message=false`, Discord
+- El cliente iOS repite localmente el contrato de límites: exige que Apple
+  Music mantenga `playback=false`, que WhatsApp anuncie exactamente uno entre
+  `send_message` y `requires_manual_send`, que Discord mantenga
   `start_call=false` y League `accept_match=false`, junto con sus flags de
-  confirmación/manualidad. Si falta uno de esos valores o cambia, cierra la
+  confirmación/manualidad. Si falta uno de esos valores o es incoherente, cierra la
   sesión; `check_mobile_safety_contract.py` compara el mapa Swift con el
   contrato Python en cada preflight y en CI.
 - El canal JSON v2 cifra el objeto completo, autentica una AAD fija y exige un
@@ -223,8 +225,8 @@ de recuperación y acceso.
   contadores booleanos/acotados; no abre micrófono, red, serie ni guarda
   muestras.
 - El diagnóstico `integration-test`, incluido también en `self-test`, comprueba
-  los destinos HTTPS allowlisted, las colas de League y que Apple Music,
-  WhatsApp, Discord, League y Codex mantengan sus pasos manuales; usa valores
+  los destinos HTTPS allowlisted, las colas de League y los límites manuales
+  predeterminados de Apple Music, WhatsApp, Discord, League y Codex; usa valores
   sintéticos y no abre aplicaciones, envía mensajes, llama ni contacta con
   League.
 - El núcleo iOS `mobile-ios/PipaMobileCore` no expone la clave privada de la
@@ -261,7 +263,8 @@ de recuperación y acceso.
 ## Límites que no se deben romper
 
 - No guardar contraseñas, PIN, cookies, tokens estáticos o claves privadas en
-  Windows, logs o Git.
+  JSON, logs o Git. El token opcional de WhatsApp se admite únicamente en
+  Credenciales de Windows o mediante la variable de entorno documentada.
 - No enlazar ningún transporte Pipa a `0.0.0.0` ni exponerlo mediante port
   forwarding; el TCP móvil debe usar solo una IP privada explícita y una red
   bajo control del usuario hasta que exista una revisión de despliegue.
@@ -361,8 +364,16 @@ actualizar el remoto de forma coordinada.
 - Dispositivo: revocar la clave pública y reiniciar agente/broker.
 - Si Pipα falla, usar siempre el método normal de Windows.
 
-## Reportar un problema
+## Reportar una vulnerabilidad
 
-No publiques rutas, fingerprints completos, logs sin revisar ni detalles de
-cuentas en una issue pública. Describe impacto, precondiciones y reproducción
-con datos anonimizados.
+Usa **Security > Report a vulnerability** en GitHub para crear un aviso privado.
+Si esa opción todavía no está habilitada, contacta en privado con el propietario
+del repositorio antes de compartir detalles; activa el canal siguiendo el
+[checklist de publicación](docs/PUBLICATION_CHECKLIST.md). No abras una issue
+pública con información explotable.
+
+Incluye el componente y versión afectados, impacto, precondiciones y una
+reproducción mínima con datos anonimizados. No adjuntes rutas, fingerprints
+completos, claves, tokens, logs sin revisar ni detalles de cuentas. Se acusará
+recibo por el mismo canal privado y se coordinarán la corrección y divulgación
+antes de publicar detalles.

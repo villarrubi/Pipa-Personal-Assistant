@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Pipα — Centro de control</title>
+  <link rel="stylesheet" href="/panel/pipa-control.css">
+  <script src="/panel/pipa-control.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#inicio" aria-label="Pipα, centro de control">
+        <span class="brand-mark">P</span>
+        <span class="brand-copy"><strong>Pipα</strong><small>Control local</small></span>
+      </a>
+
+      <nav class="side-nav" aria-label="Secciones">
+        <a class="nav-item active" href="#inicio" data-section="inicio"><span>⌂</span>Resumen</a>
+        <a class="nav-item" href="#procesos" data-section="procesos"><span>◇</span>Procesos</a>
+        <a class="nav-item" href="#comandos" data-section="comandos"><span>⌘</span>Comandos</a>
+        <a class="nav-item" href="#automatizaciones" data-section="automatizaciones"><span>↗</span>Automatizaciones</a>
+      </nav>
+
+      <div class="agent-state">
+        <span class="pulse" aria-hidden="true"></span>
+        <span><strong>Agente conectado</strong><small>Solo en este ordenador</small></span>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">CENTRO DE CONTROL</p>
+          <h1><span id="greeting">Hola.</span> <span>¿Qué hará Pipa hoy?</span></h1>
+        </div>
+        <button class="icon-button" id="refresh-button" type="button" title="Actualizar datos" aria-label="Actualizar datos">↻</button>
+      </header>
+
+      <div class="content">
+        <section class="hero-card" id="inicio">
+          <div>
+            <span class="status-pill"><i></i>Pipa está lista</span>
+            <h2>Todo bajo control.</h2>
+            <p>Configura lo que Pipa puede ejecutar, las frases que entiende y dónde quieres conservar una revisión manual.</p>
+          </div>
+          <div class="hero-orbit" aria-hidden="true">
+            <span class="orbit orbit-one"></span><span class="orbit orbit-two"></span><strong>P</strong>
+          </div>
+        </section>
+
+        <section class="metric-grid" aria-label="Resumen">
+          <article class="metric-card">
+            <span class="metric-icon lavender">◇</span>
+            <div><strong id="metric-processes">—</strong><span>Procesos activos</span></div>
+            <small id="metric-processes-detail">Cargando…</small>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon mint">⌘</span>
+            <div><strong id="metric-commands">—</strong><span>Comandos activos</span></div>
+            <small id="metric-commands-detail">Cargando…</small>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon peach">↗</span>
+            <div><strong id="metric-automations">—</strong><span>Automatizaciones</span></div>
+            <small id="metric-automations-detail">Cargando…</small>
+          </article>
+        </section>
+
+        <section class="section-block" id="procesos">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">PROCESOS</p>
+              <h2>Aplicaciones y ejecutables</h2>
+              <p>Pipa solo lanza ejecutables directos; scripts, terminales e intérpretes quedan bloqueados.</p>
+            </div>
+            <button class="primary-button" id="add-process-button" type="button"><span>＋</span>Nuevo proceso</button>
+          </div>
+          <div class="toolbar">
+            <label class="search-field">
+              <span>⌕</span>
+              <input id="process-search" type="search" placeholder="Buscar proceso o alias…" autocomplete="off">
+            </label>
+            <span class="result-count" id="process-count"></span>
+          </div>
+          <div class="process-list" id="process-list" aria-live="polite"></div>
+        </section>
+
+        <section class="section-block" id="comandos">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">COMANDOS</p>
+              <h2>Frases que entiende Pipa</h2>
+              <p>Edita la frase principal o retira un comando de los catálogos de tus dispositivos.</p>
+            </div>
+          </div>
+          <div class="toolbar">
+            <label class="search-field">
+              <span>⌕</span>
+              <input id="command-search" type="search" placeholder="Buscar frase o función…" autocomplete="off">
+            </label>
+            <select id="command-filter" aria-label="Filtrar comandos">
+              <option value="all">Todos</option>
+              <option value="active">Activos</option>
+              <option value="disabled">Desactivados</option>
+              <option value="confirmation">Con confirmación</option>
+            </select>
+          </div>
+          <div class="command-grid" id="command-list" aria-live="polite"></div>
+        </section>
+
+        <section class="section-block automation-section" id="automatizaciones">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">AUTOMATIZACIONES</p>
+              <h2>Decide hasta dónde llega Pipa</h2>
+              <p>Las acciones externas siguen necesitando una confirmación explícita, incluso en modo automático.</p>
+            </div>
+          </div>
+
+          <article class="automation-card">
+            <div class="automation-brand whatsapp-mark">W</div>
+            <div class="automation-copy">
+              <div class="automation-title">
+                <div><h3>WhatsApp</h3><span id="whatsapp-state-chip" class="chip">Modo manual</span></div>
+                <label class="switch" aria-label="Activar envío automático por WhatsApp Cloud API">
+                  <input id="whatsapp-auto" type="checkbox">
+                  <span></span>
+                </label>
+              </div>
+              <p id="whatsapp-description">Pipa prepara el chat y tú pulsas Enviar.</p>
+
+              <div class="automation-settings" id="whatsapp-settings">
+                <div class="field-row">
+                  <label>ID de teléfono de Meta
+                    <input id="whatsapp-phone-id" inputmode="numeric" maxlength="32" placeholder="Ej. 123456789012345">
+                  </label>
+                  <label>Versión de Graph API
+                    <input id="whatsapp-api-version" maxlength="8" value="v23.0" placeholder="v23.0">
+                  </label>
+                </div>
+                <label>Token de acceso
+                  <input id="whatsapp-token" type="password" maxlength="4096" autocomplete="new-password" placeholder="Déjalo vacío para conservar el actual">
+                </label>
+                <div class="credential-line">
+                  <span id="credential-status">Sin credencial guardada</span>
+                  <button class="text-button danger-text" id="forget-token-button" type="button">Olvidar token</button>
+                </div>
+                <div class="info-note">
+                  <span>i</span>
+                  <p>El token se guarda en Credenciales de Windows, nunca en el JSON de Pipa. El envío automático usa WhatsApp Cloud API; no controla tu teclado ni lee tus chats.</p>
+                </div>
+              </div>
+              <div class="automation-actions">
+                <button class="secondary-button" id="save-whatsapp-button" type="button">Guardar configuración</button>
+              </div>
+            </div>
+          </article>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="process-dialog" class="modal">
+    <form id="process-form" method="dialog">
+      <div class="modal-heading">
+        <div><p class="eyebrow">PROCESO</p><h2 id="process-dialog-title">Nuevo proceso</h2></div>
+        <button class="icon-button close-dialog" type="button" aria-label="Cerrar">×</button>
+      </div>
+      <input id="process-original-id" type="hidden">
+      <div class="form-grid">
+        <label>Nombre interno
+          <input id="process-id" required maxlength="64" placeholder="spotify">
+          <small>Único y fácil de reconocer.</small>
+        </label>
+        <label>Alias de voz
+          <input id="process-aliases" required maxlength="320" placeholder="spotify, música">
+          <small>Separados por comas. Puedes decir “abre Spotify”.</small>
+        </label>
+        <label class="full-width">Ejecutable directo
+          <input id="process-launcher" required maxlength="1024" placeholder="Spotify.exe">
+          <small>Nombre disponible en PATH o ruta completa a un archivo .exe.</small>
+        </label>
+        <label class="full-width">Argumentos
+          <textarea id="process-arguments" rows="4" placeholder="Un argumento por línea"></textarea>
+          <small>No se usa una terminal. Cada línea se pasa como un argumento independiente.</small>
+        </label>
+        <label class="check-line full-width">
+          <input id="process-enabled" type="checkbox" checked>
+          <span><strong>Proceso activo</strong><small>Aparecerá disponible para Pipa y sus dispositivos.</small></span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="text-button close-dialog" type="button">Cancelar</button>
+        <button class="primary-button" type="submit">Guardar proceso</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="command-dialog" class="modal compact-modal">
+    <form id="command-form" method="dialog">
+      <div class="modal-heading">
+        <div><p class="eyebrow">COMANDO</p><h2 id="command-dialog-title">Editar comando</h2></div>
+        <button class="icon-button close-dialog" type="button" aria-label="Cerrar">×</button>
+      </div>
+      <input id="command-id" type="hidden">
+      <label>Frase principal
+        <input id="command-phrase" required maxlength="256">
+        <small id="command-placeholder-help">Conserva los campos entre &lt; &gt; para completar el comando.</small>
+      </label>
+      <label class="check-line">
+        <input id="command-enabled" type="checkbox">
+        <span><strong>Comando activo</strong><small>Visible en el catálogo de Pipa.</small></span>
+      </label>
+      <div class="modal-actions split-actions">
+        <button class="text-button" id="reset-command-button" type="button">Restaurar original</button>
+        <div><button class="text-button close-dialog" type="button">Cancelar</button><button class="primary-button" type="submit">Guardar</button></div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="confirm-modal">
+    <div class="confirm-icon">!</div>
+    <h2 id="confirm-title">Confirmar acción</h2>
+    <p id="confirm-message"></p>
+    <div class="modal-actions">
+      <button class="text-button" id="confirm-cancel" type="button">Cancelar</button>
+      <button class="primary-button" id="confirm-accept" type="button">Confirmar</button>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

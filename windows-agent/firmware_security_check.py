@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import subprocess
+import subprocess  # nosec B404
 import sys
 from collections.abc import Mapping
 from pathlib import Path
@@ -131,7 +131,8 @@ def read_security_state(
         *_REQUIRED_FIELDS,
     ]
     try:
-        completed = subprocess.run(
+        # Every dynamic argument is validated and no shell is involved.
+        completed = subprocess.run(  # nosec B603
             command,
             capture_output=True,
             text=True,

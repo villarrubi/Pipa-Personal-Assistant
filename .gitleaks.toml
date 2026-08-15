@@ -1,0 +1,15 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Deterministic cryptographic vectors and type names, never production secrets"
+regexTarget = "secret"
+regexes = [
+  '''^AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA$''',
+  '''^QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2A$''',
+  '''^YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1-f4A$''',
+  '''^Curve25519\.Signing\.PrivateKey$''',
+  '''^Curve25519\.KeyAgreement\.PrivateKey$''',
+  '''^Ed25519PrivateKey$''',
+  '''^X25519PrivateKey$''',
+]

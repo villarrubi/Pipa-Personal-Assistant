@@ -10,6 +10,8 @@ $exampleConfig = Join-Path $repoRoot 'firmware/include/pipa_device_config.exampl
 $localConfig = Join-Path $repoRoot 'firmware/include/pipa_device_config.local.h'
 $textPolicy = Join-Path $repoRoot 'firmware/src/pipa_text_policy.h'
 $identitySource = Join-Path $repoRoot 'firmware/src/device_identity.cpp'
+$platformConfig = Join-Path $repoRoot 'firmware/platformio.ini'
+$thirdPartyNotices = Join-Path $repoRoot 'firmware/THIRD_PARTY_NOTICES.md'
 $configPath = if (Test-Path -LiteralPath $localConfig -PathType Leaf) {
     $localConfig
 } else {
@@ -27,6 +29,58 @@ if (-not (Test-Path -LiteralPath $textPolicy -PathType Leaf)) {
 }
 if (-not (Test-Path -LiteralPath $identitySource -PathType Leaf)) {
     throw 'Falta la implementacion de identidad del firmware.'
+}
+if (-not (Test-Path -LiteralPath $platformConfig -PathType Leaf)) {
+    throw 'Falta platformio.ini del firmware.'
+}
+if (-not (Test-Path -LiteralPath $thirdPartyNotices -PathType Leaf)) {
+    throw 'Faltan los avisos de terceros del firmware.'
+}
+
+$platformContent = Get-Content -LiteralPath $platformConfig -Raw
+$noticesContent = Get-Content -LiteralPath $thirdPartyNotices -Raw
+$libDepsMatch = [regex]::Match(
+    $platformContent,
+    '(?ms)^lib_deps\s*=\s*\r?\n(?<dependencies>(?:[ \t]+[^\r\n]+\r?\n?)+)'
+)
+if (-not $libDepsMatch.Success) {
+    throw 'platformio.ini no contiene un bloque lib_deps comprobable.'
+}
+$directDependencies = @(
+    $libDepsMatch.Groups['dependencies'].Value -split '\r?\n' |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -and -not $_.StartsWith(';') }
+)
+if ($directDependencies.Count -eq 0) {
+    throw 'platformio.ini no declara dependencias directas del firmware.'
+}
+foreach ($dependency in $directDependencies) {
+    $dependencyMatch = [regex]::Match(
+        $dependency,
+        '^(?<owner>[A-Za-z0-9_.-]+)/(?<name>[A-Za-z0-9_.-]+)@(?<version>[0-9]+(?:\.[0-9]+){2})$'
+    )
+    if (-not $dependencyMatch.Success) {
+        throw "La dependencia directa no usa owner/name@version exacta: $dependency"
+    }
+    foreach ($marker in @(
+        $dependency,
+        $dependencyMatch.Groups['name'].Value,
+        $dependencyMatch.Groups['version'].Value
+    )) {
+        if ($noticesContent.IndexOf($marker, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) {
+            throw "Los avisos de terceros no documentan $dependency (falta: $marker)."
+        }
+    }
+}
+foreach ($marker in @(
+    'Arduino-ESP32 3.3.11',
+    'ESP-IDF 5.5.5',
+    'release-specific software bill of materials',
+    'LGPL-covered components'
+)) {
+    if ($noticesContent.IndexOf($marker, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) {
+        throw "Los avisos de terceros no contienen la salvaguarda de distribucion requerida: $marker."
+    }
 }
 $identityContent = Get-Content -LiteralPath $identitySource -Raw
 foreach ($marker in @('preferences_.end()', 'ready_ = false', 'memset(private_key_, 0, sizeof(private_key_))')) {

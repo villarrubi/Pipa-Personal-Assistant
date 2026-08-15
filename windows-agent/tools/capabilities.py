@@ -12,6 +12,7 @@ from typing import Any
 from tools.app_diagnostics import launcher_resolved
 from tools.apps import AppsConfigError, load_apps
 from tools.contacts import ContactsConfigError, load_contacts
+from tools.control_config import whatsapp_automatic_send_active
 from tools.integration_catalog import build_integration_capabilities, get_command_catalog
 from tools.league import LeagueClientError, find_client_connection
 
@@ -88,6 +89,7 @@ def get_integration_capabilities() -> dict[str, dict[str, Any]]:
         discord_launcher_resolved=resolved["discord"],
         whatsapp_contacts_configured=whatsapp_contacts_configured,
         discord_contacts_configured=discord_contacts_configured,
+        whatsapp_automatic_send=whatsapp_automatic_send_active(),
     )
 
 

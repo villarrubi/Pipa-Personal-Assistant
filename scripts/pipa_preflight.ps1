@@ -127,7 +127,25 @@ Write-Host 'Pipa preflight' -ForegroundColor Cyan
 Write-Host ("Repository: {0}" -f $repoRoot)
 $python = Find-Python
 Write-Host ("Python: {0}" -f $python) -ForegroundColor DarkCyan
+$pythonApplication = Get-Command $python -CommandType Application -ErrorAction SilentlyContinue |
+    Select-Object -First 1
 
+Invoke-ExternalCheck -Name 'Public documentation' -FilePath $python -Arguments @(
+    (Join-Path $repoRoot 'scripts/check_documentation.py')
+)
+$banditAvailable = $false
+if ($null -ne $pythonApplication) {
+    $banditProbe = @(& $pythonApplication.Source -m bandit --version 2>&1)
+    $banditAvailable = $LASTEXITCODE -eq 0
+}
+if ($banditAvailable) {
+    Invoke-ExternalCheck -Name 'Bandit Python security scan' -FilePath $python -Arguments @(
+        (Join-Path $repoRoot 'scripts/check_python_security.py')
+    )
+} elseif ($null -ne $pythonApplication) {
+    $warnings.Add('Bandit is not installed; install requirements-dev.txt. CI still checks it.')
+    Write-Host '[WARN] Bandit is not installed; CI still checks it.' -ForegroundColor Yellow
+}
 Invoke-RepoScriptCheck -Name 'PowerShell syntax' -RelativePath 'scripts/check_powershell_syntax.ps1'
 Invoke-RepoScriptCheck -Name 'Workflow action pinning' -RelativePath 'scripts/check_workflow_security.ps1'
 Invoke-RepoScriptCheck -Name 'CI coverage' -RelativePath 'scripts/check_ci_coverage.ps1'
@@ -245,8 +263,6 @@ if (-not $SkipPythonTests) {
     )
 }
 
-$pythonApplication = Get-Command $python -CommandType Application -ErrorAction SilentlyContinue |
-    Select-Object -First 1
 $ruffAvailable = $false
 if ($null -ne $pythonApplication) {
     $ruffProbe = @(& $pythonApplication.Source -m ruff --version 2>&1)

@@ -150,7 +150,8 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(original["parameters"][0]["name"], "phone")
 
     @patch("tools.capabilities.find_client_connection", side_effect=LeagueClientError("not ready"))
-    def test_capabilities_are_explicit_about_manual_final_steps(self, find_client):
+    @patch("tools.capabilities._configured_contact_destinations", return_value=(False, False))
+    def test_capabilities_are_explicit_about_manual_final_steps(self, _contacts, find_client):
         result = get_capabilities(serial_gateway_configured=False, serial_gateway_running=False)
 
         self.assertFalse(result["integrations"]["apple_music"]["playback"])
@@ -199,7 +200,8 @@ class IntegrationTests(unittest.TestCase):
             "discord": {"aliases": ["discord"], "command": ["Discord.exe"]},
         },
     )
-    def test_capabilities_report_optional_desktop_apps_without_private_data(self, _load_apps):
+    @patch("tools.capabilities._configured_contact_destinations", return_value=(False, False))
+    def test_capabilities_report_optional_desktop_apps_without_private_data(self, _contacts, _load_apps):
         result = get_integration_capabilities()
 
         self.assertTrue(result["whatsapp"]["app_configured"])

@@ -1,6 +1,8 @@
+import json
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404
+import tempfile
 import unicodedata
 from pathlib import Path
 from typing import Any
@@ -18,6 +20,7 @@ MAX_ALIASES_PER_APP = 32
 MAX_ALIAS_LENGTH = 80
 MAX_COMMAND_ARGUMENTS = 32
 MAX_COMMAND_ARGUMENT_LENGTH = 1024
+_APP_FIELDS = frozenset({"aliases", "command", "enabled"})
 _BLOCKED_LAUNCHERS = frozenset(
     {
         "cmd",
@@ -131,7 +134,7 @@ def _get_apps_file() -> Path:
     return LOCAL_APPS_FILE if LOCAL_APPS_FILE.exists() else DEFAULT_APPS_FILE
 
 
-def validate_apps_config(apps: Any) -> dict[str, dict[str, list[str]]]:
+def validate_apps_config(apps: Any) -> dict[str, dict[str, Any]]:
     if not isinstance(apps, dict) or len(apps) > MAX_APPS:
         raise AppsConfigError("La configuración de aplicaciones debe ser un objeto de tamaño limitado.")
 
@@ -145,11 +148,13 @@ def validate_apps_config(apps: Any) -> dict[str, dict[str, list[str]]]:
             or len(app_id) > MAX_APP_ID_LENGTH
             or any(_is_forbidden_label_character(character) for character in app_id)
             or not isinstance(app_data, dict)
+            or set(app_data) - _APP_FIELDS
         ):
             raise AppsConfigError("Cada aplicación debe tener un identificador y un objeto.")
 
         aliases = app_data.get("aliases")
         command = app_data.get("command")
+        enabled = app_data.get("enabled", True)
         if (
             not isinstance(aliases, list)
             or not aliases
@@ -170,6 +175,7 @@ def validate_apps_config(apps: Any) -> dict[str, dict[str, list[str]]]:
                 and not any(ord(character) < 0x20 or ord(character) == 0x7F for character in argument)
                 for argument in command
             )
+            or not isinstance(enabled, bool)
             or _uses_shell_launcher(command)
         ):
             raise AppsConfigError(f"Configuración inválida para la aplicación '{app_id}'.")
@@ -193,19 +199,23 @@ def validate_apps_config(apps: Any) -> dict[str, dict[str, list[str]]]:
         validated[app_id] = {
             "aliases": aliases,
             "command": command,
+            "enabled": enabled,
         }
 
     return validated
 
 
-def load_apps() -> dict[str, dict[str, list[str]]]:
+def load_apps(*, include_disabled: bool = False) -> dict[str, dict[str, Any]]:
     apps_file = _get_apps_file()
     try:
         with open(apps_file, "rb") as file:
             raw = file.read(MAX_CONFIG_FILE_BYTES + 1)
         if len(raw) > MAX_CONFIG_FILE_BYTES:
             raise AppsConfigError("La configuración de aplicaciones es demasiado grande.")
-        return validate_apps_config(parse_json_object(raw))
+        apps = validate_apps_config(parse_json_object(raw))
+        if include_disabled:
+            return apps
+        return {app_id: app_data for app_id, app_data in apps.items() if app_data["enabled"]}
     except FileNotFoundError as error:
         raise AppsConfigError(f"No existe la configuración: {apps_file}") from error
     except OSError as error:
@@ -216,7 +226,45 @@ def load_apps() -> dict[str, dict[str, list[str]]]:
         raise AppsConfigError(f"JSON inválido en {apps_file}.") from error
 
 
-def find_app(app_name: str) -> tuple[str | None, dict[str, list[str]] | None]:
+def save_apps(apps: Any) -> dict[str, dict[str, Any]]:
+    """Atomically persist the complete local process allowlist.
+
+    The control panel uses the same validator as execution, so an edited
+    entry can never widen the launcher boundary to a shell or interpreter.
+    """
+
+    validated = validate_apps_config(apps)
+    encoded = (json.dumps(validated, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    if len(encoded) > MAX_CONFIG_FILE_BYTES:
+        raise AppsConfigError("La configuración de aplicaciones es demasiado grande.")
+
+    LOCAL_APPS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path: Path | None = None
+    try:
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=".apps.",
+            suffix=".tmp",
+            dir=LOCAL_APPS_FILE.parent,
+        )
+        temporary_path = Path(temporary_name)
+        with os.fdopen(descriptor, "wb") as file:
+            file.write(encoded)
+            file.flush()
+            os.fsync(file.fileno())
+        os.replace(temporary_path, LOCAL_APPS_FILE)
+        temporary_path = None
+    except OSError as error:
+        raise AppsConfigError("No se pudo guardar la configuración de aplicaciones.") from error
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+    return validated
+
+
+def find_app(app_name: str) -> tuple[str | None, dict[str, Any] | None]:
     app_name = app_name.lower().strip()
     apps = load_apps()
 
@@ -250,7 +298,17 @@ def open_app(app_name: str):
             # the agent runs invisibly. Prefer direct launchers in the example
             # configuration instead of routing through cmd.exe.
             popen_options["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        subprocess.Popen([launcher, *app_data["command"][1:]], **popen_options)
+            # Some Windows launchers, including Riot Client, require their
+            # executable directory as the working directory. Deriving it from
+            # the already-resolved binary keeps the allowlist direct and does
+            # not introduce a second configurable execution boundary.
+            launcher_directory = os.path.dirname(launcher)
+            if launcher_directory:
+                popen_options["cwd"] = launcher_directory
+        # The validated launcher and argv are passed directly without a shell.
+        subprocess.Popen(  # nosec B603
+            [launcher, *app_data["command"][1:]], **popen_options
+        )
 
         return {"success": True, "app": app_id, "message": f"Aplicación '{app_id}' abierta."}
 
