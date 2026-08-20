@@ -123,6 +123,32 @@ class SerialProtocolSessionTests(unittest.TestCase):
         gateway.stop()
         self.assertFalse(gateway.connected)
 
+    def test_gateway_sets_reset_lines_before_opening_esp32_port(self):
+        events = []
+
+        class ClosedSerial:
+            def __init__(self, **kwargs):
+                self.port = kwargs["port"]
+                self.dtr = True
+                self.rts = True
+                self.closed = False
+
+            def open(self):
+                events.append((self.port, self.dtr, self.rts))
+
+            def close(self):
+                self.closed = True
+
+        class SerialModule:
+            Serial = ClosedSerial
+
+        gateway = SerialGateway(self.core, "COM7")
+
+        connection = gateway._open_serial(SerialModule)
+
+        self.assertEqual(events, [("COM7", False, False)])
+        self.assertFalse(connection.closed)
+
     def test_session_limit_is_a_controlled_authentication_error(self):
         challenge = self._request_challenge()
         signed = self.device.sign(Challenge(**challenge))

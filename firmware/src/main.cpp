@@ -19,6 +19,10 @@
 #include "pipa_power.h"
 #include "wake_on_lan.h"
 
+#if PIPA_AUDIO_CAPTURE_ENABLED && !PIPA_SECURE_SESSION_ENABLED
+#error "Microphone capture requires the encrypted secure-session-v2 transport."
+#endif
+
 #if defined(PIPA_SECURE_SESSION_VECTOR_TEST)
 #include "pipa_secure_audio.h"
 #endif
@@ -29,6 +33,15 @@ constexpr uint32_t kTouchDebounceMs = 800;
 constexpr uint32_t kWolCooldownMs = 10000;
 constexpr uint32_t kWifiRetryMs = 30000;
 constexpr uint32_t kPowerSampleMs = 30000;
+// The authenticated challenge is already larger than the 256-byte default
+// HWCDC queue.  Match the protocol's bounded line size so complete JSON
+// frames reach PipaProtocol instead of losing their trailing newline.
+constexpr size_t kSerialRxBufferSize = 12 * 1024;
+#if PIPA_AUDIO_CAPTURE_ENABLED
+constexpr size_t kAudioChunkBytes = 4096;
+constexpr uint16_t kMaxAudioChunks = 64;
+constexpr uint32_t kMaxCaptureMs = 8000;
+#endif
 
 pipa::DeviceIdentity identity;
 #if PIPA_SECURE_SESSION_ENABLED
@@ -55,6 +68,15 @@ uint32_t last_wifi_attempt = 0;
 uint32_t last_power_sample = 0;
 bool wifi_online = false;
 bool firmware_ready = false;
+#if PIPA_AUDIO_CAPTURE_ENABLED
+bool audio_start_pending = false;
+bool audio_stop_requested = false;
+bool audio_stream_active = false;
+uint16_t audio_chunks_sent = 0;
+uint32_t audio_started_at = 0;
+uint32_t audio_stream_counter = 0;
+uint8_t audio_chunk[kAudioChunkBytes] = {};
+#endif
 
 void log(const String& message) {
   Serial.print("# ");
@@ -121,6 +143,13 @@ void pollTouch() {
   if (protocol.authenticated()) {
     if (protocol.ui().state == "confirm") {
       protocol.sendConfirmation(true);
+#if PIPA_AUDIO_CAPTURE_ENABLED
+    } else if (audio_stream_active || audio_start_pending || protocol.ui().state == "listening") {
+      audio_stop_requested = true;
+    } else if (audio.stateMachine().canAdvertiseAudio()) {
+      audio_start_pending = protocol.sendHoldStart();
+      audio_stop_requested = false;
+#endif
     } else {
       protocol.sendGesture("tap");
     }
@@ -129,13 +158,87 @@ void pollTouch() {
   }
 }
 
+#if PIPA_AUDIO_CAPTURE_ENABLED
+void stopAudioCapture(bool transport_ok) {
+  memset(audio_chunk, 0, sizeof(audio_chunk));
+  if (!transport_ok) protocol.abortAudioStream();
+  audio.cancelCapture();
+  protocol.setAudioState(audio.stateMachine().state());
+  audio_start_pending = false;
+  audio_stop_requested = false;
+  audio_stream_active = false;
+  audio_chunks_sent = 0;
+  audio_started_at = 0;
+}
+
+void maintainAudioCapture() {
+  if (!protocol.authenticated()) {
+    if (audio_stream_active || audio_start_pending) stopAudioCapture(false);
+    return;
+  }
+
+  if (audio_start_pending && !audio_stream_active) {
+    if (protocol.ui().state != "listening") return;
+    if (!audio.beginCapture(true, true, true)) {
+      stopAudioCapture(false);
+      return;
+    }
+    protocol.setAudioState(audio.stateMachine().state());
+    String stream_id = "voice-";
+    stream_id += String(++audio_stream_counter, HEX);
+    stream_id += "-";
+    stream_id += String(millis(), HEX);
+    if (!protocol.beginAudioStream(stream_id.c_str())) {
+      stopAudioCapture(false);
+      return;
+    }
+    audio_stream_active = true;
+    audio_started_at = millis();
+  }
+
+  if (!audio_stream_active) return;
+  const size_t captured = audio.readMonoPcm(audio_chunk, sizeof(audio_chunk));
+  if (captured == 0) {
+    audio.stateMachine().fail();
+    stopAudioCapture(false);
+    return;
+  }
+
+  const bool final = audio_stop_requested || millis() - audio_started_at >= kMaxCaptureMs ||
+      audio_chunks_sent + 1 >= kMaxAudioChunks;
+  const bool sent = protocol.sendAudioChunk(audio_chunk, captured, final);
+  memset(audio_chunk, 0, sizeof(audio_chunk));
+  if (!sent) {
+    audio.stateMachine().fail();
+    stopAudioCapture(false);
+    return;
+  }
+  ++audio_chunks_sent;
+  if (final) {
+    if (!audio.finishCapture()) audio.stateMachine().fail();
+    protocol.setAudioState(audio.stateMachine().state());
+    audio_start_pending = false;
+    audio_stop_requested = false;
+    audio_stream_active = false;
+    audio_chunks_sent = 0;
+    audio_started_at = 0;
+  }
+}
+#endif
+
 }  // namespace
 
 void setup() {
+  const bool serial_rx_ready =
+      Serial.setRxBufferSize(kSerialRxBufferSize) == kSerialRxBufferSize;
   Serial.begin(115200);
   delay(500);
   log(String("Pipa firmware ") + PIPA_FIRMWARE_VERSION + " starting");
   log(String("board revision: ") + PIPA_BOARD_REVISION);
+  if (!serial_rx_ready) {
+    log("FATAL: USB serial RX buffer could not be allocated");
+    return;
+  }
 
 #if defined(PIPA_SECURE_SESSION_VECTOR_TEST)
   log((pipa::PipaSecureSession::vectorSelfTest() &&
@@ -162,6 +265,9 @@ void setup() {
   log(audio_probe_ready ? "audio codec probe ready" : "audio codecs not detected");
   log(String("audio output ES8311: ") + (audio_status.output_codec_present ? "present" : "absent"));
   log(String("audio input ES7210: ") + (audio_status.input_codec_present ? "present" : "absent"));
+#if PIPA_AUDIO_CAPTURE_ENABLED
+  log(audio.stateMachine().canAdvertiseAudio() ? "audio capture ready" : "audio capture unavailable");
+#endif
   const bool power_ready = power.begin();
   log(power_ready ? "battery ADC ready" : "battery ADC unavailable for this board revision");
   protocol.setBatteryPercent(power.batteryPercent());
@@ -188,5 +294,8 @@ void loop() {
   maintainWifi();
   maintainPower();
   pollTouch();
+#if PIPA_AUDIO_CAPTURE_ENABLED
+  maintainAudioCapture();
+#endif
   delay(10);
 }

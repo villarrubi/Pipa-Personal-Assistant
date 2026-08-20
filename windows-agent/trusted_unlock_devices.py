@@ -104,6 +104,31 @@ def _is_registry_enumeration_end(error: OSError) -> bool:
     return getattr(error, "winerror", None) == 259 or getattr(error, "errno", None) == 259
 
 
+def _query_registry_value(winreg, key, value_name: str):
+    """Read a registry value using the public winreg API.
+
+    The test double historically exposes the value methods on the fake key,
+    while real ``winreg`` exposes them as module functions.  Supporting both
+    keeps the tests lightweight without relying on methods that real HKEY
+    objects do not provide.
+    """
+
+    query_value = getattr(winreg, "QueryValueEx", None)
+    if callable(query_value):
+        return query_value(key, value_name)
+    return key.QueryValueEx(value_name)
+
+
+def _set_registry_value(winreg, key, value_name: str, value_type, value) -> None:
+    """Write a registry value using the public winreg API or test double."""
+
+    set_value = getattr(winreg, "SetValueEx", None)
+    if callable(set_value):
+        set_value(key, value_name, 0, value_type, value)
+        return
+    key.SetValueEx(value_name, 0, value_type, value)
+
+
 class InMemoryDeviceStore:
     """Small store used by tests; it has no persistence or OS privileges."""
 
@@ -223,12 +248,12 @@ class WindowsRegistryDeviceStore:
 
         try:
             try:
-                existing_key = key.QueryValueEx(PUBLIC_KEY_VALUE)[0]
+                existing_key = _query_registry_value(winreg, key, PUBLIC_KEY_VALUE)[0]
             except FileNotFoundError:
                 existing_key = None
 
             try:
-                existing_created = key.QueryValueEx(CREATED_AT_VALUE)[0]
+                existing_created = _query_registry_value(winreg, key, CREATED_AT_VALUE)[0]
             except FileNotFoundError:
                 existing_created = None
 
@@ -245,15 +270,17 @@ class WindowsRegistryDeviceStore:
             if existing_key is None:
                 created_value = int(time.time() if created_at is None else created_at)
                 try:
-                    key.SetValueEx(
+                    _set_registry_value(
+                        winreg,
+                        key,
                         PUBLIC_KEY_VALUE,
-                        0,
                         winreg.REG_SZ,
                         public_key_b64,
                     )
-                    key.SetValueEx(
+                    _set_registry_value(
+                        winreg,
+                        key,
                         CREATED_AT_VALUE,
-                        0,
                         winreg.REG_QWORD,
                         created_value,
                     )
@@ -319,8 +346,8 @@ class WindowsRegistryDeviceStore:
                 try:
                     validate_device_id(device_id)
                     with winreg.OpenKey(root, device_id, 0, winreg.KEY_READ) as key:
-                        public_key_b64 = str(key.QueryValueEx(PUBLIC_KEY_VALUE)[0])
-                        created_at = int(key.QueryValueEx(CREATED_AT_VALUE)[0])
+                        public_key_b64 = str(_query_registry_value(winreg, key, PUBLIC_KEY_VALUE)[0])
+                        created_at = int(_query_registry_value(winreg, key, CREATED_AT_VALUE)[0])
                     public_key_from_base64(public_key_b64)
                 except (OSError, TypeError, ValueError) as error:
                     # A partial, corrupt or concurrently removed entry must

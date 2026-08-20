@@ -904,6 +904,8 @@ def api_pipa_protocol():
         "serial_gateway_running": bool(_serial_gateway and _serial_gateway.running),
         "serial_gateway_connected": _serial_gateway_is_connected(),
         "serial_gateway_security": _serial_security_mode(),
+        "voice_enabled": bool(_serial_gateway and _serial_gateway.voice_enabled),
+        "voice_ready": bool(_serial_gateway and _serial_gateway.voice_ready),
         "mobile_transport": _mobile_transport_mode(),
         "mobile_gateway_configured": _mobile_gateway_is_configured(),
         "mobile_gateway_running": _mobile_gateway_is_running(),

@@ -3,7 +3,17 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+#if __has_include("pipa_device_config.local.h")
+#include "pipa_device_config.local.h"
+#else
+#include "pipa_device_config.h"
+#endif
 #include "pipa_audio_state.h"
+
+#if PIPA_AUDIO_CAPTURE_ENABLED
+#include "ESP_I2S.h"
+#include "pipa_es7210.h"
+#endif
 
 namespace pipa {
 
@@ -15,15 +25,18 @@ struct AudioProbeStatus {
 };
 
 /**
- * Board-level audio probe.
+ * Board-level audio probe and opt-in V2 microphone capture.
  *
- * It deliberately does not write codec registers, enable the amplifier, or
- * capture microphone data. It only verifies the I2C addresses documented by
- * Waveshare so the real I2S/codec driver can be enabled after physical review.
+ * Normal builds only probe documented I2C addresses. PIPA_AUDIO_CAPTURE_ENABLED
+ * adds ES7210/I2S input while leaving the power amplifier disabled.
  */
 class PipaAudio {
  public:
   bool begin(TwoWire& wire);
+  bool beginCapture(bool display_ready, bool consented, bool secure_transport_ready);
+  size_t readMonoPcm(uint8_t* output, size_t output_capacity);
+  bool finishCapture();
+  void cancelCapture();
   const AudioProbeStatus& status() const { return status_; }
   PipaAudioStateMachine& stateMachine() { return state_machine_; }
   const PipaAudioStateMachine& stateMachine() const { return state_machine_; }
@@ -33,6 +46,11 @@ class PipaAudio {
 
   AudioProbeStatus status_;
   PipaAudioStateMachine state_machine_;
+#if PIPA_AUDIO_CAPTURE_ENABLED
+  PipaEs7210 input_codec_;
+  I2SClass i2s_;
+  bool i2s_ready_ = false;
+#endif
 };
 
 }  // namespace pipa

@@ -56,6 +56,16 @@ class SerialGateway:
 
         return self._connected.is_set()
 
+    @property
+    def voice_enabled(self) -> bool:
+        return False
+
+    @property
+    def voice_ready(self) -> bool:
+        """Whether the connected device has advertised a usable microphone."""
+
+        return False
+
     def start(self) -> None:
         if self.running:
             return
@@ -69,6 +79,32 @@ class SerialGateway:
         if self._thread is not None and self._thread is not threading.current_thread():
             self._thread.join(timeout=2)
 
+    def _open_serial(self, serial_module):
+        """Open the configured port without pulsing the ESP32 reset lines."""
+
+        # Construct the object closed so RTS/DTR can be set before Windows
+        # opens the handle.  Opening a pyserial port directly asserts both
+        # lines first; on ESP32-S3 auto-reset hardware that reboots the target
+        # and feeds ROM boot text into the strict JSON parser on every retry.
+        connection = serial_module.Serial(
+            port=None,
+            baudrate=self.baudrate,
+            timeout=0.5,
+            write_timeout=1,
+            dsrdtr=False,
+            rtscts=False,
+            xonxoff=False,
+        )
+        try:
+            connection.port = self.port
+            connection.dtr = False
+            connection.rts = False
+            connection.open()
+        except Exception:
+            connection.close()
+            raise
+        return connection
+
     def _run(self) -> None:
         try:
             import serial
@@ -79,12 +115,7 @@ class SerialGateway:
         warned = False
         while not self._stop.is_set():
             try:
-                connection = serial.Serial(
-                    self.port,
-                    self.baudrate,
-                    timeout=0.5,
-                    write_timeout=1,
-                )
+                connection = self._open_serial(serial)
                 warned = False
                 self._connected.set()
             except Exception:

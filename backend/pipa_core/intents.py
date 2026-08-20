@@ -38,7 +38,19 @@ def _fold_phrase(value: str) -> str:
     """Normalize the command grammar while preserving user arguments."""
 
     decomposed = unicodedata.normalize("NFKD", value.lower())
-    return "".join(char for char in decomposed if not unicodedata.combining(char))
+    folded = "".join(char for char in decomposed if not unicodedata.combining(char))
+    # Dictation engines normally append punctuation and may insert a comma
+    # after a wake/name word. It is not part of the command grammar. Keep
+    # symbols used by typed arguments intact and remove only spoken prose
+    # punctuation from the folded comparison form.
+    folded = re.sub(r"[¿¡!?.,;:\"“”]+", " ", folded)
+    return " ".join(folded.split())
+
+
+def _strip_optional_wake_name(value: str) -> str:
+    """Remove one spoken ``Pipa`` prefix without touching argument text."""
+
+    return re.sub(r"^pipa(?:\s*[,;:]\s*|\s+)", "", value, count=1, flags=re.IGNORECASE).strip()
 
 
 def _clean_music_term(value: str) -> str:
@@ -152,7 +164,7 @@ def parse_catalog_intent(text: str, commands: Sequence[Mapping[str, Any]]) -> Pa
     validator still runs afterwards and remains authoritative.
     """
 
-    original = " ".join(text.strip().split())
+    original = _strip_optional_wake_name(" ".join(text.strip().split()))
     if not original:
         return None
     candidates: list[tuple[int, ParsedIntent]] = []
@@ -204,7 +216,7 @@ def parse_catalog_intent(text: str, commands: Sequence[Mapping[str, Any]]) -> Pa
 
 
 def parse_text_intent(text: str) -> ParsedIntent | None:
-    original = " ".join(text.strip().split())
+    original = _strip_optional_wake_name(" ".join(text.strip().split()))
     normalized = _fold_phrase(original)
     if not normalized:
         return None
@@ -251,7 +263,19 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent("media_action", {"action": "next"})
     if normalized in {"cancion anterior", "anterior"}:
         return ParsedIntent("media_action", {"action": "previous"})
-    if normalized in {"estado del ordenador", "estado del pc", "estado del sistema"}:
+    if normalized in {
+        "estado del ordenador",
+        "estado de mi ordenador",
+        "estado del pc",
+        "estado de mi pc",
+        "estado del sistema",
+        "estado del computador",
+        "estado de la computadora",
+        "como esta el ordenador",
+        "como esta mi ordenador",
+        "como esta el pc",
+        "como esta mi pc",
+    }:
         return ParsedIntent("system_status", {})
     if normalized in {
         "estado de integraciones",

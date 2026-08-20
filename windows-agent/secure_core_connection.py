@@ -47,6 +47,7 @@ class SecureCoreConnection:
         self._device_id: str | None = None
         self._device_public_key = None
         self._protocol_errors = 0
+        self._last_message_type: str | None = None
 
     @property
     def authenticated(self) -> bool:
@@ -59,6 +60,15 @@ class SecureCoreConnection:
     @property
     def device_id(self) -> str | None:
         return self._device_id
+
+    @property
+    def secure_session(self):
+        channel = self._channel
+        return channel.session if channel is not None else None
+
+    @property
+    def last_message_type(self) -> str | None:
+        return self._last_message_type
 
     def device_is_trusted(self) -> bool:
         """Return whether this session's paired key is still current."""
@@ -101,6 +111,7 @@ class SecureCoreConnection:
     def process_frame(self, frame: Mapping[str, Any]) -> list[dict[str, object]]:
         channel = self._channel
         session_id = self._core_session_id
+        self._last_message_type = None
         if channel is None or session_id is None:
             raise SecureCoreConnectionError("secure Core connection is not authenticated")
         if not self.device_is_trusted():
@@ -121,8 +132,17 @@ class SecureCoreConnection:
             return [response]
 
         self._protocol_errors = 0
+        self._last_message_type = message.type
         responses = self.core.handle(session_id, message)
         return [channel.seal_message(response) for response in responses]
+
+    def seal_messages(self, messages: list[dict[str, Any]]) -> list[dict[str, object]]:
+        """Seal trusted Core responses after an authenticated audio stream."""
+
+        channel = self._channel
+        if channel is None or self._core_session_id is None or not self.device_is_trusted():
+            raise SecureCoreConnectionError("secure Core connection is not authenticated")
+        return [channel.seal_message(message) for message in messages]
 
     def close(self) -> None:
         if self._core_session_id is not None:
@@ -134,3 +154,4 @@ class SecureCoreConnection:
         self._device_id = None
         self._device_public_key = None
         self._protocol_errors = 0
+        self._last_message_type = None

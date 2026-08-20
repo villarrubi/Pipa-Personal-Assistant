@@ -6,4 +6,6 @@ comtypes==1.4.16
 cryptography==50.0.0
 pydantic==2.13.4
 pyserial==3.5
+faster-whisper==1.2.1
+numpy==2.5.2
 pywin32==312; platform_system == "Windows"

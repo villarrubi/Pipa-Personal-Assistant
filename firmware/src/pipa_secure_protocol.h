@@ -7,6 +7,9 @@
 #include "pipa_protocol.h"
 #include "pipa_secure_handshake.h"
 #include "pipa_secure_session.h"
+#if PIPA_AUDIO_CAPTURE_ENABLED
+#include "pipa_secure_audio.h"
+#endif
 
 namespace pipa {
 
@@ -34,6 +37,13 @@ class PipaSecureProtocol {
   void sendGesture(const char* gesture);
   void sendTextInput(const char* text, const char* source = "voice");
   void sendConfirmation(bool accepted);
+#if PIPA_AUDIO_CAPTURE_ENABLED
+  bool sendHoldStart();
+  bool beginAudioStream(const char* stream_id);
+  bool sendAudioChunk(const uint8_t* samples, size_t samples_length, bool final);
+  void abortAudioStream();
+  void cancelAudioStream();
+#endif
 
  private:
   static constexpr size_t kMaxInboundLine = 12000;
@@ -91,6 +101,9 @@ class PipaSecureProtocol {
   uint32_t last_heartbeat_ = 0;
   uint32_t last_status_ = 0;
   uint32_t last_server_message_ = 0;
+#if PIPA_AUDIO_CAPTURE_ENABLED
+  PipaSecureAudioSender* audio_sender_ = nullptr;
+#endif
 };
 
 }  // namespace pipa

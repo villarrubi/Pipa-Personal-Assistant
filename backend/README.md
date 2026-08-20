@@ -110,17 +110,17 @@ configuración local, contactos, tokens ni resultados de herramientas.
 Los límites temporales son cerrados: una confirmación, desafío, ticket o sesión
 deja de ser válido exactamente en su `expires_at`/timeout, no después.
 
-El adaptador de frases en español es deliberadamente determinista. Una futura
-capa STT/LLM debe producir `text_input` o `tool_call`; no debe mezclarse con
+El adaptador de frases en español es deliberadamente determinista. La capa STT
+local produce una transcripción final; no se mezcla con
 los handlers que controlan Windows. Para el camino de audio seguro existe
 además `PipaCore.handle_transcript`: recibe un transcript final, lo vuelve a
 validar y lo entrega al mismo parser, confirmador y reductor de resultados que
 usa `text_input`. Así el proveedor STT no puede crear una ruta de ejecución
 alternativa.
 
-Mientras no exista STT ni transporte de audio seguro, `hold_end` y `audio_end`
-terminan de forma explícita con `voice_unavailable` y devuelven la sesión a
-`idle`; nunca dejan la pantalla bloqueada en `thinking`.
+En el protocolo v1, `hold_end` y `audio_end` terminan de forma explícita con
+`voice_unavailable` y devuelven la sesión a `idle`. La ruta de voz real usa
+tramas binarias autenticadas dentro de la sesión V2.
 
 `remember_fact` y `recall_memory` usan memoria de proceso, acotada a 100 hechos
 por dispositivo y 256 dispositivos. No se persisten datos personales hasta

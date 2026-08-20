@@ -1,13 +1,13 @@
 # Diseño de audio y voz de Pipα
 
-Este documento fija el contrato de la futura capa de audio antes de tocar la
-placa física. No habilita todavía micrófono, altavoz, I²S ni reconocimiento de
-voz. El firmware actual permanece en modo audio_probe: solo comprueba
-presencia I²C y mantiene el amplificador apagado.
+Este documento describe la ruta de voz implementada para la revisión V2. El
+entorno normal permanece sin captura, mientras que `voice-v2` inicializa el
+ES7210 y la entrada I²S, muestra el estado de escucha, cifra PCM y lo entrega
+al STT español local del PC. El altavoz y el amplificador permanecen apagados.
 
 La compuerta de software de esas transiciones está en
 `firmware/src/pipa_audio_state.h/.cpp`. Es independiente de Arduino y se
-prueba en el vector seguro: ningún futuro driver puede pasar de `PROBE_ONLY` a
+prueba en el vector seguro: ningún driver puede pasar de `PROBE_ONLY` a
 `CODEC_READY` sin declarar una inicialización física correcta, ni entrar en
 `LISTENING` sin pantalla, consentimiento y transporte seguro. La compuerta no
 captura audio por sí misma. Su `vectorSelfTest()` también se ejecuta en host en
@@ -86,42 +86,29 @@ en la placa.
 
 ## Reconocimiento de voz
 
-La primera versión no debe prometer STT español dentro del ESP32. La ruta
-oficial de ESP-SR se evaluará solo después de la prueba física y de confirmar
-qué modelos soporta realmente; no se activará un modelo por defecto como si
-fuera reconocimiento español.
+El ESP32 no interpreta el habla. Captura PCM mono a 16 kHz y lo envía cifrado
+por USB a `LocalSpeechTranscriber`, que ejecuta Faster-Whisper en el PC con
+idioma español y `compute_type=int8`. El modelo predeterminado es `base` y se
+guarda bajo `%LOCALAPPDATA%\Pipa\models`; no se usa una API de voz ni se crean
+WAV temporales.
 
-Las opciones que se compararán con datos medidos son:
+El flujo de uso es: un toque inicia la escucha, el usuario habla y un segundo
+toque la finaliza. También termina automáticamente a los ocho segundos. La
+transcripción final pasa por el mismo parser, catálogo y confirmaciones que el
+texto; una acción externa continúa exigiendo otro toque de confirmación.
 
-- dictado local del iPhone, que ya exige reconocimiento en dispositivo y solo
-  rellena el editor;
-- STT local del PC, sin enviar audio fuera de la máquina;
-- modelo local en el ESP32, solo si el consumo de RAM, latencia, idioma y
-  precisión son aceptables;
-- transporte cifrado de audio a un único consumidor local, con consentimiento,
-  borrado y límites explícitos.
+## Ruta implementada
 
-No se elegirá una opción por conveniencia de implementación. La decisión debe
-incluir idioma, latencia, consumo, exposición de datos, recuperación ante
-desconexión y comportamiento cuando el usuario revoca el permiso.
-
-## Orden de implementación cuando llegue la placa
-
-1. Fotografiar/leer la revisión y guardar solo el dato de revisión, nunca una
-   foto con información personal en Git.
-2. Ejecutar pantalla, touch, I²C y batería por separado.
-3. Confirmar las direcciones y respuestas de ES8311/ES7210 sin activar PA_CTRL.
-4. Compilar y, con la placa presente, inicializar clocks e I²S en la rama
-   opt-in `audio-i2s-lab`, que no anuncia audio al Core.
-5. Medir captura y reproducción con buffers acotados, watchdog y cancelación.
-6. Añadir el estado visible de escucha y comprobar que el touch cancela.
-7. Implementar exactamente las tramas de
-   [SECURE_AUDIO_PROTOCOL.md](../SECURE_AUDIO_PROTOCOL.md) y validar primero
-   los vectores Python/Swift/firmware, antes de transportar una sola muestra
-   real.
-8. Añadir STT elegido con pruebas de idioma, permisos, desconexión y borrado.
-9. Solo después publicar una capacidad de voz en el catálogo y habilitar
-   comandos que puedan producir acciones externas.
+1. Se identifica la revisión V2 y se inicializan pantalla, touch e I²C.
+2. El ES7210 se configura a 16 kHz/16 bits y la entrada estéreo se reduce a
+   mono; PA_CTRL permanece apagado.
+3. La placa solo anuncia `audio_capture` si códec e I²S llegan a
+   `CODEC_READY` dentro de una sesión segura V2.
+4. Cada bloque PCM se cifra con el contrato de
+   [SECURE_AUDIO_PROTOCOL.md](../SECURE_AUDIO_PROTOCOL.md).
+5. El agente autentica, ordena y descifra los bloques en memoria, ejecuta STT
+   local y borra los buffers temporales.
+6. El Core interpreta la frase y conserva todas sus barreras de confirmación.
 
 ## Criterios de aceptación
 

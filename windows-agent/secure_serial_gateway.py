@@ -11,11 +11,20 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
 from collections.abc import Callable, Mapping
 from typing import Any
 
 from pipa_serial_gateway import MAX_LINE_BYTES, SerialGateway
+from secure_audio import (
+    AudioCaptureGate,
+    AudioFrameError,
+    SecureAudioCommandBridge,
+    SecureAudioReceiver,
+    SecureAudioTranscriber,
+    is_secure_audio_frame,
+)
 from secure_core_connection import SecureCoreConnection
 from secure_identity_store import (
     SecureIdentityStore,
@@ -43,6 +52,79 @@ _CLIENT_HELLO_FIELDS = frozenset(
         "signature",
     }
 )
+_SEALED_FRAME_FIELDS = frozenset({"ciphertext", "protocol_version", "sequence", "session_id"})
+_SESSION_RESET_HINT = {"protocol_version": 2, "type": "session_reset"}
+
+
+class _SecureSerialAudioRuntime:
+    """Bind one consented audio stream to the authenticated Core session."""
+
+    def __init__(self, connection: SecureCoreConnection, provider_factory: Callable[[], Any]) -> None:
+        self.connection = connection
+        self.provider_factory = provider_factory
+        self.bridge: SecureAudioCommandBridge | None = None
+
+    def begin(self) -> None:
+        if self.bridge is not None:
+            raise AudioFrameError("audio capture is already active")
+        session_id = self.connection.core_session_id
+        secure_session = self.connection.secure_session
+        core_session = self.connection.core.sessions.get(session_id) if session_id is not None else None
+        if (
+            session_id is None
+            or secure_session is None
+            or core_session is None
+            or core_session.state != "listening"
+            or "display" not in core_session.capabilities
+            or "audio_capture" not in core_session.capabilities
+            or core_session.audio_state != "codec_ready"
+        ):
+            raise AudioFrameError("audio capture capability is not ready")
+
+        provider = self.provider_factory()
+        reset_provider = getattr(provider, "reset", None)
+        gate = AudioCaptureGate()
+        if not gate.mark_codec_ready(True):
+            raise AudioFrameError("audio capture gate is not ready")
+        transcriber = SecureAudioTranscriber(
+            SecureAudioReceiver(secure_session),
+            provider,
+            gate,
+            reset_provider=reset_provider if callable(reset_provider) else None,
+        )
+        bridge = SecureAudioCommandBridge(
+            transcriber,
+            lambda transcript: self.connection.core.handle_transcript(session_id, transcript),
+        )
+        bridge.begin_capture(display_ready=True, consented=True, secure_transport_ready=True)
+        self.bridge = bridge
+
+    def consume(self, frame: Mapping[str, Any]) -> list[dict[str, object]]:
+        bridge = self.bridge
+        if bridge is None:
+            raise AudioFrameError("audio frame arrived without visible consent")
+        final = bridge.consume_frame(frame)
+        if not final:
+            return []
+        try:
+            _summary, messages = bridge.finalize()
+        finally:
+            self.bridge = None
+        if not isinstance(messages, list) or any(not isinstance(message, dict) for message in messages):
+            raise AudioFrameError("audio transcript returned invalid Core messages")
+        return self.connection.seal_messages(messages)
+
+    def cancel(self) -> None:
+        bridge = self.bridge
+        self.bridge = None
+        if bridge is not None:
+            bridge.close(close_session=False)
+
+    def close(self) -> None:
+        bridge = self.bridge
+        self.bridge = None
+        if bridge is not None:
+            bridge.close()
 
 
 class SecureSerialGateway(SerialGateway):
@@ -57,6 +139,7 @@ class SecureSerialGateway(SerialGateway):
         *,
         baudrate: int = 115200,
         trusted_devices_provider: Callable[[], Mapping[str, Any]] | None = None,
+        speech_provider_factory: Callable[[], Any] | None = None,
         revocation_check_seconds: float = DEFAULT_REVOCATION_CHECK_SECONDS,
     ) -> None:
         super().__init__(core, port, baudrate=baudrate)
@@ -69,6 +152,18 @@ class SecureSerialGateway(SerialGateway):
         self.session_server = SecureSessionServer(server_identity, self.trusted_devices)
         self.trusted_devices_provider = trusted_devices_provider
         self.revocation_check_seconds = revocation_check_seconds
+        if speech_provider_factory is not None and not callable(speech_provider_factory):
+            raise TypeError("speech_provider_factory must be callable")
+        self.speech_provider_factory = speech_provider_factory
+        self._voice_ready = threading.Event()
+
+    @property
+    def voice_enabled(self) -> bool:
+        return self.speech_provider_factory is not None
+
+    @property
+    def voice_ready(self) -> bool:
+        return self._voice_ready.is_set()
 
     def _serve_connection(self, connection) -> None:
         secure_core = SecureCoreConnection(
@@ -79,6 +174,8 @@ class SecureSerialGateway(SerialGateway):
         )
         last_activity = time.monotonic()
         last_trust_check = 0.0
+        audio_runtime: _SecureSerialAudioRuntime | None = None
+        rehandshake_requested = False
         try:
             self._refresh_trusted_devices()
             while not self._stop.is_set():
@@ -114,6 +211,16 @@ class SecureSerialGateway(SerialGateway):
 
                 if not secure_core.authenticated:
                     if set(payload) != _CLIENT_HELLO_FIELDS or payload.get("protocol_version") != 2:
+                        if not rehandshake_requested and _is_stale_secure_frame(payload):
+                            # A restarted Windows agent has intentionally lost
+                            # the previous ephemeral keys, while the device can
+                            # still be sending records from that old session.
+                            # Ask the physically attached device to start a new
+                            # signed handshake; never reinterpret the record or
+                            # fall back to v1.
+                            self._send(connection, _SESSION_RESET_HINT)
+                            rehandshake_requested = True
+                            continue
                         LOGGER.warning("secure serial connection did not start with ClientHello")
                         break
                     try:
@@ -122,6 +229,10 @@ class SecureSerialGateway(SerialGateway):
                         LOGGER.warning("secure serial ClientHello was rejected")
                         break
                     self._send(connection, server_hello)
+                    if self.speech_provider_factory is not None:
+                        audio_runtime = _SecureSerialAudioRuntime(
+                            secure_core, self.speech_provider_factory
+                        )
                     last_activity = time.monotonic()
                     # Force one immediate post-handshake check before the
                     # first encrypted application frame is accepted.
@@ -129,17 +240,47 @@ class SecureSerialGateway(SerialGateway):
                     continue
 
                 try:
-                    responses = secure_core.process_frame(payload)
-                except SecureSessionError:
+                    if is_secure_audio_frame(payload):
+                        if audio_runtime is None:
+                            raise AudioFrameError("secure audio is disabled")
+                        responses = audio_runtime.consume(payload)
+                    else:
+                        responses = secure_core.process_frame(payload)
+                        self._update_voice_ready(secure_core)
+                        if secure_core.last_message_type == "hold_start":
+                            if audio_runtime is None:
+                                raise AudioFrameError("secure audio is disabled")
+                            audio_runtime.begin()
+                        elif secure_core.last_message_type == "abort" and audio_runtime is not None:
+                            audio_runtime.cancel()
+                except (AudioFrameError, SecureSessionError):
                     LOGGER.warning("secure serial encrypted frame was rejected")
                     break
                 last_activity = time.monotonic()
                 for response in responses:
                     self._send(connection, response)
         except Exception:
-            LOGGER.error("unexpected secure serial gateway error")
+            LOGGER.error("unexpected secure serial gateway error", exc_info=True)
         finally:
+            self._voice_ready.clear()
+            if audio_runtime is not None:
+                audio_runtime.close()
             secure_core.close()
+
+    def _update_voice_ready(self, connection: SecureCoreConnection) -> None:
+        session_id = connection.core_session_id
+        core_session = self.core.sessions.get(session_id) if session_id is not None else None
+        ready = bool(
+            self.speech_provider_factory is not None
+            and core_session is not None
+            and "display" in core_session.capabilities
+            and "audio_capture" in core_session.capabilities
+            and core_session.audio_state == "codec_ready"
+        )
+        if ready:
+            self._voice_ready.set()
+        else:
+            self._voice_ready.clear()
 
     def _refresh_trusted_devices(self) -> None:
         provider = self.trusted_devices_provider
@@ -161,6 +302,14 @@ class SecureSerialGateway(SerialGateway):
         connection.write(encoded)
 
 
+def _is_stale_secure_frame(payload: Mapping[str, Any]) -> bool:
+    """Recognize only a v2 record left by an earlier local agent session."""
+
+    return payload.get("protocol_version") == 2 and (
+        set(payload) == _SEALED_FRAME_FIELDS or is_secure_audio_frame(payload)
+    )
+
+
 def start_configured_secure_gateway(core: PipaCore) -> SecureSerialGateway | None:
     """Create the explicitly requested v2 gateway, failing closed on setup errors."""
 
@@ -169,6 +318,14 @@ def start_configured_secure_gateway(core: PipaCore) -> SecureSerialGateway | Non
         return None
     server_id = os.environ.get("PIPA_SECURE_SERVER_ID", DEFAULT_SERVER_ID).strip()
     try:
+        voice_setting = os.environ.get("PIPA_VOICE_ENABLED", "0").strip()
+        if voice_setting not in {"0", "1"}:
+            raise ValueError("PIPA_VOICE_ENABLED must be 0 or 1")
+        speech_provider_factory = None
+        if voice_setting == "1":
+            from local_stt import LocalSpeechTranscriber
+
+            speech_provider_factory = LocalSpeechTranscriber
         baudrate = int(os.environ.get("PIPA_SERIAL_BAUDRATE", "115200"))
         # Provisioning is an explicit administrative action. The running
         # agent must never create a new identity merely because v2 was
@@ -186,6 +343,7 @@ def start_configured_secure_gateway(core: PipaCore) -> SecureSerialGateway | Non
             trusted_devices,
             baudrate=baudrate,
             trusted_devices_provider=device_store.trusted_public_keys,
+            speech_provider_factory=speech_provider_factory,
         )
         gateway.start()
         LOGGER.info("Pipa secure serial gateway enabled")

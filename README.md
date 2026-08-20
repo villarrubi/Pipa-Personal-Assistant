@@ -49,9 +49,9 @@ La interfaz física está basada en el Waveshare ESP32-S3-Touch-LCD-1.85C-BOX
 (SKU 30684). El dispositivo está preparado para aportar pantalla táctil,
 audio, identidad criptográfica y comunicación USB CDC con el ordenador.
 
-El firmware compila para las revisiones V1 y V2. La validación física de la
-pantalla, el touch y el audio depende de disponer de la placa y sigue separada
-del flujo de pruebas del software.
+El firmware compila para las revisiones V1 y V2. En la V2, el entorno opt-in
+`voice-v2` captura los micrófonos ES7210, cifra el audio por USB y usa
+reconocimiento español local en Windows; el altavoz sigue desactivado.
 
 ## Arquitectura
 
@@ -77,8 +77,8 @@ configuración local explícita.
 | Pipα Core | Sesiones, herramientas, confirmaciones y resultados redactados |
 | Integraciones | Aplicaciones, navegador, multimedia, temporizadores, League, WhatsApp y Discord |
 | Panel de control | Procesos, comandos y automatizaciones editables |
-| Gateway Waveshare | Implementado por USB CDC; requiere puerto COM y hardware real |
-| Firmware | Builds V1/V2 y pruebas host; falta validación física completa |
+| Gateway Waveshare | USB CDC cifrado V2 y voz local; requiere puerto COM y emparejamiento |
+| Firmware | Builds V1/V2; captura ES7210 opt-in en `voice-v2` |
 | Cliente iOS | Core, SwiftUI, CryptoKit/Keychain y TCP v2; pendiente de probar en iPhone real |
 | Trusted Unlock | Experimental, desactivado y no sustitutivo de Windows Hello |
 

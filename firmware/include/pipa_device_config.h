@@ -10,6 +10,9 @@
 #ifndef PIPA_SECURE_SESSION_ENABLED
 #define PIPA_SECURE_SESSION_ENABLED 0
 #endif
+#ifndef PIPA_AUDIO_CAPTURE_ENABLED
+#define PIPA_AUDIO_CAPTURE_ENABLED 0
+#endif
 #define PIPA_SECURE_SERVER_ID "pipa-agent-v2"
 #define PIPA_SECURE_SERVER_PUBLIC_KEY ""
 // Waveshare V2 is the current hardware; set to 1 only for a confirmed V1 PCB.

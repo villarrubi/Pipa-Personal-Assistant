@@ -237,7 +237,19 @@ bool PipaProtocol::validateChallenge(JsonObject challenge) const {
   const char* challenge_id = challenge["challenge_id"] | "";
   const char* nonce = challenge["nonce"] | "";
   const int protocol_version = challenge["protocol_version"] | 0;
-  if (!challenge["issued_at"].is<int64_t>() || !challenge["expires_at"].is<int64_t>()) return false;
+  // ArduinoJson may represent these wire-level timestamps as either a
+  // platform-sized integer or a 64-bit integer.  Both are valid here; the
+  // previous int64_t-only check rejected otherwise valid challenges on the
+  // ESP32-S3 build before a signed hello could be sent.
+  const auto issued_at_value = challenge["issued_at"];
+  const auto expires_at_value = challenge["expires_at"];
+  const bool issued_at_numeric = issued_at_value.is<int>() ||
+                                 issued_at_value.is<long>() ||
+                                 issued_at_value.is<long long>();
+  const bool expires_at_numeric = expires_at_value.is<int>() ||
+                                  expires_at_value.is<long>() ||
+                                  expires_at_value.is<long long>();
+  if (!issued_at_numeric || !expires_at_numeric) return false;
   const int64_t issued_at = challenge["issued_at"].as<int64_t>();
   const int64_t expires_at = challenge["expires_at"].as<int64_t>();
   return protocol_version == 1 &&

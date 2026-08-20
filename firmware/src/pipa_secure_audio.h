@@ -1,6 +1,8 @@
 #pragma once
 
-#if defined(PIPA_SECURE_SESSION_VECTOR_TEST)
+#if defined(PIPA_SECURE_SESSION_VECTOR_TEST) || \
+    (defined(PIPA_SECURE_SESSION_ENABLED) && PIPA_SECURE_SESSION_ENABLED && \
+     defined(PIPA_AUDIO_CAPTURE_ENABLED) && PIPA_AUDIO_CAPTURE_ENABLED)
 
 #include <Arduino.h>
 
@@ -114,4 +116,4 @@ class PipaSecureAudioReceiver {
 
 }  // namespace pipa
 
-#endif  // defined(PIPA_SECURE_SESSION_VECTOR_TEST)
+#endif  // secure audio vector or encrypted production capture

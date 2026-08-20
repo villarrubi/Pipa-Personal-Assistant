@@ -30,17 +30,16 @@ CDC. La referencia física está en la
 - Driver ST77916 basado en la referencia oficial, adaptado a `esp_lcd` moderno,
   con transporte QSPI, retroiluminación PWM y una UI mínima de
   estados/confirmación; queda validar la pantalla en la placa física.
-- Diagnóstico I²C no destructivo de ES8311 (salida) y ES7210 (entrada), con el
-  amplificador apagado por defecto; la captura/reproducción real aún queda
-  pendiente.
+- Diagnóstico I²C de ES8311 (salida) y ES7210 (entrada), con el amplificador
+  apagado. El entorno opt-in `voice-v2` inicializa ES7210/I²S para captura;
+  reproducción continúa desactivada.
 - Si la V2 no responde en ninguna de las dos direcciones de codec, la sonda
   pasa a `ERROR` y exige una nueva inicialización controlada; una detección
   parcial sigue siendo solo `PROBE_ONLY` y nunca habilita captura.
 - Máquina de estados de audio independiente (`DISABLED` → `PROBE_ONLY` →
   `CODEC_READY` → `LISTENING` → `DRAINING`) con cierre `ERROR`; exige codec
   inicializado, indicador visible, consentimiento y transporte seguro antes de
-  permitir una futura escucha. Su vector se ejecuta solo en
-  `secure-session-vector` y no captura muestras.
+  permitir una escucha. Sus transiciones tienen un vector independiente.
 - Entorno opt-in `audio-i2s-lab` que compila la configuración I²S V2 de
   Waveshare sin conectarla al `main`, sin codec, sin muestras y con el
   amplificador forzado a apagado; sirve para detectar cambios del SDK antes de
@@ -72,12 +71,10 @@ CDC. La referencia física está en la
   no permite confirmar acciones externas. La configuración rastreada lo deja
   desactivado hasta provisionar la clave pública del agente.
 - El entorno `secure-session-vector` compila un vector determinista compartido
-  con Python para el record layer y el framing de audio v2. El primitive de
-  audio está protegido por `PIPA_SECURE_SESSION_VECTOR_TEST` y queda fuera de
-  las imágenes normales. El nuevo primitive `pipa_secure_audio.h/.cpp` valida
-  límites, secuencias, AAD y cierre
-  fail-closed, pero solo se invoca desde ese entorno; su ejecución en una placa
-  real sigue pendiente y no forma parte del firmware normal.
+  con Python para el record layer y el framing de audio v2.
+  `pipa_secure_audio.h/.cpp` valida límites, secuencias, AAD y cierre
+  fail-closed. También se integra en `voice-v2`, pero queda fuera de las
+  imágenes normales.
 
 El contrato de entradas también tiene una prueba host independiente
 (`tests/pipa_text_policy_host_test.cpp`) que verifica las allowlists de gestos
@@ -102,10 +99,9 @@ unidad física.
 
 ## Deliberadamente pendiente
 
-- Prueba física de la pantalla, orientación, colores y frecuencia QSPI.
-- Micrófono, altavoz, codec/I2S y cancelación de eco. La referencia oficial ya
-  está localizada y el firmware solo hace una sonda segura de presencia.
-- Reconocimiento de voz local o streaming STT.
+- Ajuste físico de ganancia y calidad del micrófono con distintas distancias y
+  niveles de ruido.
+- Altavoz, reproducción y cancelación de eco.
 - Gestos más ricos que el toque básico.
 - Indicador de batería real.
 - OTA, partición de recuperación, Secure Boot y cifrado de Flash.
@@ -137,7 +133,8 @@ mapa protegido contra cambios accidentales y se ejecuta también en el
 preflight y la CI.
 
 La capacidad `text_input` significa que el protocolo puede enviar texto ya
-reconocido; no significa que el firmware actual escuche voz. Antes de
+reconocido. En `voice-v2`, `audio_capture` se añade únicamente cuando ES7210 e
+I²S están listos. Antes de
 serializarlo, ambos transportes validan el UTF-8, rechazan controles invisibles
 y limitan la fuente del texto. Los gestos emitidos por el firmware también se
 limitan a los cuatro valores del protocolo (`tap`, `double_tap`, `swipe_left`,
@@ -146,14 +143,12 @@ limitan a los cuatro valores del protocolo (`tap`, `double_tap`, `swipe_left`,
 
 No se ha activado ESP-SR como solución de voz española: la documentación
 oficial de MultiNet limita los modelos disponibles a chino e inglés. La ruta
-pendiente es captura I²S y STT español con privacidad, consentimiento e
-indicador de escucha, no enviar micrófono en claro por el protocolo actual.
+implementada usa captura I²S y STT español local en Windows, con privacidad,
+consentimiento e indicador de escucha; el micrófono nunca viaja en claro.
 Véase la [documentación oficial de reconocimiento de comandos ESP-SR](https://docs.espressif.com/projects/esp-sr/en/latest/esp32s3/speech_command_recognition/README.html).
 
-El contrato de la futura implementación de audio, sus estados, límites,
-política de borrado y criterios de aceptación está en
-[AUDIO_STT_DESIGN.md](AUDIO_STT_DESIGN.md). Hasta validar la placa física, no
-se debe añadir una capacidad de audio real ni transportar muestras.
+El contrato de audio, sus estados, límites, política de borrado y criterios de
+aceptación está en [AUDIO_STT_DESIGN.md](AUDIO_STT_DESIGN.md).
 
 ## Configuración local
 
@@ -210,6 +205,7 @@ foreach ($environment in @(
     'waveshare-185c-v1',
     'secure-session-vector',
     'secure-session-v2',
+    'voice-v2',
     'audio-i2s-lab'
 )) {
     .\firmware\.venv\Scripts\pio.exe run -d firmware -e $environment
@@ -217,8 +213,8 @@ foreach ($environment in @(
 ```
 
 `secure-session-vector` y `secure-session-v2` solo comprueban el camino de
-sesión segura; no sustituyen el emparejamiento físico ni activan por sí solos
-el transporte en una placa.
+sesión segura. `voice-v2` es la única imagen que habilita captura y exige que
+la clave pública del agente ya esté provisionada.
 
 Para verificar únicamente la compatibilidad con una placa V1 confirmada:
 
@@ -241,10 +237,7 @@ Para compilar la sonda I²S experimental sin habilitarla en el firmware normal:
 ```
 
 Este entorno no prueba el micrófono ni el altavoz y no debe flashearse como
-firmware de uso diario. La inicialización real de codec, captura y reproducción
-sigue bloqueada hasta la validación física. El framing seguro se compila en el
-firmware para detectar incompatibilidades, pero no tiene una ruta hacia I²S,
-codec, red, serie, pantalla ni almacenamiento.
+firmware de uso diario. Es una sonda de compilación aislada.
 
 Para compilar también el entorno explícito del camino seguro:
 
@@ -274,6 +267,13 @@ Con la placa conectada:
 ```powershell
 .\firmware\.venv\Scripts\pio.exe run -d firmware -e waveshare-185c -t upload
 .\firmware\.venv\Scripts\pio.exe device monitor -d firmware -b 115200
+```
+
+Para cargar la ruta de voz V2 ya provisionada:
+
+```powershell
+.\firmware\.venv\Scripts\pio.exe run -d firmware -e voice-v2 `
+  -t upload --upload-port COM3
 ```
 
 ## Emparejamiento físico
@@ -311,6 +311,10 @@ El gateway se mantiene desactivado si esa variable no existe.
 - Sin sesión USB autenticada: intenta Wake-on-LAN si Wi‑Fi y MAC están listas.
 - Con sesión autenticada: envía un gesto `tap`; si la UI muestra una
   confirmación, el toque confirma únicamente esa acción pendiente.
+- En `voice-v2`, un toque en estado inactivo inicia la escucha y un segundo
+  toque la finaliza; también termina automáticamente a los ocho segundos.
+- Si la frase produce una acción externa, aparece después su confirmación y se
+  necesita otro toque para ejecutarla.
 - Si una confirmación caduca, se rechaza o se cancela, el estado visual vuelve
   a `idle` y el identificador anterior se elimina.
 - Wake-on-LAN nunca desbloquea Windows; solo puede encender o despertar un PC

@@ -1,9 +1,8 @@
 """Bounded encrypted audio chunks for the opt-in secure-session v2 layer.
 
-This module is deliberately not connected to the v1 protocol, the resident
-agent, or the firmware audio probe.  It defines the future binary payload
-contract so a later microphone implementation cannot accidentally put samples
-in JSON, logs, or an unauthenticated transport.
+This module is never connected to v1. The resident V2 gateway uses it as the
+only binary payload route so microphone samples cannot enter ordinary JSON,
+logs, or an unauthenticated transport.
 """
 
 from __future__ import annotations
@@ -48,6 +47,12 @@ _AUDIO_FIELDS = frozenset(
 _FRAME_FIELDS = _RECORD_FIELDS | _AUDIO_FIELDS
 
 
+def is_secure_audio_frame(value: object) -> bool:
+    """Identify the exact outer envelope before selecting the audio decoder."""
+
+    return isinstance(value, Mapping) and set(value) == _FRAME_FIELDS
+
+
 class AudioFrameError(RecordError):
     """An encrypted audio frame violates the bounded audio contract."""
 
@@ -67,7 +72,7 @@ AudioTranscriptDispatcher = Callable[[str], object]
 
 
 class AudioCaptureState(StrEnum):
-    """Policy state for a future local audio capture route."""
+    """Policy state for the local audio capture route."""
 
     DISABLED = "disabled"
     CODEC_READY = "codec_ready"
@@ -359,7 +364,7 @@ class SecureAudioReceiver:
 
 
 class SecureAudioConsumer:
-    """Deliver authenticated PCM chunks to a future local transcriber.
+    """Deliver authenticated PCM chunks to a local transcriber.
 
     The consumer never accumulates a recording. Each decrypted chunk is copied
     into a short-lived mutable buffer, exposed as a memoryview for the
@@ -480,13 +485,16 @@ class SecureAudioConsumer:
                 self.gate.fail()
         self._finished = False
 
-    def close(self) -> None:
-        """Close the secure session and drop the callback reference."""
+    def close(self, *, close_session: bool = True) -> None:
+        """Drop stream state and optionally close the shared control session."""
 
         if self._closed:
             return
-        self.receiver.close()
-        self.gate.fail()
+        if close_session:
+            self.receiver.close()
+            self.gate.fail()
+        else:
+            self.receiver.cancel()
         self._closed = True
         self._finished = False
         self._on_chunk = None
@@ -497,7 +505,7 @@ class SecureAudioTranscriber:
 
     The provider is deliberately injected: this class does not select an STT
     engine, open a microphone, persist samples, or make network requests. A
-    future local provider receives each short-lived ``memoryview`` and may
+    local provider receives each short-lived ``memoryview`` and may
     return a transcript only for the final chunk. The transcript is validated
     before it can be handed to the command parser.
     """
@@ -579,7 +587,7 @@ class SecureAudioTranscriber:
         self._transcript = None
         self._finalized = False
 
-    def close(self) -> None:
+    def close(self, *, close_session: bool = True) -> None:
         if self._provider_closed:
             return
         reset_provider = self._reset_provider
@@ -597,7 +605,7 @@ class SecureAudioTranscriber:
             # session rather than attempting a new stream with stale state.
             pass
         finally:
-            self._consumer.close()
+            self._consumer.close(close_session=close_session)
 
     def _reset_provider_state(self) -> None:
         reset_provider = self._reset_provider
@@ -696,7 +704,11 @@ class SecureAudioCommandBridge:
             self.close()
             raise AudioFrameError("audio transcript dispatch failed") from error
         self._dispatched = True
-        self.close()
+        # A successful command has erased the provider and stream state, but
+        # the encrypted control session must remain alive so its result can be
+        # returned to the device. Authentication failures still use the
+        # default close_session=True fail-closed path.
+        self.close(close_session=False)
         return summary, result
 
     def cancel(self) -> None:
@@ -706,12 +718,12 @@ class SecureAudioCommandBridge:
         transcriber.cancel()
         self._dispatched = False
 
-    def close(self) -> None:
+    def close(self, *, close_session: bool = True) -> None:
         transcriber = self._transcriber
         self._transcriber = None
         self._dispatch = None
         if transcriber is not None:
-            transcriber.close()
+            transcriber.close(close_session=close_session)
 
     def _require_transcriber(self) -> SecureAudioTranscriber:
         transcriber = self._transcriber

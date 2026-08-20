@@ -18,6 +18,12 @@ constexpr char kBase64UrlAlphabet[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 constexpr uint8_t kJsonAad[] = "pipa/json/v2";
 
+bool isSessionResetHint(JsonObjectConst object) {
+  return object.size() == 2 && object["protocol_version"].is<int>() &&
+         (object["protocol_version"] | 0) == 2 && object["type"].is<const char*>() &&
+         strcmp(object["type"] | "", "session_reset") == 0;
+}
+
 int base64Value(char character) {
   if (character >= 'A' && character <= 'Z') return character - 'A';
   if (character >= 'a' && character <= 'z') return character - 'a' + 26;
@@ -60,7 +66,12 @@ void PipaSecureProtocol::setHardwareCapabilities(
 }
 
 void PipaSecureProtocol::setAudioState(PipaAudioState state) {
+  if (audio_state_ == state) return;
   audio_state_ = state;
+  if (authenticated_) {
+    last_status_ = millis();
+    sendDeviceStatus();
+  }
 }
 
 void PipaSecureProtocol::setBatteryPercent(int battery_percent) {
@@ -120,6 +131,82 @@ void PipaSecureProtocol::sendConfirmation(bool accepted) {
   document["accepted"] = accepted;
   sendEncrypted(document);
 }
+
+#if PIPA_AUDIO_CAPTURE_ENABLED
+bool PipaSecureProtocol::sendHoldStart() {
+  if (!authenticated_ || audio_state_ != PipaAudioState::kCodecReady) return false;
+  JsonDocument document;
+  document["protocol_version"] = 1;
+  document["type"] = "hold_start";
+  sendEncrypted(document);
+  return true;
+}
+
+bool PipaSecureProtocol::beginAudioStream(const char* stream_id) {
+  if (!authenticated_ || audio_sender_ != nullptr || audio_state_ != PipaAudioState::kListening ||
+      !PipaSecureAudio::validStreamId(stream_id)) {
+    return false;
+  }
+  audio_sender_ = new (std::nothrow) PipaSecureAudioSender(session_, stream_id);
+  if (audio_sender_ == nullptr || !audio_sender_->valid()) {
+    delete audio_sender_;
+    audio_sender_ = nullptr;
+    return false;
+  }
+  return true;
+}
+
+bool PipaSecureProtocol::sendAudioChunk(
+    const uint8_t* samples,
+    size_t samples_length,
+    bool final) {
+  if (!authenticated_ || audio_sender_ == nullptr) return false;
+  static PipaSecureAudioFrame frame;
+  if (!audio_sender_->sealChunk(samples, samples_length, final, frame)) {
+    cancelAudioStream();
+    return false;
+  }
+
+  JsonDocument document;
+  document["audio_protocol_version"] = frame.audio_protocol_version;
+  document["bits_per_sample"] = frame.bits_per_sample;
+  document["channels"] = frame.channels;
+  document["chunk_index"] = frame.chunk_index;
+  document["ciphertext"] = encodeBase64Url(frame.ciphertext, frame.ciphertext_length);
+  document["final"] = frame.final;
+  document["protocol_version"] = 2;
+  document["sample_rate"] = frame.sample_rate;
+  document["sequence"] = frame.sequence;
+  document["session_id"] = session_.sessionId();
+  document["stream_id"] = frame.stream_id;
+  sendJson(document);
+  clean(frame.ciphertext, sizeof(frame.ciphertext));
+  frame.ciphertext_length = 0;
+
+  if (final) {
+    delete audio_sender_;
+    audio_sender_ = nullptr;
+  }
+  return true;
+}
+
+void PipaSecureProtocol::cancelAudioStream() {
+  if (audio_sender_ != nullptr) {
+    audio_sender_->cancel();
+    delete audio_sender_;
+    audio_sender_ = nullptr;
+  }
+}
+
+void PipaSecureProtocol::abortAudioStream() {
+  cancelAudioStream();
+  if (!authenticated_) return;
+  JsonDocument document;
+  document["protocol_version"] = 1;
+  document["type"] = "abort";
+  sendEncrypted(document);
+}
+#endif
 
 void PipaSecureProtocol::readTransport() {
   while (transport_.available()) {
@@ -184,6 +271,16 @@ void PipaSecureProtocol::handleServerHello(JsonObjectConst object) {
 }
 
 void PipaSecureProtocol::handleEncryptedFrame(JsonObjectConst object) {
+  if (isSessionResetHint(object)) {
+    // The desktop agent deliberately discards ephemeral keys on restart. A
+    // reset hint can only tear down the current session; the replacement must
+    // still complete the normal signed and allowlisted v2 handshake.
+    resetHandshake();
+    log("secure session restart requested");
+    last_handshake_ = millis();
+    sendHandshake();
+    return;
+  }
   if (!frameHasExactFields(object)) {
     rejectEncryptedFrame("invalid fields");
     return;
@@ -332,6 +429,9 @@ void PipaSecureProtocol::sendDeviceHello() {
   if (touch_ready_) capabilities.add("touch");
   if (display_ready_) capabilities.add("display");
   if (audio_probe_ready_) capabilities.add("audio_probe");
+#if PIPA_AUDIO_CAPTURE_ENABLED
+  if (audio_state_ == PipaAudioState::kCodecReady) capabilities.add("audio_capture");
+#endif
   capabilities.add("wol");
   capabilities.add("text_input");
   capabilities.add("device_status");
@@ -475,6 +575,9 @@ void PipaSecureProtocol::updateUi(JsonObjectConst object) {
 }
 
 void PipaSecureProtocol::resetHandshake() {
+#if PIPA_AUDIO_CAPTURE_ENABLED
+  cancelAudioStream();
+#endif
   authenticated_ = false;
   handshake_.clear();
   session_.clear();

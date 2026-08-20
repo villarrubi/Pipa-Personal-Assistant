@@ -97,6 +97,8 @@ class MainRouteTests(unittest.TestCase):
         response = main.api_pipa_protocol()
 
         self.assertEqual(response["serial_gateway_security"], "v2")
+        self.assertFalse(response["voice_enabled"])
+        self.assertFalse(response["voice_ready"])
 
     @patch("main.open_apple_music", return_value={"success": True, "target": "desktop_app"})
     @patch("main.open_whatsapp_web", return_value={"success": True, "url": "https://web.whatsapp.com/"})

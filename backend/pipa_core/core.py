@@ -444,12 +444,11 @@ class PipaCore:
     def handle_transcript(self, session_id: str, transcript: str) -> list[dict[str, Any]]:
         """Route one final local transcript through the normal command path.
 
-        A future secure-audio consumer can call this method after it has
-        authenticated, bounded and finalized the audio stream. Keeping this
-        entry point separate from the wire protocol means the current v1
-        ``hold_end``/``audio_end`` behavior remains fail-closed while a real
-        STT provider can reuse exactly the same parser, confirmation gate and
-        result redaction as text and mobile commands.
+        The secure-audio consumer calls this method after it has authenticated,
+        bounded and finalized the audio stream. Keeping this entry point
+        separate from the wire protocol means v1 ``hold_end``/``audio_end``
+        remains fail-closed while local STT reuses exactly the same parser,
+        confirmation gate and result redaction as text and mobile commands.
         """
 
         session = self.sessions.get(session_id)

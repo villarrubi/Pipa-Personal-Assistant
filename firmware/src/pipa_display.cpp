@@ -363,14 +363,16 @@ void PipaDisplay::render(const UiSnapshot& snapshot) {
   String summary_line_two;
   splitSummary(summary, summary_line_one, summary_line_two);
   for (uint16_t y = 0; y < kHeight; ++y) {
+    uint16_t* row_buffer = row_buffers_[y % 2];
     drawRow(
+        row_buffer,
         y,
         label,
         summary_line_one.c_str(),
         summary_line_two.c_str(),
         background,
         accent);
-    if (esp_lcd_panel_draw_bitmap(panel_, 0, y, kWidth, y + 1, row_buffer_) != ESP_OK) {
+    if (esp_lcd_panel_draw_bitmap(panel_, 0, y, kWidth, y + 1, row_buffer) != ESP_OK) {
       ESP_LOGE(kTag, "LCD row transfer failed");
       ready_ = false;
       return;
@@ -382,13 +384,14 @@ void PipaDisplay::render(const UiSnapshot& snapshot) {
 }
 
 void PipaDisplay::drawRow(
+    uint16_t* row_buffer,
     uint16_t y,
     const char* label,
     const char* confirmation_line_one,
     const char* confirmation_line_two,
     uint16_t background,
     uint16_t accent) {
-  for (uint16_t x = 0; x < kWidth; ++x) row_buffer_[x] = background;
+  for (uint16_t x = 0; x < kWidth; ++x) row_buffer[x] = background;
 
   const int32_t center = kWidth / 2;
   const int32_t dy = static_cast<int32_t>(y) - center;
@@ -399,31 +402,32 @@ void PipaDisplay::drawRow(
     const int32_t dx = static_cast<int32_t>(x) - center;
     const int32_t squared = dx * dx + distance;
     if (squared <= outer_radius * outer_radius && squared >= inner_radius * inner_radius) {
-      row_buffer_[x] = accent;
+      row_buffer[x] = accent;
     }
   }
 
   const uint16_t text_y = 142;
   if (y >= text_y && y < text_y + 7 * kTextScale) {
-    drawTextAt(y, text_y, label, kWhite, kTextScale);
+    drawTextAt(row_buffer, y, text_y, label, kWhite, kTextScale);
   }
   if (strcmp(label, "CONFIRM") == 0) {
     if (confirmation_line_one[0] != '\0') {
-      drawTextAt(y, 194, confirmation_line_one, kWhite, 2);
+      drawTextAt(row_buffer, y, 194, confirmation_line_one, kWhite, 2);
     }
     if (confirmation_line_two[0] != '\0') {
-      drawTextAt(y, 212, confirmation_line_two, kWhite, 2);
+      drawTextAt(row_buffer, y, 212, confirmation_line_two, kWhite, 2);
     }
-    drawTextAt(y, 252, "TAP", kWhite, 3);
+    drawTextAt(row_buffer, y, 252, "TAP", kWhite, 3);
   } else if (confirmation_line_one[0] != '\0') {
-    drawTextAt(y, 194, confirmation_line_one, kWhite, 2);
+    drawTextAt(row_buffer, y, 194, confirmation_line_one, kWhite, 2);
     if (confirmation_line_two[0] != '\0') {
-      drawTextAt(y, 212, confirmation_line_two, kWhite, 2);
+      drawTextAt(row_buffer, y, 212, confirmation_line_two, kWhite, 2);
     }
   }
 }
 
 void PipaDisplay::drawTextAt(
+    uint16_t* row_buffer,
     uint16_t y,
     uint16_t text_y,
     const char* text,
@@ -441,7 +445,7 @@ void PipaDisplay::drawTextAt(
         if ((bitmap[column] & (1U << bit)) != 0 && glyph_row == bit) {
           for (uint8_t pixel = 0; pixel < scale; ++pixel) {
             const int32_t x = cursor + column * scale + pixel;
-            if (x >= 0 && x < kWidth) row_buffer_[x] = foreground;
+            if (x >= 0 && x < kWidth) row_buffer[x] = foreground;
           }
         }
       }

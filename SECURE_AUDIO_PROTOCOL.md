@@ -1,10 +1,9 @@
 # Contrato de audio cifrado v2
 
-Este documento define la futura trama de audio entre un cliente autenticado y
-Pipα. El contrato está implementado y probado en memoria, pero no activa el
-micrófono, el altavoz, I²S, STT ni una capacidad de voz en el catálogo. La
-captura seguirá bloqueada hasta validar físicamente el Waveshare, el indicador
-de escucha y el consentimiento del usuario.
+Este documento define la trama de audio entre un cliente autenticado y Pipα.
+Está integrada de extremo a extremo en el entorno opt-in `voice-v2`: captura
+ES7210/I²S en la placa, transporte cifrado por USB y STT español local en el
+PC. Los builds normales no activan captura y el altavoz permanece apagado.
 
 ## Sesión y autenticación
 
@@ -61,12 +60,11 @@ nuevo.
   buffer al devolverlo y solo devuelve contadores acotados al finalizar. El
   receptor convierte el plaintext a un `bytearray` en la frontera criptográfica
   para que también pueda ponerse a cero en las rutas de error; no expone
-  muestras como texto ni acumula una grabación y no está conectado al agente
-  residente.
+  muestras como texto ni escribe grabaciones. El gateway V2 lo conecta al
+  agente residente únicamente cuando `PIPA_VOICE_ENABLED=1`.
 - Windows también incluye `SecureAudioTranscriber`, un adaptador inyectable
-  que entrega esos chunks al futuro proveedor STT y acepta únicamente una
-  transcripción final validada por la política de texto; no elige proveedor,
-  abre micrófono, guarda audio ni conecta el agente residente. Un proveedor
+  que entrega esos chunks al proveedor STT y acepta únicamente una
+  transcripción final validada por la política de texto. Un proveedor
   STT que mantenga estado de streaming debe proporcionar `reset_provider` para
   que cancelar, cerrar o fallar el stream borre su estado antes de reutilizarlo;
   si ese reinicio falla, el transcriptor se cierra y no acepta otra captura.
@@ -76,26 +74,21 @@ nuevo.
   falla. Cancelar conserva únicamente la sesión de control para una captura
   posterior; no conserva el transcript.
 - iPhone: `mobile-ios/Sources/PipaMobileCore/PipaSecureAudio.swift`.
-- Firmware: `firmware/src/pipa_secure_audio.h/.cpp` contiene un primitive
-  acotado de framing, cifrado y apertura, ejecutado únicamente por el vector
-  `secure-session-vector`; no forma parte de la captura ni del transporte
-  normal.
+- Firmware: `firmware/src/pipa_secure_audio.h/.cpp` contiene el primitive
+  acotado de framing y cifrado. Se compila para el vector y para `voice-v2`;
+  `pipa_secure_protocol.cpp` es la única ruta de producción que lo transmite.
 - Vector compartido: `mobile-ios/Tests/Fixtures/secure_audio_v2.json`.
 - Tests Python y Swift: verifican ciphertext idéntico, ausencia de un campo
   `samples`, orden, límites, manipulación de metadatos y cierre fail-closed.
 
-El módulo no se importa desde el agente residente. En firmware se compila como
-una librería de transporte aislada, pero solo se invoca desde la prueba
-protegida por `PIPA_SECURE_SESSION_VECTOR_TEST`; no tiene dependencias de I²S,
-codec, Wi‑Fi, serie ni pantalla. No escribe muestras en logs, archivos, NVS o
-pantalla y no tiene ninguna ruta de captura conectada. La integración real del
-firmware queda deliberadamente para después de probar codec, I²S, buffers,
-cancelación e indicador en la placa.
+El framing sigue sin depender de I²S, codec, Wi‑Fi, serie ni pantalla. El
+gateway residente lo recibe solo sobre la sesión V2 autenticada y lo entrega a
+`windows-agent/local_stt.py`. Ninguna de las capas escribe muestras en logs,
+archivos, NVS o pantalla.
 
-## Entrega al futuro STT
+## Entrega al STT local
 
-El consumidor/transcriptor de Windows es la única pieza preparada para recibir audio antes
-de la integración física. Antes de usarlo, el futuro driver debe marcar el
+Antes de usarlo, el driver debe marcar el
 codec como listo y llamar a `begin_capture(display_ready=True,
 consented=True, secure_transport_ready=True)`. El `AudioCaptureGate` rechaza
 cualquier otro orden y solo permite `CODEC_READY -> LISTENING -> DRAINING ->
@@ -109,7 +102,7 @@ transcripción final, el adaptador debe entregarla a
 `PipaCore.handle_transcript`; el Core la valida otra vez y usa exactamente el
 mismo parser, confirmación y redacción que `text_input`.
 
-Todavía no existe un callback STT concreto, no se anuncia `voice`/`audio` en
-las capacidades y `hold_end`/`audio_end` siguen respondiendo
-`voice_unavailable`. Esa separación es intencionada hasta validar micrófono,
-indicador visible, cancelación y rendimiento en el Waveshare.
+El callback concreto es `LocalSpeechTranscriber`, basado en Faster-Whisper y
+configurado en español. La placa anuncia `audio_capture` solo después de
+inicializar físicamente el ES7210/I²S. `voice_ready` en `/pipa/protocol`
+confirma que agente, sesión, capacidad y estado `codec_ready` coinciden.

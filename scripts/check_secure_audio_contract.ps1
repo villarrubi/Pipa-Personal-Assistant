@@ -13,9 +13,14 @@ $firmwareSessionPath = Join-Path $repoRoot 'firmware/src/pipa_secure_session.cpp
 $firmwareAudioHeaderPath = Join-Path $repoRoot 'firmware/src/pipa_secure_audio.h'
 $firmwareAudioPath = Join-Path $repoRoot 'firmware/src/pipa_secure_audio.cpp'
 $firmwareMainPath = Join-Path $repoRoot 'firmware/src/main.cpp'
+$firmwareProtocolHeaderPath = Join-Path $repoRoot 'firmware/src/pipa_secure_protocol.h'
+$firmwareProtocolPath = Join-Path $repoRoot 'firmware/src/pipa_secure_protocol.cpp'
+$firmwarePlatformPath = Join-Path $repoRoot 'firmware/platformio.ini'
 $secureDiagnosticsPath = Join-Path $repoRoot 'windows-agent/tools/secure_diagnostics.py'
+$secureSerialGatewayPath = Join-Path $repoRoot 'windows-agent/secure_serial_gateway.py'
+$localSttPath = Join-Path $repoRoot 'windows-agent/local_stt.py'
 
-foreach ($path in @($pythonPath, $pythonTestPath, $swiftPath, $fixturePath, $firmwareSessionPath, $firmwareAudioHeaderPath, $firmwareAudioPath, $firmwareMainPath)) {
+foreach ($path in @($pythonPath, $pythonTestPath, $swiftPath, $fixturePath, $firmwareSessionPath, $firmwareAudioHeaderPath, $firmwareAudioPath, $firmwareMainPath, $firmwareProtocolHeaderPath, $firmwareProtocolPath, $firmwarePlatformPath, $secureSerialGatewayPath, $localSttPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Falta un artefacto del contrato de audio seguro: $path"
     }
@@ -28,6 +33,10 @@ $firmwareSession = Get-Content -LiteralPath $firmwareSessionPath -Raw
 $firmwareAudioHeader = Get-Content -LiteralPath $firmwareAudioHeaderPath -Raw
 $firmwareAudio = Get-Content -LiteralPath $firmwareAudioPath -Raw
 $firmwareMain = Get-Content -LiteralPath $firmwareMainPath -Raw
+$firmwareProtocolHeader = Get-Content -LiteralPath $firmwareProtocolHeaderPath -Raw
+$firmwareProtocol = Get-Content -LiteralPath $firmwareProtocolPath -Raw
+$firmwarePlatform = Get-Content -LiteralPath $firmwarePlatformPath -Raw
+$secureSerialGateway = Get-Content -LiteralPath $secureSerialGatewayPath -Raw
 $fixtureObject = $fixture | ConvertFrom-Json
 
 foreach ($required in @(
@@ -97,9 +106,16 @@ if ($firmwareAudio.IndexOf('pipa/audio/v2', [System.StringComparison]::Ordinal) 
     throw 'El primitive de framing del firmware no contiene el contrato esperado.'
 }
 
-$vectorAudioGuard = '(?s)#if\s+defined\(PIPA_SECURE_SESSION_VECTOR_TEST\).*?#endif\s*//\s*defined\(PIPA_SECURE_SESSION_VECTOR_TEST\)'
-if ($firmwareAudioHeader -notmatch $vectorAudioGuard -or $firmwareAudio -notmatch $vectorAudioGuard) {
-    throw 'El primitive de audio del firmware debe quedar compilado solo en secure-session-vector.'
+foreach ($source in @($firmwareAudioHeader, $firmwareAudio)) {
+    foreach ($required in @(
+        'defined(PIPA_SECURE_SESSION_VECTOR_TEST)',
+        'defined(PIPA_SECURE_SESSION_ENABLED) && PIPA_SECURE_SESSION_ENABLED',
+        'defined(PIPA_AUDIO_CAPTURE_ENABLED) && PIPA_AUDIO_CAPTURE_ENABLED'
+    )) {
+        if ($source.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
+            throw "El primitive de audio no conserva su guardia vector/producción segura: $required"
+        }
+    }
 }
 $mainAudioIncludeGuard = '(?s)#if\s+defined\(PIPA_SECURE_SESSION_VECTOR_TEST\)\s*#include\s*[<"]pipa_secure_audio\.h[>"]\s*#endif'
 if ($firmwareMain -notmatch $mainAudioIncludeGuard) {
@@ -166,24 +182,27 @@ $productionPython = @(Get-ChildItem -Path @(
 foreach ($path in $productionPython) {
     $source = Get-Content -LiteralPath $path.FullName -Raw
     if ($source -match '(?im)^\s*(?:from\s+secure_audio\s+import|import\s+secure_audio)\b' -and
-        $path.FullName -ne $secureDiagnosticsPath) {
-        throw "El audio seguro no puede conectarse al código residente fuera del diagnóstico sintético: $($path.FullName)"
+        $path.FullName -ne $secureDiagnosticsPath -and
+        $path.FullName -ne $secureSerialGatewayPath -and
+        $path.FullName -ne $localSttPath) {
+        throw "El audio seguro solo puede conectarse al gateway V2, al STT local o al diagnóstico sintético: $($path.FullName)"
     }
 }
 
-$productionFirmware = @(Get-ChildItem -Path (Join-Path $repoRoot 'firmware/src') -Include '*.cpp', '*.h' -File -Recurse | Where-Object {
-    $_.FullName -ne $firmwareAudioHeaderPath -and
-    $_.FullName -ne $firmwareAudioPath
-})
-foreach ($path in $productionFirmware) {
-    $source = Get-Content -LiteralPath $path.FullName -Raw
-    if ($path.FullName -eq $firmwareMainPath) {
-        $source = [regex]::Replace($source, $vectorGuard, '')
-        $source = $source -replace '(?m)^\s*#include\s*[<"]pipa_secure_audio\.h[>"]\s*$', ''
+foreach ($required in @('pipa_secure_audio.h', 'PipaSecureAudioSender', 'beginAudioStream', 'sendAudioChunk', 'abortAudioStream')) {
+    if (($firmwareProtocolHeader + $firmwareProtocol).IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El protocolo seguro de producción no integra el framing de audio requerido: $required"
     }
-    if ($source -match '(?i)PipaSecureAudio|secure_audio|pipa/audio/v2') {
-        throw "El audio seguro no puede conectarse aún al firmware de producción: $($path.FullName)"
+}
+foreach ($required in @('[env:voice-v2]', '-DPIPA_SECURE_SESSION_ENABLED=1', '-DPIPA_AUDIO_CAPTURE_ENABLED=1')) {
+    if ($firmwarePlatform.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El entorno voice-v2 no conserva su activación segura: $required"
+    }
+}
+foreach ($required in @('is_secure_audio_frame', 'SecureAudioCommandBridge', 'SecureAudioReceiver')) {
+    if ($secureSerialGateway.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El gateway V2 no integra el receptor de audio autenticado: $required"
     }
 }
 
-Write-Host 'Contrato de audio seguro v2: límites, AAD, vector y aislamiento correctos.' -ForegroundColor Green
+Write-Host 'Contrato de audio seguro v2: límites, AAD, vector y ruta de producción cifrada correctos.' -ForegroundColor Green

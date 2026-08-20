@@ -1,6 +1,6 @@
 # Pipα Windows Agent
 
-Agente local para automatización de Windows y puente autenticado con el futuro
+Agente local para automatización de Windows y puente autenticado con el
 Waveshare. Escucha exclusivamente en `127.0.0.1:8765`; no debe publicarse en
 la LAN ni reutilizarse como servicio de desbloqueo.
 
@@ -451,7 +451,7 @@ persistente de DPAPI.
 comprueba la compuerta de codec, pantalla, consentimiento y transporte seguro,
 el orden cifrado de los chunks, el puente de transcript final hasta el Core y el resumen acotado. También
 comprueba catorce frases sintéticas representativas de web, Apple Music, WhatsApp, Discord y League
-contra el parser natural, para detectar que la futura voz no pierda rutas ni cambie argumentos. El
+contra el parser natural, para detectar que la voz no pierda rutas ni cambie argumentos. El
 `SecureAudioCommandBridge` garantiza un único dispatch tras el frame final y cierra el transcriptor ante
 éxito, error o cancelación. No abre micrófono,
 puertos, navegador ni aplicaciones, y no guarda las muestras.
@@ -704,8 +704,36 @@ El transporte serie v2 cifrado se activa únicamente con
 `PIPA_SERIAL_SECURITY=v2`. Requiere una identidad del agente protegida por
 DPAPI, dispositivos emparejados y que el firmware tenga provisionada la clave
 pública del agente. Si el handshake falla, se cierra la conexión; nunca se
-degrada silenciosamente a v1. Sin hardware, puede seguir validándose con la
-prueba Python de secure session, pero no debe activarse en producción todavía.
+degrada silenciosamente a v1.
+
+### Voz local por USB
+
+La voz requiere el firmware `voice-v2`, la sesión segura V2 y el modelo local:
+
+```powershell
+.\windows-agent\.venv\Scripts\python.exe `
+  .\windows-agent\prepare_voice_model.py --model base
+
+[Environment]::SetEnvironmentVariable('PIPA_SERIAL_SECURITY', 'v2', 'User')
+[Environment]::SetEnvironmentVariable('PIPA_VOICE_ENABLED', '1', 'User')
+[Environment]::SetEnvironmentVariable('PIPA_STT_MODEL', 'base', 'User')
+[Environment]::SetEnvironmentVariable('PIPA_SECURE_SERVER_ID', 'pipa-agent-v2', 'User')
+
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+  -File .\windows-agent\start_agent_hidden.ps1 -Restart
+```
+
+`faster-whisper` ejecuta el reconocimiento en español dentro del PC con CPU
+`int8`; el audio no se envía a una API y no se crea un archivo WAV. El primer
+preparado descarga el modelo a `%LOCALAPPDATA%\Pipa\models`.
+
+Comprueba el estado con `pipa_cli.py protocol`. `voice_enabled: true` confirma
+la configuración del agente; `voice_ready: true` confirma además que la placa
+está autenticada y que anunció `audio_capture` con el códec listo.
+
+Para hablar, toca una vez la pantalla, di la frase y toca otra vez. La escucha
+termina automáticamente a los ocho segundos. Si la frase pide una acción
+externa, Pipa muestra su resumen y exige un toque adicional de confirmación.
 
 ## Móvil por TCP v2
 

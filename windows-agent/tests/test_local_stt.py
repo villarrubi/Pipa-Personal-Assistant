@@ -1,0 +1,44 @@
+import sys
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "windows-agent"))
+sys.path.insert(0, str(ROOT))
+
+from local_stt import LocalSpeechTranscriber, LocalSttError  # noqa: E402
+
+
+class LocalSttTests(unittest.TestCase):
+    def test_transcribes_pcm_in_memory_and_zeroes_capture_buffers(self):
+        class FakeModel:
+            def __init__(self):
+                self.audio = None
+                self.options = None
+
+            def transcribe(self, audio, **options):
+                self.audio = audio
+                self.options = options
+                return iter([SimpleNamespace(text=" estado del ordenador ")]), object()
+
+        provider = LocalSpeechTranscriber(model_directory=ROOT / ".platformio-preflight" / "stt-test")
+        model = FakeModel()
+        with patch.object(provider, "_model", return_value=model):
+            transcript = provider(memoryview(b"\x01\x02" * 8000), True)
+
+        self.assertEqual(transcript, "estado del ordenador")
+        self.assertEqual(provider._pcm, bytearray())
+        self.assertTrue((model.audio == 0).all())
+        self.assertEqual(model.options["language"], "es")
+        self.assertTrue(model.options["vad_filter"])
+        self.assertIn("ordenador", model.options["hotwords"])
+
+    def test_rejects_unbounded_model_selection(self):
+        with self.assertRaises(LocalSttError):
+            LocalSpeechTranscriber(model_name="remote/custom-model")
+
+
+if __name__ == "__main__":
+    unittest.main()

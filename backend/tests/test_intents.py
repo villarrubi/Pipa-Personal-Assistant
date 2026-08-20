@@ -9,7 +9,7 @@ sys.path.insert(0, str(ROOT))
 from tools.agent_catalog import build_agent_catalog  # noqa: E402
 from tools.timers import TimerManager  # noqa: E402
 
-from backend.pipa_core.intents import parse_text_intent  # noqa: E402
+from backend.pipa_core.intents import parse_catalog_intent, parse_text_intent  # noqa: E402
 
 
 class IntegrationIntentTests(unittest.TestCase):
@@ -247,6 +247,34 @@ class IntegrationIntentTests(unittest.TestCase):
         for phrase, tool_name, arguments in cases:
             with self.subTest(phrase=phrase):
                 self.assert_intent(phrase, tool_name, arguments)
+
+    def test_dictation_punctuation_and_computer_variants_are_accepted(self):
+        for phrase in (
+            "Estado del ordenador.",
+            "¿Estado del ordenador?",
+            "Pipa, estado del ordenador.",
+            "estado de mi PC",
+            "estado de la computadora",
+            "cómo está mi ordenador",
+        ):
+            with self.subTest(phrase=phrase):
+                intent = parse_text_intent(phrase)
+                self.assertIsNotNone(intent)
+                self.assertEqual(intent.tool_name, "system_status")
+                self.assertEqual(intent.arguments, {})
+
+    def test_optional_wake_name_also_works_with_catalog_phrases(self):
+        commands = [
+            {
+                "phrase": "abre <nombre>",
+                "tool_name": "open_app",
+                "parameters": [{"name": "name", "kind": "text", "max_length": 80}],
+            }
+        ]
+        intent = parse_catalog_intent("Pipa, abre calculadora", commands)
+        self.assertIsNotNone(intent)
+        self.assertEqual(intent.tool_name, "open_app")
+        self.assertEqual(intent.arguments, {"name": "calculadora"})
 
     def test_media_controls_do_not_select_or_send_external_content(self):
         self.assert_intent(

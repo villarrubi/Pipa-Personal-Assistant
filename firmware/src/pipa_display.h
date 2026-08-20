@@ -19,13 +19,20 @@ class PipaDisplay {
 
  private:
   void drawRow(
+      uint16_t* row_buffer,
       uint16_t y,
       const char* label,
       const char* confirmation_line_one,
       const char* confirmation_line_two,
       uint16_t background,
       uint16_t accent);
-  void drawTextAt(uint16_t y, uint16_t text_y, const char* text, uint16_t foreground, uint8_t scale);
+  void drawTextAt(
+      uint16_t* row_buffer,
+      uint16_t y,
+      uint16_t text_y,
+      const char* text,
+      uint16_t foreground,
+      uint8_t scale);
   static String displaySummary(const String& summary);
   static void splitSummary(const String& summary, String& first, String& second);
   static uint16_t colorForState(const String& state);
@@ -33,7 +40,10 @@ class PipaDisplay {
 
   esp_lcd_panel_io_handle_t io_ = nullptr;
   esp_lcd_panel_handle_t panel_ = nullptr;
-  uint16_t row_buffer_[kWidth] = {};
+  // The LCD transport may still own the row passed to draw_bitmap after the
+  // call returns. Alternate two internal-RAM buffers so rendering the next
+  // row never mutates a DMA transfer in flight.
+  uint16_t row_buffers_[2][kWidth] = {};
   String last_state_;
   String last_caption_;
   String last_confirmation_id_;

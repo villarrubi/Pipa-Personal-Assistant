@@ -9,6 +9,7 @@ sys.path.insert(0, str(ROOT / "windows-agent"))
 sys.path.insert(0, str(ROOT))
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey  # noqa: E402
+from secure_audio import SecureAudioSender  # noqa: E402
 from secure_identity_store import SecureIdentityStoreError  # noqa: E402
 from secure_json_channel import SecureJsonChannel  # noqa: E402
 from secure_serial_gateway import (  # noqa: E402
@@ -111,6 +112,98 @@ class SecureSerialGatewayTests(unittest.TestCase):
         response_frame = json.loads(connection.writes[1].decode("utf-8"))
         self.assertIsNotNone(client_channel)
         self.assertEqual(client_channel.open_message(response_frame)["type"], "pong")
+
+    def test_secure_gateway_transcribes_an_authenticated_audio_stream(self):
+        class FakeSpeechProvider:
+            def __call__(self, _samples, final):
+                return "una frase que no existe" if final else None
+
+            def reset(self):
+                pass
+
+        gateway = SecureSerialGateway(
+            self.core,
+            "COM7",
+            self.server_identity,
+            {self.client_identity.identity_id: self.client_identity.public_key},
+            speech_provider_factory=FakeSpeechProvider,
+        )
+        client_hello, client_ephemeral = create_client_hello(
+            self.client_identity,
+            session_id="secure-audio-serial",
+        )
+        client_channel = None
+        received = []
+
+        def continue_exchange(value):
+            nonlocal client_channel
+            payload = json.loads(value.decode("utf-8"))
+            if len(connection.writes) == 1:
+                client_session = complete_client_handshake(
+                    self.client_identity,
+                    client_hello,
+                    client_ephemeral,
+                    ServerHello(**payload),
+                    self.server_identity.public_key,
+                )
+                client_channel = SecureJsonChannel(client_session)
+                connection.lines.append(
+                    json.dumps(
+                        client_channel.seal_message(
+                            {
+                                "protocol_version": 1,
+                                "type": "device_hello",
+                                "firmware_version": "voice-test",
+                                "capabilities": ["display", "touch", "audio_capture"],
+                            }
+                        )
+                    ).encode()
+                    + b"\n"
+                )
+                return
+
+            assert client_channel is not None
+            message = client_channel.open_message(payload)
+            received.append(message)
+            if message["type"] == "device_hello_ack":
+                connection.lines.append(
+                    json.dumps(
+                        client_channel.seal_message(
+                            {
+                                "protocol_version": 1,
+                                "type": "device_status",
+                                "audio_state": "codec_ready",
+                            }
+                        )
+                    ).encode()
+                    + b"\n"
+                )
+            elif message["type"] == "status_ack":
+                self.assertTrue(gateway.voice_ready)
+                connection.lines.append(
+                    json.dumps(
+                        client_channel.seal_message(
+                            {"protocol_version": 1, "type": "hold_start"}
+                        )
+                    ).encode()
+                    + b"\n"
+                )
+            elif message["type"] == "ui_state" and message["state"] == "listening":
+                audio_sender = SecureAudioSender(client_channel.session, "voice-test")
+                frame = audio_sender.seal_chunk(b"\x01\x02" * 2000, final=True)
+                connection.lines.append(json.dumps(frame).encode() + b"\n")
+
+        connection = FakeSecureSerialConnection(
+            [json.dumps(client_hello.as_dict()).encode() + b"\n"],
+            gateway,
+            on_write=continue_exchange,
+        )
+        gateway._serve_connection(connection)
+
+        self.assertTrue(any(message.get("code") == "unsupported_text_intent" for message in received))
+        self.assertTrue(any(message.get("state") == "idle" for message in received))
+        self.assertFalse(gateway.voice_ready)
+        self.assertEqual(self.core.sessions.count(), 0)
 
     @patch("webbrowser.open", return_value=True)
     @patch("tools.agent_catalog.resolve_discord_contact")
@@ -273,6 +366,35 @@ class SecureSerialGatewayTests(unittest.TestCase):
         self.gateway._serve_connection(connection)
 
         self.assertEqual(connection.writes, [])
+        self.assertEqual(self.core.sessions.count(), 0)
+
+    def test_secure_gateway_requests_a_new_handshake_after_agent_restart(self):
+        client_hello, _client_ephemeral = create_client_hello(
+            self.client_identity,
+            session_id="restarted-agent",
+        )
+
+        def restart_device_handshake(value):
+            payload = json.loads(value.decode("utf-8"))
+            if payload.get("type") == "session_reset":
+                connection.lines.append(json.dumps(client_hello.as_dict()).encode() + b"\n")
+
+        stale_frame = {
+            "ciphertext": "old-session-record",
+            "protocol_version": 2,
+            "sequence": 7,
+            "session_id": "old-session",
+        }
+        connection = FakeSecureSerialConnection(
+            [json.dumps(stale_frame).encode() + b"\n"],
+            self.gateway,
+            on_write=restart_device_handshake,
+        )
+
+        self.gateway._serve_connection(connection)
+
+        self.assertEqual(json.loads(connection.writes[0]), {"protocol_version": 2, "type": "session_reset"})
+        self.assertEqual(json.loads(connection.writes[1])["server_id"], self.server_identity.identity_id)
         self.assertEqual(self.core.sessions.count(), 0)
 
     @patch("secure_serial_gateway.AUTHENTICATION_TIMEOUT_SECONDS", 0)

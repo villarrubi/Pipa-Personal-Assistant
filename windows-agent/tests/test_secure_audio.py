@@ -350,6 +350,9 @@ class SecureAudioTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(dispatched, ["estado de integraciones"])
         self.assertTrue(bridge.closed)
+        # Successful finalization erases the audio provider/stream but keeps
+        # the shared encrypted control session available for the response.
+        self.assertEqual(sender.session.seal(b"ok")["sequence"], 2)
         with self.assertRaises(AudioFrameError):
             bridge.finalize()
 
