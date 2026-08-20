@@ -401,6 +401,12 @@ void PipaSecureProtocol::sendHandshake() {
     log("secure handshake could not start");
     return;
   }
+  // Repeat the public provisioning marker before every unauthenticated
+  // handshake. USB CDC boot diagnostics can be emitted before Windows has
+  // reopened the COM port after reset; this bounded, non-secret marker lets
+  // an administrator recover the device fingerprint without exposing the
+  // private identity or weakening the authenticated v2 handshake.
+  log(String("PIPA_PUBLIC_KEY=") + identity_.publicKeyBase64Url());
   const String hello = handshake_.clientHelloJson();
   if (hello.isEmpty() || hello.length() + 1 > kMaxOutboundLine) {
     log("secure ClientHello could not be encoded");
