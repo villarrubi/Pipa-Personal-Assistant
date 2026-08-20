@@ -61,6 +61,9 @@ class ControlPanelTests(unittest.TestCase):
         self.assertIn('id="voice-diagnostic-transcript"', html)
         self.assertIn('api("/voice/diagnostics")', script)
         self.assertIn("textContent", script)
+        self.assertIn('confirmation_required: "Esperando confirmación"', script)
+        self.assertIn('completed: "Acción completada"', script)
+        self.assertIn('failed: "La acción falló"', script)
 
     def test_control_writes_need_explicit_confirmation_header(self):
         request = SimpleNamespace(

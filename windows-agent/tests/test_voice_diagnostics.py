@@ -34,6 +34,36 @@ class VoiceDiagnosticStoreTests(unittest.TestCase):
         self.assertEqual(result["stt"]["model"], "base")
         self.assertNotIn("private", result["stt"])
 
+    def test_tracks_confirmation_and_final_tool_result_for_the_same_capture(self):
+        store = VoiceDiagnosticStore(ttl_seconds=30, clock=lambda: 10.0)
+        store.record(
+            "abre la calculadora",
+            stt_metadata=None,
+            messages=[
+                {
+                    "protocol_version": 1,
+                    "type": "confirm_request",
+                    "tool_name": "open_app",
+                }
+            ],
+        )
+        self.assertEqual(store.snapshot()["status"], "confirmation_required")
+
+        store.update_from_messages(
+            [
+                {
+                    "protocol_version": 1,
+                    "type": "tool_result",
+                    "tool_name": "open_app",
+                    "success": True,
+                }
+            ]
+        )
+
+        result = store.snapshot()
+        self.assertEqual(result["status"], "completed")
+        self.assertTrue(result["recognized"])
+
     def test_marks_unknown_command_and_expires_without_persistence(self):
         now = [20.0]
         store = VoiceDiagnosticStore(ttl_seconds=10, clock=lambda: now[0])

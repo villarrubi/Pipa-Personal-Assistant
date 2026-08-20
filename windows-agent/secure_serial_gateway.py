@@ -284,6 +284,10 @@ class SecureSerialGateway(SerialGateway):
                     else:
                         responses = secure_core.process_frame(payload)
                         self._update_voice_ready(secure_core)
+                        if secure_core.last_message_type == "confirm":
+                            self._voice_diagnostic_store.update_from_messages(
+                                secure_core.last_core_responses
+                            )
                         if secure_core.last_message_type == "hold_start":
                             if audio_runtime is None:
                                 raise AudioFrameError("secure audio is disabled")

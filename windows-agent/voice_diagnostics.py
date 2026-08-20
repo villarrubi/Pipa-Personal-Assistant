@@ -63,18 +63,28 @@ def _safe_stt_metadata(value: Mapping[str, object] | None) -> dict[str, object]:
 def _classify_messages(messages: Sequence[Mapping[str, object]]) -> tuple[str, str | None, str | None]:
     tool_name = None
     error_code = None
+    confirmation_required = False
+    tool_result_success: bool | None = None
     for message in messages:
         message_type = message.get("type")
         if message_type in {"confirm_request", "tool_result"} and isinstance(
             message.get("tool_name"), str
         ):
             tool_name = str(message["tool_name"])
+        if message_type == "confirm_request":
+            confirmation_required = True
+        if message_type == "tool_result" and isinstance(message.get("success"), bool):
+            tool_result_success = bool(message["success"])
         if message_type == "error" and isinstance(message.get("code"), str):
             error_code = str(message["code"])
     if error_code == "unsupported_text_intent":
         return "unrecognized", tool_name, error_code
     if error_code is not None:
         return "error", tool_name, error_code
+    if tool_result_success is not None:
+        return ("completed" if tool_result_success else "failed"), tool_name, None
+    if confirmation_required:
+        return "confirmation_required", tool_name, None
     if tool_name is not None:
         return "recognized", tool_name, None
     return "captured", None, None
@@ -110,7 +120,7 @@ class VoiceDiagnosticStore:
             "transcript": bounded,
             "transcript_truncated": truncated,
             "status": status,
-            "recognized": status == "recognized",
+            "recognized": status in {"recognized", "confirmation_required", "completed", "failed"},
             "stt": _safe_stt_metadata(stt_metadata),
         }
         if tool_name is not None:
@@ -119,6 +129,30 @@ class VoiceDiagnosticStore:
             record["error_code"] = error_code
         with self._lock:
             self._record = record
+
+    def update_from_messages(self, messages: Sequence[Mapping[str, object]]) -> None:
+        """Attach the result of a later physical confirmation to the capture."""
+
+        status, tool_name, error_code = _classify_messages(messages)
+        if status == "captured":
+            return
+        with self._lock:
+            if self._record is None:
+                return
+            if self._clock() - float(self._record["recorded_at"]) > self.ttl_seconds:
+                self._record = None
+                return
+            self._record["status"] = status
+            self._record["recognized"] = bool(
+                self._record.get("recognized")
+                or status in {"recognized", "confirmation_required", "completed", "failed"}
+            )
+            if tool_name is not None:
+                self._record["tool_name"] = tool_name
+            if error_code is None:
+                self._record.pop("error_code", None)
+            else:
+                self._record["error_code"] = error_code
 
     def snapshot(self) -> dict[str, object]:
         with self._lock:
@@ -135,4 +169,3 @@ class VoiceDiagnosticStore:
         record["age_ms"] = int(age_seconds * 1000)
         record["retention_seconds"] = int(self.ttl_seconds)
         return record
-

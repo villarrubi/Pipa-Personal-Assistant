@@ -48,6 +48,7 @@ class SecureCoreConnection:
         self._device_public_key = None
         self._protocol_errors = 0
         self._last_message_type: str | None = None
+        self._last_core_responses: list[dict[str, Any]] = []
 
     @property
     def authenticated(self) -> bool:
@@ -69,6 +70,10 @@ class SecureCoreConnection:
     @property
     def last_message_type(self) -> str | None:
         return self._last_message_type
+
+    @property
+    def last_core_responses(self) -> list[dict[str, Any]]:
+        return [dict(response) for response in self._last_core_responses]
 
     def device_is_trusted(self) -> bool:
         """Return whether this session's paired key is still current."""
@@ -112,6 +117,7 @@ class SecureCoreConnection:
         channel = self._channel
         session_id = self._core_session_id
         self._last_message_type = None
+        self._last_core_responses = []
         if channel is None or session_id is None:
             raise SecureCoreConnectionError("secure Core connection is not authenticated")
         if not self.device_is_trusted():
@@ -126,7 +132,9 @@ class SecureCoreConnection:
             message = parse_client_message(payload)
         except ProtocolError:
             self._protocol_errors += 1
-            response = channel.seal_message(server_message("error", code="protocol_error"))
+            core_response = server_message("error", code="protocol_error")
+            self._last_core_responses = [core_response]
+            response = channel.seal_message(core_response)
             if self._protocol_errors >= MAX_SECURE_PROTOCOL_ERRORS:
                 self.close()
             return [response]
@@ -134,6 +142,7 @@ class SecureCoreConnection:
         self._protocol_errors = 0
         self._last_message_type = message.type
         responses = self.core.handle(session_id, message)
+        self._last_core_responses = [dict(response) for response in responses]
         return [channel.seal_message(response) for response in responses]
 
     def seal_messages(self, messages: list[dict[str, Any]]) -> list[dict[str, object]]:
@@ -155,3 +164,4 @@ class SecureCoreConnection:
         self._device_public_key = None
         self._protocol_errors = 0
         self._last_message_type = None
+        self._last_core_responses = []

@@ -280,6 +280,20 @@ class IntegrationIntentTests(unittest.TestCase):
         self.assertEqual(intent.tool_name, "open_app")
         self.assertEqual(intent.arguments, {"name": "calculadora"})
 
+    def test_catalog_app_argument_discards_terminal_dictation_punctuation(self):
+        commands = [
+            {
+                "phrase": "abre una aplicación configurada <nombre>",
+                "tool_name": "open_app",
+                "parameters": [{"name": "app", "kind": "app", "max_length": 80}],
+            }
+        ]
+
+        intent = parse_catalog_intent("abre una aplicación configurada calculadora.", commands)
+
+        self.assertIsNotNone(intent)
+        self.assertEqual(intent.arguments, {"app": "calculadora"})
+
     def test_voice_recovery_accepts_minor_asr_errors_for_read_only_status(self):
         for phrase in (
             "estado del ordenado",
@@ -291,6 +305,33 @@ class IntegrationIntentTests(unittest.TestCase):
                 self.assertIsNotNone(intent)
                 self.assertEqual(intent.tool_name, "system_status")
                 self.assertEqual(intent.arguments, {})
+
+    def test_voice_requests_accept_polite_fillers_articles_and_dictation_punctuation(self):
+        for phrase in (
+            "Abre la calculadora.",
+            "¿Podrías abrirme la calculadora, por favor?",
+            "Pipa, quiero que abras la calculadora.",
+        ):
+            with self.subTest(phrase=phrase):
+                intent = parse_voice_intent(phrase)
+                self.assertIsNotNone(intent)
+                self.assertEqual(intent.tool_name, "open_app")
+                self.assertEqual(intent.arguments, {"app": "calculadora"})
+
+    def test_voice_recovery_can_match_a_high_confidence_fixed_catalog_phrase(self):
+        commands = [
+            {
+                "phrase": "lista los temporizadores",
+                "tool_name": "timer_list",
+                "parameters": [],
+            }
+        ]
+
+        intent = parse_voice_intent("lista los temporizadore", commands)
+
+        self.assertIsNotNone(intent)
+        self.assertEqual(intent.tool_name, "timer_list")
+        self.assertEqual(intent.arguments, {})
 
     def test_voice_recovery_does_not_guess_external_or_ambiguous_commands(self):
         self.assertIsNone(parse_voice_intent("apaga el ordenado"))

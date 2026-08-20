@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import tools.system as system  # noqa: E402
 from tools.apps import (  # noqa: E402
     MAX_CONFIG_FILE_BYTES,
+    find_app,
     load_apps,
     open_app,
     resolve_launcher,
@@ -153,6 +154,25 @@ class AppsAndUrlsTests(unittest.TestCase):
         if sys.platform == "win32":
             self.assertIn("creationflags", popen.call_args.kwargs)
             self.assertEqual(popen.call_args.kwargs["cwd"], r"C:\Windows\System32")
+
+    @patch("tools.apps.load_apps")
+    def test_app_lookup_accepts_articles_punctuation_and_small_asr_errors(self, load_apps):
+        calculator = {"aliases": ["calculator", "calculadora"], "command": ["calc.exe"]}
+        chrome = {"aliases": ["chrome", "google chrome"], "command": ["chrome.exe"]}
+        load_apps.return_value = {"calculator": calculator, "chrome": chrome}
+
+        self.assertEqual(find_app("la calculadora.")[0], "calculator")
+        self.assertEqual(find_app("calculador")[0], "calculator")
+        self.assertEqual(find_app("google crhome")[0], "chrome")
+
+    @patch("tools.apps.load_apps")
+    def test_fuzzy_app_lookup_fails_closed_when_the_best_match_is_ambiguous(self, load_apps):
+        load_apps.return_value = {
+            "alpha": {"aliases": ["alpha"], "command": ["alpha.exe"]},
+            "alphi": {"aliases": ["alphi"], "command": ["alphi.exe"]},
+        }
+
+        self.assertEqual(find_app("alph"), (None, None))
 
     def test_http_urls_are_allowed(self):
         self.assertEqual(

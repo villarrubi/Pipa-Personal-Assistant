@@ -112,7 +112,15 @@ async function loadVoiceDiagnostic() {
     }
     const recognized = data.recognized === true;
     card.classList.add(recognized ? "recognized" : "unrecognized");
-    status.textContent = recognized ? "Comando reconocido" : "No reconocido";
+    const statusLabels = {
+      recognized: "Comando reconocido",
+      confirmation_required: "Esperando confirmación",
+      completed: "Acción completada",
+      failed: "La acción falló",
+      error: "Error al ejecutar",
+      unrecognized: "No reconocido",
+    };
+    status.textContent = statusLabels[data.status] || (recognized ? "Comando reconocido" : "No reconocido");
     transcript.textContent = `“${data.transcript}”`;
     const stt = data.stt || {};
     const pieces = [];

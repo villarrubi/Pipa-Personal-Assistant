@@ -749,8 +749,12 @@ de una API externa.
 Para hablar, toca una vez la pantalla, di la frase y toca otra vez. La escucha
 termina automáticamente a los ocho segundos. Si la frase pide una acción
 externa, Pipa muestra su resumen y exige un toque adicional de confirmación.
-Los pequeños errores de dictado solo tienen recuperación aproximada en
-consultas fijas y de solo lectura; las acciones externas no se adivinan.
+El adaptador de voz elimina artículos, fórmulas de cortesía y puntuación de
+dictado, y compara de forma aproximada las frases fijas del catálogo y los
+alias de aplicaciones. Solo acepta una coincidencia con puntuación alta y
+ventaja clara frente a la segunda opción. Una acción externa recuperada de
+esta forma conserva exactamente la misma confirmación táctil que la frase
+literal; una coincidencia ambigua se rechaza.
 
 ## Móvil por TCP v2
 

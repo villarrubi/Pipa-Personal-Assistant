@@ -54,6 +54,12 @@ def _strip_optional_wake_name(value: str) -> str:
     return re.sub(r"^pipa(?:\s*[,;:]\s*|\s+)", "", value, count=1, flags=re.IGNORECASE).strip()
 
 
+def _clean_spoken_argument(value: str) -> str:
+    """Remove dictation punctuation around a dynamic command argument."""
+
+    return value.strip().strip(" \t\r\n¿¡!?.,;:\"“”").strip()
+
+
 def _clean_music_term(value: str) -> str:
     """Remove only the natural-language connector before a music query."""
 
@@ -135,6 +141,8 @@ def _catalog_value(value: str, parameter: Mapping[str, Any]) -> object | None:
     value = value.strip()
     maximum = parameter.get("max_length")
     kind = parameter.get("kind")
+    if kind == "app":
+        value = _clean_spoken_argument(value)
     options = parameter.get("options", [])
     if (
         not value
@@ -330,7 +338,9 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         flags=re.IGNORECASE,
     )
     if configured_app:
-        return ParsedIntent("open_app", {"app": configured_app.group(1).strip()})
+        app = _clean_spoken_argument(configured_app.group(1))
+        if app:
+            return ParsedIntent("open_app", {"app": app})
 
     whatsapp_compose = re.fullmatch(
         r"(?:prepara|abre|escribe en|manda|env[ií]a)(?: un)? whatsapp "
@@ -950,53 +960,112 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         flags=re.IGNORECASE,
     )
     if configured_process:
-        return ParsedIntent("open_app", {"app": configured_process.group(1).strip()})
+        app = _clean_spoken_argument(configured_process.group(1))
+        if app:
+            return ParsedIntent("open_app", {"app": app})
 
     return None
 
 
-_SAFE_VOICE_RECOVERY_PHRASES: tuple[tuple[str, str], ...] = (
-    ("estado del ordenador", "system_status"),
-    ("estado de mi ordenador", "system_status"),
-    ("estado del pc", "system_status"),
-    ("como esta mi ordenador", "system_status"),
-    ("estado de integraciones", "integration_status"),
-    ("estado de las integraciones", "integration_status"),
-    ("estado de bateria", "system_power"),
-    ("nivel de bateria", "system_power"),
-    ("estado de la red", "system_network"),
-    ("estado de internet", "system_network"),
+_VOICE_RECOVERY_EXAMPLES: tuple[tuple[str, str, Mapping[str, object]], ...] = (
+    ("estado del ordenador", "system_status", {}),
+    ("estado de mi ordenador", "system_status", {}),
+    ("estado del pc", "system_status", {}),
+    ("como esta mi ordenador", "system_status", {}),
+    ("estado de integraciones", "integration_status", {}),
+    ("estado de las integraciones", "integration_status", {}),
+    ("estado de bateria", "system_power", {}),
+    ("nivel de bateria", "system_power", {}),
+    ("estado de la red", "system_network", {}),
+    ("estado de internet", "system_network", {}),
 )
-_MIN_VOICE_RECOVERY_SCORE = 0.86
+_MIN_VOICE_RECOVERY_SCORE = 0.88
 _MIN_VOICE_RECOVERY_MARGIN = 0.08
 
 
-def parse_voice_intent(text: str) -> ParsedIntent | None:
-    """Recover small ASR errors only for fixed, read-only status commands."""
+def _clean_voice_request(text: str) -> str:
+    """Reduce polite/filler speech to the deterministic command grammar."""
+
+    normalized = _fold_phrase(_strip_optional_wake_name(" ".join(text.strip().split())))
+    normalized = re.sub(r"^(?:oye|hola|eh)\s+", "", normalized)
+    normalized = re.sub(r"^por favor\s+", "", normalized)
+    normalized = re.sub(r"^(?:por favor\s+)?(?:me\s+)?(?:puedes|podrias)\s+", "", normalized)
+    normalized = re.sub(r"^(?:quiero|necesito)(?:\s+que)?\s+", "", normalized)
+    normalized = re.sub(
+        r"^(?:me\s+)?(?:abres|abras|abreme|abrirme|arranca|arrancar)\s+",
+        "abre ",
+        normalized,
+    )
+    normalized = re.sub(
+        r"^(?:dime|muestra|consulta)\s+(?:(?:cual|como)\s+es\s+)?(?:el\s+)?",
+        "",
+        normalized,
+    )
+    return re.sub(r"\s+(?:por favor|gracias)$", "", normalized).strip()
+
+
+def _fixed_catalog_voice_examples(
+    commands: Sequence[Mapping[str, Any]] | None,
+) -> list[tuple[str, str, Mapping[str, object]]]:
+    """Return only fixed catalog phrases whose arguments need no inference."""
+
+    examples = list(_VOICE_RECOVERY_EXAMPLES)
+    if commands is None:
+        return examples
+    for command in commands:
+        phrase = command.get("phrase")
+        tool_name = command.get("tool_name")
+        parameters = command.get("parameters", [])
+        default_arguments = command.get("default_arguments")
+        if (
+            not isinstance(phrase, str)
+            or not isinstance(tool_name, str)
+            or not isinstance(parameters, list)
+            or parameters
+            or "<" in phrase
+            or ">" in phrase
+        ):
+            continue
+        if default_arguments is None:
+            arguments: Mapping[str, object] = {}
+        elif isinstance(default_arguments, Mapping):
+            arguments = default_arguments
+        else:
+            continue
+        examples.append((_fold_phrase(phrase), tool_name, arguments))
+    return examples
+
+
+def parse_voice_intent(
+    text: str,
+    commands: Sequence[Mapping[str, Any]] | None = None,
+) -> ParsedIntent | None:
+    """Resolve natural speech locally, with bounded high-confidence recovery."""
 
     exact = parse_text_intent(text)
     if exact is not None:
         return exact
 
-    normalized = _fold_phrase(_strip_optional_wake_name(" ".join(text.strip().split())))
-    normalized = re.sub(r"^(?:oye|hola)\s+", "", normalized)
-    normalized = re.sub(r"^(?:dime|muestra|consulta)\s+(?:(?:cual|como)\s+es\s+)?(?:el\s+)?", "", normalized)
-    normalized = re.sub(r"\s+(?:por favor|gracias)$", "", normalized).strip()
-    if not 8 <= len(normalized) <= 80:
+    normalized = _clean_voice_request(text)
+    if not 4 <= len(normalized) <= 120:
         return None
 
     cleaned_exact = parse_text_intent(normalized)
     if cleaned_exact is not None:
         return cleaned_exact
 
-    scores: dict[str, float] = {}
-    for phrase, tool_name in _SAFE_VOICE_RECOVERY_PHRASES:
+    scores: dict[tuple[str, tuple[tuple[str, str], ...]], float] = {}
+    payloads: dict[tuple[str, tuple[tuple[str, str], ...]], dict[str, object]] = {}
+    for phrase, tool_name, arguments in _fixed_catalog_voice_examples(commands):
         score = SequenceMatcher(None, normalized, phrase, autojunk=False).ratio()
-        scores[tool_name] = max(scores.get(tool_name, 0.0), score)
+        key = (tool_name, tuple(sorted((str(name), repr(value)) for name, value in arguments.items())))
+        scores[key] = max(scores.get(key, 0.0), score)
+        payloads[key] = dict(arguments)
     ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
     if not ranked or ranked[0][1] < _MIN_VOICE_RECOVERY_SCORE:
         return None
     runner_up = ranked[1][1] if len(ranked) > 1 else 0.0
     if ranked[0][1] - runner_up < _MIN_VOICE_RECOVERY_MARGIN:
         return None
-    return ParsedIntent(ranked[0][0], {})
+    (tool_name, argument_key), _score = ranked[0]
+    return ParsedIntent(tool_name, payloads[(tool_name, argument_key)])

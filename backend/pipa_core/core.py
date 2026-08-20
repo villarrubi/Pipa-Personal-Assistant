@@ -506,7 +506,11 @@ class PipaCore:
 
         intent = parse_catalog_intent(bounded, catalog_commands) if catalog_commands is not None else None
         if intent is None:
-            intent = parse_voice_intent(bounded) if voice else parse_text_intent(bounded)
+            intent = (
+                parse_voice_intent(bounded, catalog_commands)
+                if voice
+                else parse_text_intent(bounded)
+            )
         if self.command_catalog_authoritative and catalog_commands is not None and intent is not None:
             enabled_tools = {command.get("tool_name") for command in catalog_commands}
             if intent.tool_name not in enabled_tools:

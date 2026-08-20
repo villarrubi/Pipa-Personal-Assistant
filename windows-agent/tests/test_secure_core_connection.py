@@ -48,6 +48,7 @@ class SecureCoreConnectionTests(unittest.TestCase):
         responses = [client_channel.open_message(frame) for frame in frames]
 
         self.assertEqual(responses, [{"protocol_version": 1, "type": "pong", "request_id": "round-trip"}])
+        self.assertEqual(connection.last_core_responses, responses)
         self.assertEqual(core.sessions.count(), 1)
         connection.close()
         self.assertEqual(core.sessions.count(), 0)
@@ -77,6 +78,7 @@ class SecureCoreConnectionTests(unittest.TestCase):
             client_channel.seal_message({"protocol_version": 1, "type": "unknown"})
         )
         self.assertEqual(client_channel.open_message(frames[0])["code"], "protocol_error")
+        self.assertEqual(connection.last_core_responses[0]["code"], "protocol_error")
         connection.close()
 
     def test_secure_session_announces_capabilities_before_external_confirmation(self):

@@ -1,9 +1,11 @@
 import json
 import os
+import re
 import shutil
 import subprocess  # nosec B404
 import tempfile
 import unicodedata
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 
@@ -81,6 +83,8 @@ _BLOCKED_SHELL_SWITCHES = frozenset({"/c", "/k", "-command", "-encodedcommand", 
 _BLOCKED_SCRIPT_SUFFIXES = frozenset(
     {".bat", ".cmd", ".hta", ".js", ".jse", ".ps1", ".psm1", ".sh", ".vbe", ".vbs", ".wsh", ".wsf"}
 )
+_MIN_FUZZY_APP_SCORE = 0.86
+_MIN_FUZZY_APP_MARGIN = 0.08
 
 
 def _is_forbidden_label_character(character: str) -> bool:
@@ -264,17 +268,43 @@ def save_apps(apps: Any) -> dict[str, dict[str, Any]]:
     return validated
 
 
+def _normalized_app_label(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.casefold())
+    folded = "".join(character for character in decomposed if not unicodedata.combining(character))
+    folded = " ".join(
+        "".join(character if character.isalnum() else " " for character in folded).split()
+    )
+    return re.sub(r"^(?:el|la|los|las|un|una)\s+", "", folded)
+
+
 def find_app(app_name: str) -> tuple[str | None, dict[str, Any] | None]:
-    app_name = app_name.lower().strip()
+    query = _normalized_app_label(app_name)
+    if not query:
+        return None, None
     apps = load_apps()
 
     for app_id, app_data in apps.items():
-        aliases = [alias.lower() for alias in app_data["aliases"]]
-
-        if app_name == app_id.lower() or app_name in aliases:
+        labels = [app_id, *app_data["aliases"]]
+        if any(query == _normalized_app_label(label) for label in labels):
             return app_id, app_data
 
-    return None, None
+    if len(query) < 4:
+        return None, None
+    scores: dict[str, float] = {}
+    for app_id, app_data in apps.items():
+        scores[app_id] = max(
+            SequenceMatcher(None, query, _normalized_app_label(label), autojunk=False).ratio()
+            for label in [app_id, *app_data["aliases"]]
+        )
+    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    if not ranked or ranked[0][1] < _MIN_FUZZY_APP_SCORE:
+        return None, None
+    runner_up = ranked[1][1] if len(ranked) > 1 else 0.0
+    if ranked[0][1] - runner_up < _MIN_FUZZY_APP_MARGIN:
+        return None, None
+    app_id = ranked[0][0]
+    return app_id, apps[app_id]
+
 
 
 def open_app(app_name: str):
