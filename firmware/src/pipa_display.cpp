@@ -27,6 +27,7 @@ constexpr uint16_t kRed = 0xF800;
 constexpr uint16_t kGreen = 0x07E0;
 constexpr uint16_t kPurple = 0xA81F;
 constexpr uint16_t kSlate = 0x39C7;
+constexpr uint16_t kFace = 0xFFE0;
 constexpr uint8_t kTextScale = 3;
 
 static const st77916_lcd_init_cmd_t vendor_specific_init_new[] = {
@@ -395,19 +396,46 @@ void PipaDisplay::drawRow(
 
   const int32_t center = kWidth / 2;
   const int32_t dy = static_cast<int32_t>(y) - center;
-  const int32_t outer_radius = 142;
-  const int32_t inner_radius = 128;
-  const int32_t distance = dy * dy;
-  for (uint16_t x = 0; x < kWidth; ++x) {
-    const int32_t dx = static_cast<int32_t>(x) - center;
-    const int32_t squared = dx * dx + distance;
-    if (squared <= outer_radius * outer_radius && squared >= inner_radius * inner_radius) {
-      row_buffer[x] = accent;
+  const bool idle_face = strcmp(label, "IDLE") == 0 && confirmation_line_one[0] == '\0';
+  if (idle_face) {
+    constexpr int32_t kFaceRadius = 112;
+    constexpr int32_t kEyeRadius = 9;
+    constexpr int32_t kEyeY = 148;
+    const int32_t distance = dy * dy;
+    for (uint16_t x = 0; x < kWidth; ++x) {
+      const int32_t dx = static_cast<int32_t>(x) - center;
+      const int32_t squared = dx * dx + distance;
+      if (squared <= kFaceRadius * kFaceRadius) row_buffer[x] = kFace;
+
+      const int32_t left_eye_dx = static_cast<int32_t>(x) - 142;
+      const int32_t right_eye_dx = static_cast<int32_t>(x) - 218;
+      const int32_t eye_dy = static_cast<int32_t>(y) - kEyeY;
+      if ((left_eye_dx * left_eye_dx + eye_dy * eye_dy <= kEyeRadius * kEyeRadius) ||
+          (right_eye_dx * right_eye_dx + eye_dy * eye_dy <= kEyeRadius * kEyeRadius)) {
+        row_buffer[x] = kBlack;
+      }
+
+      if (dx >= -55 && dx <= 55) {
+        const int32_t mouth_y = 232 - (dx * dx) / 120;
+        const int32_t mouth_delta = static_cast<int32_t>(y) - mouth_y;
+        if (mouth_delta >= -3 && mouth_delta <= 3) row_buffer[x] = kBlack;
+      }
+    }
+  } else {
+    const int32_t outer_radius = 142;
+    const int32_t inner_radius = 128;
+    const int32_t distance = dy * dy;
+    for (uint16_t x = 0; x < kWidth; ++x) {
+      const int32_t dx = static_cast<int32_t>(x) - center;
+      const int32_t squared = dx * dx + distance;
+      if (squared <= outer_radius * outer_radius && squared >= inner_radius * inner_radius) {
+        row_buffer[x] = accent;
+      }
     }
   }
 
   const uint16_t text_y = 142;
-  if (y >= text_y && y < text_y + 7 * kTextScale) {
+  if (!idle_face && y >= text_y && y < text_y + 7 * kTextScale) {
     drawTextAt(row_buffer, y, text_y, label, kWhite, kTextScale);
   }
   if (strcmp(label, "CONFIRM") == 0) {

@@ -253,6 +253,7 @@ class PipaCore:
         command_catalog: Callable[[], list[dict[str, Any]]] | None = None,
         capability_catalog: Callable[[], dict[str, dict[str, Any]]] | None = None,
         command_catalog_authoritative: bool = False,
+        voice_auto_confirm: bool = False,
     ) -> None:
         self.verifier = verifier
         self.router = router
@@ -261,6 +262,7 @@ class PipaCore:
         self.command_catalog = command_catalog
         self.capability_catalog = capability_catalog
         self.command_catalog_authoritative = command_catalog_authoritative
+        self.voice_auto_confirm = bool(voice_auto_confirm)
 
     def create_challenge(self, device_id: str):
         return self.verifier.create_challenge(device_id, operation="session")
@@ -525,7 +527,12 @@ class PipaCore:
                 ),
                 session.ui_message(),
             ]
-        return self._run_tool(session, intent.tool_name, intent.arguments)
+        return self._run_tool(
+            session,
+            intent.tool_name,
+            intent.arguments,
+            auto_confirm=voice and self.voice_auto_confirm,
+        )
 
     def _catalog_response(self) -> list[dict[str, Any]]:
         """Return only bounded, UI-safe command metadata over an authenticated session."""
@@ -610,6 +617,7 @@ class PipaCore:
         *,
         call_id: str | None = None,
         request_digest: str | None = None,
+        auto_confirm: bool = False,
     ) -> list[dict[str, Any]]:
         session.set_state("thinking")
         if tool_name == "remember_fact":
@@ -658,6 +666,7 @@ class PipaCore:
                 owner_id=session.session_id,
                 call_id=call_id,
                 request_digest=request_digest,
+                auto_confirm=auto_confirm,
             )
         except (KeyError, ValueError, ConfirmationError):
             session.set_state("idle", caption="No he podido ejecutar esa acción.")

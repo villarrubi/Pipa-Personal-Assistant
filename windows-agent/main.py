@@ -132,6 +132,12 @@ def _serial_gateway_is_connected() -> bool:
     return bool(_serial_gateway and _serial_gateway.connected)
 
 
+def _voice_auto_confirm_enabled() -> bool:
+    """Read the explicit hands-free voice setting from the user environment."""
+
+    return os.environ.get("PIPA_VOICE_AUTO_CONFIRM", "0").strip() == "1"
+
+
 def _mobile_transport_mode() -> str:
     return os.environ.get("PIPA_MOBILE_TRANSPORT", "").strip().lower() or "disabled"
 
@@ -397,6 +403,7 @@ def _build_pipa_core() -> PipaCore:
         command_catalog=get_command_catalog,
         capability_catalog=get_mobile_capabilities,
         command_catalog_authoritative=True,
+        voice_auto_confirm=_voice_auto_confirm_enabled(),
     )
 
 
@@ -906,6 +913,7 @@ def api_pipa_protocol():
         "serial_gateway_security": _serial_security_mode(),
         "voice_enabled": bool(_serial_gateway and _serial_gateway.voice_enabled),
         "voice_ready": bool(_serial_gateway and _serial_gateway.voice_ready),
+        "voice_auto_confirm": pipa_core.voice_auto_confirm,
         "mobile_transport": _mobile_transport_mode(),
         "mobile_gateway_configured": _mobile_gateway_is_configured(),
         "mobile_gateway_running": _mobile_gateway_is_running(),

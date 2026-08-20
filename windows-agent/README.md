@@ -746,9 +746,17 @@ llegó a una herramienta. Antes de Whisper, el agente elimina el componente DC
 y normaliza de forma acotada el nivel para compensar voces bajas sin depender
 de una API externa.
 
+Para usar Pipa en modo manos libres, configura `PIPA_VOICE_AUTO_CONFIRM=1` en
+las variables de usuario y reinicia el agente. Solo afecta a órdenes recibidas
+por voz: las acciones que normalmente piden confirmación se ejecutan después
+de la captura, mientras que las peticiones escritas y las APIs mantienen sus
+controles habituales. Este modo debe usarse únicamente cuando el entorno
+físico sea de confianza.
+
 Para hablar, toca una vez la pantalla, di la frase y toca otra vez. La escucha
 termina automáticamente a los ocho segundos. Si la frase pide una acción
-externa, Pipa muestra su resumen y exige un toque adicional de confirmación.
+externa y el modo manos libres está desactivado, Pipa muestra su resumen y
+exige un toque adicional de confirmación.
 El adaptador de voz elimina artículos, fórmulas de cortesía y puntuación de
 dictado, y compara de forma aproximada las frases fijas del catálogo y los
 alias de aplicaciones. Solo acepta una coincidencia con puntuación alta y

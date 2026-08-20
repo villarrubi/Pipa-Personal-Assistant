@@ -685,6 +685,26 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(result["result"], {"success": True})
         self.assertEqual(executed, [{"resolved": "bound"}])
 
+    def test_router_can_auto_confirm_a_voice_action_when_explicitly_enabled(self):
+        executed = []
+        catalog = ToolCatalog(
+            [
+                ToolDefinition(
+                    "snapshot",
+                    lambda arguments: executed.append(arguments) or {"success": True},
+                    safety="unsafe",
+                    confirm_summary=lambda _arguments: "Preparar acción",
+                    confirmation_preparer=lambda _arguments: {"resolved": "bound"},
+                )
+            ]
+        )
+        router = ToolRouter(catalog)
+
+        result = router.invoke("snapshot", {}, owner_id="device-a", auto_confirm=True)
+
+        self.assertEqual(result["result"], {"success": True})
+        self.assertEqual(executed, [{"resolved": "bound"}])
+
     def test_confirmation_manager_rejects_empty_summary_and_has_a_pending_cap(self):
         manager = ConfirmationManager()
         with self.assertRaises(ConfirmationError):

@@ -99,6 +99,7 @@ class MainRouteTests(unittest.TestCase):
         self.assertEqual(response["serial_gateway_security"], "v2")
         self.assertFalse(response["voice_enabled"])
         self.assertFalse(response["voice_ready"])
+        self.assertFalse(response["voice_auto_confirm"])
 
     def test_voice_diagnostics_are_read_only_and_delegate_to_the_gateway(self):
         gateway = SimpleNamespace(

@@ -78,6 +78,7 @@ class ToolRouter:
         owner_id: str | None = None,
         call_id: str | None = None,
         request_digest: str | None = None,
+        auto_confirm: bool = False,
     ) -> dict[str, Any]:
         definition = self.catalog.get(name)
         values = definition.validate_arguments(arguments)
@@ -92,6 +93,11 @@ class ToolRouter:
                 if not isinstance(prepared, Mapping):
                     raise ConfirmationError("confirmation execution arguments are invalid")
                 execution_arguments = dict(prepared)
+            if auto_confirm:
+                return self._execute(
+                    definition,
+                    execution_arguments if execution_arguments is not None else values,
+                )
             pending = self.confirmations.create(
                 name,
                 values,
