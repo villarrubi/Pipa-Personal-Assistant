@@ -57,7 +57,7 @@ def _strip_optional_wake_name(value: str) -> str:
 def _clean_spoken_argument(value: str) -> str:
     """Remove dictation punctuation around a dynamic command argument."""
 
-    return value.strip().strip(" \t\r\n¿¡!?.,;:\"“”").strip()
+    return value.strip().strip(' \t\r\n¿¡!?.,;:"“”').strip()
 
 
 def _clean_music_term(value: str) -> str:
@@ -304,6 +304,15 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent("audio_unmute", {})
     if normalized in {"bloquea el pc", "bloquea el ordenador", "bloquear el pc"}:
         return ParsedIntent("system_lock", {})
+    if normalized in {
+        "suspende el pc",
+        "suspende el ordenador",
+        "suspender el pc",
+        "suspender el ordenador",
+        "pon el pc en suspension",
+        "pon el ordenador en suspension",
+    }:
+        return ParsedIntent("system_sleep", {})
     if normalized in {"abre discord", "abrir discord"}:
         return ParsedIntent("discord_open_app", {})
     if normalized in {"llama a discord", "llamar a discord"}:
@@ -977,6 +986,8 @@ _VOICE_RECOVERY_EXAMPLES: tuple[tuple[str, str, Mapping[str, object]], ...] = (
     ("estado de las integraciones", "integration_status", {}),
     ("estado de bateria", "system_power", {}),
     ("nivel de bateria", "system_power", {}),
+    ("suspende el ordenador", "system_sleep", {}),
+    ("pon el pc en suspension", "system_sleep", {}),
     ("estado de la red", "system_network", {}),
     ("estado de internet", "system_network", {}),
 )

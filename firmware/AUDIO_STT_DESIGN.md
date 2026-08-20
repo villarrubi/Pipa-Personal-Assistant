@@ -108,6 +108,16 @@ transcripción final pasa por el mismo parser, catálogo y barreras de ejecució
 que el texto. El punto verde de la cara indica monitorización local; la
 pantalla `LISTEN` aparece antes de que cualquier PCM salga cifrado por USB.
 
+### Suspensión del PC
+
+Tras 15 segundos sin respuestas autenticadas, la variante manos libres da por
+ausente al agente. Si hay Wi-Fi y detecta una intervención, envía Wake-on-LAN
+y guarda como máximo 32,768 segundos de PCM en PSRAM volátil. Al volver USB v2,
+el bloque entra por el mismo receptor autenticado y se sobrescribe
+progresivamente. Nunca se envía audio por UDP ni se escribe en NVS o flash. El
+ESP32 solo detecta actividad, no palabras: un falso positivo puede despertar
+Windows, aunque la frase obligatoria evita que ejecute órdenes.
+
 ## Ruta implementada
 
 1. Se identifica la revisión V2 y se inicializan pantalla, touch e I²C.

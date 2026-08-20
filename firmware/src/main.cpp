@@ -20,6 +20,10 @@
 #include "pipa_power.h"
 #include "wake_on_lan.h"
 
+#if PIPA_ALWAYS_LISTENING_ENABLED
+#include <esp_heap_caps.h>
+#endif
+
 #if PIPA_AUDIO_CAPTURE_ENABLED && !PIPA_SECURE_SESSION_ENABLED
 #error "Microphone capture requires the encrypted secure-session-v2 transport."
 #endif
@@ -47,6 +51,7 @@ constexpr size_t kAudioChunkBytes = 4096;
 constexpr uint16_t kMaxAudioChunks = 256;
 constexpr uint32_t kMaxCaptureMs = 30000;
 constexpr uint8_t kPreRollChunks = 3;
+constexpr size_t kDeferredAudioBytes = kMaxAudioChunks * kAudioChunkBytes;
 #else
 constexpr uint16_t kMaxAudioChunks = 64;
 constexpr uint32_t kMaxCaptureMs = 8000;
@@ -92,6 +97,13 @@ uint8_t pre_roll[kPreRollChunks][kAudioChunkBytes] = {};
 size_t pre_roll_lengths[kPreRollChunks] = {};
 uint8_t pre_roll_next = 0;
 uint8_t pre_roll_count = 0;
+uint8_t* deferred_audio = nullptr;
+size_t deferred_audio_length = 0;
+size_t deferred_upload_offset = 0;
+uint32_t deferred_capture_started_at = 0;
+bool deferred_capture_active = false;
+bool deferred_capture_ready = false;
+bool deferred_upload_pending = false;
 #endif
 #endif
 
@@ -201,6 +213,43 @@ void rememberPreRoll(const uint8_t* samples, size_t length) {
   if (pre_roll_count < kPreRollChunks) ++pre_roll_count;
 }
 
+void clearDeferredAudio() {
+  if (deferred_audio != nullptr && deferred_audio_length > 0) {
+    memset(deferred_audio, 0, deferred_audio_length);
+  }
+  deferred_audio_length = 0;
+  deferred_upload_offset = 0;
+  deferred_capture_started_at = 0;
+  deferred_capture_active = false;
+  deferred_capture_ready = false;
+  deferred_upload_pending = false;
+}
+
+bool appendDeferredAudio(const uint8_t* samples, size_t length) {
+  if (deferred_audio == nullptr || samples == nullptr || length == 0 ||
+      length % sizeof(int16_t) != 0 ||
+      deferred_audio_length + length > kDeferredAudioBytes) {
+    return false;
+  }
+  memcpy(deferred_audio + deferred_audio_length, samples, length);
+  deferred_audio_length += length;
+  return true;
+}
+
+bool movePreRollToDeferredAudio() {
+  const uint8_t first = static_cast<uint8_t>(
+      (pre_roll_next + kPreRollChunks - pre_roll_count) % kPreRollChunks);
+  for (uint8_t offset = 0; offset < pre_roll_count; ++offset) {
+    const uint8_t index = static_cast<uint8_t>((first + offset) % kPreRollChunks);
+    if (!appendDeferredAudio(pre_roll[index], pre_roll_lengths[index])) {
+      clearPreRoll();
+      return false;
+    }
+  }
+  clearPreRoll();
+  return deferred_audio_length > 0;
+}
+
 bool sendPreRoll() {
   const uint8_t first = static_cast<uint8_t>(
       (pre_roll_next + kPreRollChunks - pre_roll_count) % kPreRollChunks);
@@ -218,8 +267,37 @@ bool sendPreRoll() {
 }
 
 void maintainHandsFreeMonitor() {
+  if (deferred_capture_active) {
+    const size_t captured = audio.readMonitorMonoPcm(audio_chunk, sizeof(audio_chunk));
+    if (captured == 0) return;
+    const bool appended = appendDeferredAudio(audio_chunk, captured);
+    const auto event = voice_activity.process(
+        reinterpret_cast<const int16_t*>(audio_chunk), captured / sizeof(int16_t));
+    memset(audio_chunk, 0, sizeof(audio_chunk));
+    if (!appended || event == pipa::PipaVoiceActivityEvent::kSpeechEnded ||
+        millis() - deferred_capture_started_at >= kMaxCaptureMs) {
+      deferred_capture_active = false;
+      deferred_capture_ready = deferred_audio_length > 0;
+      deferred_capture_started_at = 0;
+      voice_activity.resetUtterance();
+      clearPreRoll();
+    }
+    return;
+  }
+
+  if (deferred_capture_ready) {
+    if (protocol.authenticated() && protocol.ui().state == "idle" && audio.canMonitor()) {
+      audio_start_pending = protocol.sendHoldStart();
+      deferred_upload_pending = audio_start_pending;
+      audio_stop_requested = false;
+    }
+    return;
+  }
+
   if (audio_start_pending || audio_stream_active) return;
-  if (!protocol.authenticated() || protocol.ui().state != "idle" || !audio.canMonitor()) {
+  if (!audio.canMonitor() ||
+      (protocol.authenticated() && protocol.ui().state != "idle") ||
+      (!protocol.authenticated() && WiFi.status() != WL_CONNECTED)) {
     voice_activity.resetUtterance();
     clearPreRoll();
     return;
@@ -230,12 +308,38 @@ void maintainHandsFreeMonitor() {
   const auto event = voice_activity.process(
       reinterpret_cast<const int16_t*>(audio_chunk), captured / sizeof(int16_t));
   if (event == pipa::PipaVoiceActivityEvent::kSpeechStarted) {
-    audio_start_pending = protocol.sendHoldStart();
-    audio_stop_requested = false;
-    if (!audio_start_pending) {
-      voice_activity.resetUtterance();
-      clearPreRoll();
+    if (protocol.authenticated()) {
+      audio_start_pending = protocol.sendHoldStart();
+      audio_stop_requested = false;
+      if (!audio_start_pending) {
+        voice_activity.resetUtterance();
+        clearPreRoll();
+      }
+    } else {
+      clearDeferredAudio();
+      if (movePreRollToDeferredAudio()) {
+        deferred_capture_active = true;
+        deferred_capture_started_at = millis();
+        maybeWakePc();
+      } else {
+        voice_activity.resetUtterance();
+      }
     }
+  }
+}
+
+void finishAudioCapture() {
+  if (!audio.finishCapture()) audio.stateMachine().fail();
+  protocol.setAudioState(audio.stateMachine().state());
+  audio_start_pending = false;
+  audio_stop_requested = false;
+  audio_stream_active = false;
+  audio_chunks_sent = 0;
+  audio_started_at = 0;
+  voice_activity.resetUtterance();
+  clearPreRoll();
+  if (deferred_upload_pending || deferred_capture_ready) {
+    clearDeferredAudio();
   }
 }
 #endif
@@ -253,6 +357,7 @@ void stopAudioCapture(bool transport_ok) {
 #if PIPA_ALWAYS_LISTENING_ENABLED
   voice_activity.resetUtterance();
   clearPreRoll();
+  if (deferred_upload_pending) clearDeferredAudio();
 #endif
 }
 
@@ -280,7 +385,7 @@ void maintainAudioCapture() {
     audio_stream_active = true;
     audio_started_at = millis();
 #if PIPA_ALWAYS_LISTENING_ENABLED
-    if (!sendPreRoll()) {
+    if (!deferred_upload_pending && !sendPreRoll()) {
       stopAudioCapture(false);
       return;
     }
@@ -288,6 +393,32 @@ void maintainAudioCapture() {
   }
 
   if (!audio_stream_active) return;
+#if PIPA_ALWAYS_LISTENING_ENABLED
+  if (deferred_upload_pending) {
+    const size_t remaining = deferred_audio_length - deferred_upload_offset;
+    if (remaining == 0 || audio_chunks_sent >= kMaxAudioChunks) {
+      audio.stateMachine().fail();
+      stopAudioCapture(false);
+      return;
+    }
+    const size_t captured = min(remaining, kAudioChunkBytes);
+    const bool final = captured == remaining;
+    const bool sent = protocol.sendAudioChunk(
+        deferred_audio + deferred_upload_offset,
+        captured,
+        final);
+    if (!sent) {
+      audio.stateMachine().fail();
+      stopAudioCapture(false);
+      return;
+    }
+    memset(deferred_audio + deferred_upload_offset, 0, captured);
+    deferred_upload_offset += captured;
+    ++audio_chunks_sent;
+    if (final) finishAudioCapture();
+    return;
+  }
+#endif
   const size_t captured = audio.readMonoPcm(audio_chunk, sizeof(audio_chunk));
   if (captured == 0) {
     audio.stateMachine().fail();
@@ -313,6 +444,9 @@ void maintainAudioCapture() {
   }
   ++audio_chunks_sent;
   if (final) {
+#if PIPA_ALWAYS_LISTENING_ENABLED
+    finishAudioCapture();
+#else
     if (!audio.finishCapture()) audio.stateMachine().fail();
     protocol.setAudioState(audio.stateMachine().state());
     audio_start_pending = false;
@@ -320,9 +454,6 @@ void maintainAudioCapture() {
     audio_stream_active = false;
     audio_chunks_sent = 0;
     audio_started_at = 0;
-#if PIPA_ALWAYS_LISTENING_ENABLED
-    voice_activity.resetUtterance();
-    clearPreRoll();
 #endif
   }
 }
@@ -369,6 +500,15 @@ void setup() {
   log(String("audio input ES7210: ") + (audio_status.input_codec_present ? "present" : "absent"));
 #if PIPA_AUDIO_CAPTURE_ENABLED
   log(audio.stateMachine().canAdvertiseAudio() ? "audio capture ready" : "audio capture unavailable");
+#if PIPA_ALWAYS_LISTENING_ENABLED
+  deferred_audio = static_cast<uint8_t*>(heap_caps_calloc(
+      1,
+      kDeferredAudioBytes,
+      MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  log(deferred_audio != nullptr
+          ? "offline voice buffer ready"
+          : "offline voice buffer unavailable; Wake-on-LAN remains touch-only");
+#endif
 #endif
   const bool power_ready = power.begin();
   log(power_ready ? "battery ADC ready" : "battery ADC unavailable for this board revision");

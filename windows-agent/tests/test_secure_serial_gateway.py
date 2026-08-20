@@ -99,8 +99,9 @@ class SecureSerialGatewayTests(unittest.TestCase):
                 + b"\n"
             )
 
+        encoded_hello = json.dumps(client_hello.as_dict()).encode() + b"\n"
         connection = FakeSecureSerialConnection(
-            [json.dumps(client_hello.as_dict()).encode() + b"\n"],
+            [b"[ 123][W][driver.cpp:1] bounded diagnostic\n", encoded_hello[:1], encoded_hello[1:]],
             self.gateway,
             on_write=append_encrypted_request,
         )
@@ -188,9 +189,7 @@ class SecureSerialGatewayTests(unittest.TestCase):
                 self.assertTrue(gateway.voice_ready)
                 connection.lines.append(
                     json.dumps(
-                        client_channel.seal_message(
-                            {"protocol_version": 1, "type": "hold_start"}
-                        )
+                        client_channel.seal_message({"protocol_version": 1, "type": "hold_start"})
                     ).encode()
                     + b"\n"
                 )

@@ -374,6 +374,7 @@ class MainRouteTests(unittest.TestCase):
                 "/discord/contact/call",
                 "/codex/open",
                 "/system/lock",
+                "/system/sleep",
             }
         )
         self.assertEqual(main.LOCAL_CONFIRMATION_PATHS, expected_paths)

@@ -52,8 +52,10 @@ audio, identidad criptográfica y comunicación USB CDC con el ordenador.
 El firmware compila para las revisiones V1 y V2. En la V2, el entorno opt-in
 `voice-v2` captura los micrófonos ES7210, cifra el audio por USB y usa
 reconocimiento español local en Windows; `voice-v2-handsfree` añade VAD,
-pre-roll efímero, final por silencio y frase de activación obligatoria. El
-altavoz sigue desactivado.
+pre-roll efímero, final por silencio y frase de activación obligatoria. Si el
+PC está suspendido, conserva una intervención en PSRAM volátil, envía
+Wake-on-LAN y entrega el audio cifrado cuando vuelve el agente. El altavoz
+sigue desactivado.
 
 ## Arquitectura
 

@@ -91,6 +91,7 @@ class IntegrationTests(unittest.TestCase):
                 "timer_list",
                 "timer_cancel",
                 "system_lock",
+                "system_sleep",
                 "open_url",
             }.issubset(command_ids)
         )
@@ -602,6 +603,7 @@ class IntegrationTests(unittest.TestCase):
             "league_search": {"queue": "ranked_solo"},
             "league_cancel": {},
             "system_lock": {},
+            "system_sleep": {},
             "open_url": {"url": "https://example.com"},
         }
 

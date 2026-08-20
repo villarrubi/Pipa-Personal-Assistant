@@ -496,9 +496,7 @@ def _with_client_or_launch(
                 poll_seconds=poll_seconds,
             )
         except LeagueClientError as error:
-            raise LeagueClientError(
-                "League Client no estuvo listo a tiempo para buscar partida."
-            ) from error
+            raise LeagueClientError("League Client no estuvo listo a tiempo para buscar partida.") from error
 
     result = callback(LeagueClientApi(connection))
     if client_started and isinstance(result, dict):

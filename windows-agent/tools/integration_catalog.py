@@ -589,6 +589,14 @@ _COMMANDS: tuple[dict[str, Any], ...] = (
         "requires_confirmation": True,
     },
     {
+        "id": "system_sleep",
+        "tool_name": "system_sleep",
+        "phrase": "suspende el ordenador",
+        "description": "Suspende Windows en S3 para permitir el despertar con Pipa.",
+        "safety": "unsafe",
+        "requires_confirmation": True,
+    },
+    {
         "id": "open_url",
         "tool_name": "open_url",
         "phrase": "abre una URL validada <dirección>",

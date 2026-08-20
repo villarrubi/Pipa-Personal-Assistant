@@ -64,10 +64,14 @@ class LocalSpeechTranscriber:
         if selected_device not in {"cpu", "cuda"}:
             raise LocalSttError("unsupported local speech device")
         selected_compute = (
-            compute_type
-            or os.environ.get("PIPA_STT_COMPUTE_TYPE")
-            or ("int8" if selected_device == "cpu" else "float16")
-        ).strip().lower()
+            (
+                compute_type
+                or os.environ.get("PIPA_STT_COMPUTE_TYPE")
+                or ("int8" if selected_device == "cpu" else "float16")
+            )
+            .strip()
+            .lower()
+        )
         if selected_compute not in {"int8", "float16", "int8_float16"}:
             raise LocalSttError("unsupported local speech compute type")
 
@@ -196,11 +200,13 @@ class LocalSpeechTranscriber:
                 "speech_duration_ms": round(sum(durations) * 1000),
                 "average_log_probability": round(average_log_probability, 4),
                 "no_speech_probability": round(no_speech_probability, 4),
-                "language_probability": round(
-                    float(getattr(information, "language_probability", 0.0)), 4
-                ),
+                "language_probability": round(float(getattr(information, "language_probability", 0.0)), 4),
             }
-            transcript = " ".join(segment.text.strip() for segment in segments if segment.text.strip()).strip()
+            transcript = " ".join(
+                segment.text.strip() for segment in segments if segment.text.strip()
+            ).strip()
+            if not transcript:
+                return ""
             return validate_bounded_text(transcript, "La transcripción", 4000).strip()
         except (LocalSttError, ValueError):
             raise

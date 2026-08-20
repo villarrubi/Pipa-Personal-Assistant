@@ -210,6 +210,9 @@ class CliTests(unittest.TestCase):
         arguments = pipa_cli._parser().parse_args(["lock"])
         self.assertEqual(pipa_cli._route(arguments), ("POST", "/system/lock", {}))
 
+        arguments = pipa_cli._parser().parse_args(["sleep"])
+        self.assertEqual(pipa_cli._route(arguments), ("POST", "/system/sleep", {}))
+
         arguments = pipa_cli._parser().parse_args(["open-url", "https://example.com"])
         self.assertEqual(
             pipa_cli._route(arguments),

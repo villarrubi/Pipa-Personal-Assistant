@@ -67,9 +67,7 @@ def _classify_messages(messages: Sequence[Mapping[str, object]]) -> tuple[str, s
     tool_result_success: bool | None = None
     for message in messages:
         message_type = message.get("type")
-        if message_type in {"confirm_request", "tool_result"} and isinstance(
-            message.get("tool_name"), str
-        ):
+        if message_type in {"confirm_request", "tool_result"} and isinstance(message.get("tool_name"), str):
             tool_name = str(message["tool_name"])
         if message_type == "confirm_request":
             confirmation_required = True

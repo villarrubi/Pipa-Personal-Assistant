@@ -768,6 +768,27 @@ peticiones escritas y las APIs mantienen sus controles habituales. Debe
 usarse únicamente cuando el entorno físico sea de confianza. Con el firmware
 `voice-v2` anterior, la interacción táctil sigue disponible y la captura
 manual conserva su límite de ocho segundos.
+
+### Suspender y despertar por voz
+
+La orden «Pipa, ¿me escuchas? suspende el ordenador» programa suspensión S3
+un segundo después de responder, para que la última trama cifrada pueda salir.
+Mantén el USB conectado al PC, la batería de Pipa conectada y su interruptor
+encendido: la batería conserva la placa cuando el puerto pierde alimentación y
+el mismo USB vuelve a ser el canal del agente al despertar.
+
+Después de que Windows lleve al menos 15 segundos suspendido, una intervención
+activa Wake-on-LAN y queda de forma volátil en PSRAM hasta que vuelve USB v2.
+Por ejemplo, «Pipa, ¿me escuchas? abre la calculadora» despierta el equipo y
+entrega después la orden. El ESP32 solo reconoce actividad acústica; la frase
+se comprueba en Windows. Por ello un ruido puede despertar el PC, pero no
+ejecutar una acción. Esta ruta está diseñada para S3. Windows no garantiza
+Wake-on-LAN desde un apagado completo S5.
+
+Wake-on-LAN no inicia sesión ni desbloquea el escritorio. La voz por sí sola
+no es un factor seguro porque puede reproducirse. Conserva Windows Hello/PIN o
+un método equivalente; no guardes la contraseña en Pipa ni habilites inicio de
+sesión automático para evitar esa barrera.
 El adaptador de voz elimina artículos, fórmulas de cortesía y puntuación de
 dictado, y compara de forma aproximada las frases fijas del catálogo y los
 alias de aplicaciones. Solo acepta una coincidencia con puntuación alta y

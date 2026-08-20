@@ -22,6 +22,20 @@ from backend.pipa_core.protocol import ProtocolError, parse_client_message, pars
 LOGGER = logging.getLogger("pipa.serial")
 MAX_LINE_BYTES = 12_000
 MAX_PROTOCOL_ERRORS = 5
+MAX_DIAGNOSTIC_LINE_BYTES = 512
+
+
+def is_serial_diagnostic(raw: bytes) -> bool:
+    """Recognize bounded human-readable firmware/library diagnostics."""
+
+    if (
+        not isinstance(raw, bytes)
+        or not raw.endswith(b"\n")
+        or not 0 < len(raw) <= MAX_DIAGNOSTIC_LINE_BYTES
+        or raw.lstrip().startswith(b"{")
+    ):
+        return False
+    return all(byte in {9, 10, 13} or 32 <= byte <= 126 for byte in raw)
 
 
 class SerialGateway:
@@ -138,20 +152,30 @@ class SerialGateway:
     def _serve_connection(self, connection) -> None:
         protocol = AuthenticatedConnection(self.core)
         protocol_errors = 0
+        line_buffer = bytearray()
         try:
             with connection:
                 while not self._stop.is_set() and not protocol.idle():
-                    raw = connection.read_until(b"\n", MAX_LINE_BYTES + 1)
-                    if not raw:
+                    fragment = connection.read_until(
+                        b"\n",
+                        MAX_LINE_BYTES + 1 - len(line_buffer),
+                    )
+                    if not fragment:
                         continue
-                    if raw.startswith(b"#"):
-                        continue
-                    if len(raw) > MAX_LINE_BYTES:
+                    line_buffer.extend(fragment)
+                    if len(line_buffer) > MAX_LINE_BYTES:
+                        line_buffer.clear()
                         connection.reset_input_buffer()
                         self._send(connection, server_message("error", code="message_too_large"))
                         protocol_errors += 1
                         if protocol_errors >= MAX_PROTOCOL_ERRORS:
                             break
+                        continue
+                    if not line_buffer.endswith(b"\n"):
+                        continue
+                    raw = bytes(line_buffer)
+                    line_buffer.clear()
+                    if is_serial_diagnostic(raw):
                         continue
                     try:
                         payload = parse_json_object(raw)

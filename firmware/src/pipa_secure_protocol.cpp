@@ -440,6 +440,7 @@ void PipaSecureProtocol::sendDeviceHello() {
 #endif
 #if PIPA_ALWAYS_LISTENING_ENABLED
   capabilities.add("hands_free");
+  capabilities.add("offline_wake_buffer");
 #endif
   capabilities.add("wol");
   capabilities.add("text_input");

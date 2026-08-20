@@ -12,9 +12,7 @@ from tools.league import LeagueClientError  # noqa: E402
 class LeagueLaunchTests(unittest.TestCase):
     @patch("tools.commands.wait_for_client_connection", side_effect=LeagueClientError("not ready"))
     @patch("tools.commands.open_app", return_value={"success": True, "app": "league_of_legends"})
-    def test_open_league_does_not_claim_ready_when_riot_only_opens(
-        self, _open_app, _wait_for_client
-    ):
+    def test_open_league_does_not_claim_ready_when_riot_only_opens(self, _open_app, _wait_for_client):
         result = open_league()
 
         self.assertFalse(result["success"])

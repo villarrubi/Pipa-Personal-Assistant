@@ -2,6 +2,7 @@ import ctypes
 import os
 import platform
 import socket
+import threading
 import time
 
 import psutil
@@ -36,6 +37,29 @@ def lock_pc():
 
     except Exception:
         return {"success": False, "message": "No he podido bloquear el ordenador."}
+
+
+def _suspend_windows() -> None:
+    try:
+        ctypes.windll.powrprof.SetSuspendState(False, False, False)
+    except Exception:
+        # This runs after the bounded success response has already been sent.
+        # Never leak a platform exception from the detached callback.
+        return
+
+
+def suspend_pc():
+    """Schedule S3 sleep after the authenticated response leaves the agent."""
+
+    if platform.system() != "Windows":
+        return {"success": False, "message": "La suspensión solo está disponible en Windows."}
+    try:
+        timer = threading.Timer(1.0, _suspend_windows)
+        timer.daemon = True
+        timer.start()
+        return {"success": True, "message": "Suspensión programada."}
+    except Exception:
+        return {"success": False, "message": "No he podido suspender el ordenador."}
 
 
 def get_power_status():

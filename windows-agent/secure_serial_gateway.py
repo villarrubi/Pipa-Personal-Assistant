@@ -16,7 +16,7 @@ import time
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from pipa_serial_gateway import MAX_LINE_BYTES, SerialGateway
+from pipa_serial_gateway import MAX_LINE_BYTES, SerialGateway, is_serial_diagnostic
 from secure_audio import (
     AudioCaptureGate,
     AudioFrameError,
@@ -64,9 +64,7 @@ class _SecureSerialAudioRuntime:
         self,
         connection: SecureCoreConnection,
         provider_factory: Callable[[], Any],
-        diagnostic_recorder: Callable[
-            [str, Mapping[str, object] | None, list[dict[str, object]]], None
-        ],
+        diagnostic_recorder: Callable[[str, Mapping[str, object] | None, list[dict[str, object]]], None],
     ) -> None:
         self.connection = connection
         self.provider_factory = provider_factory
@@ -101,14 +99,16 @@ class _SecureSerialAudioRuntime:
             gate,
             reset_provider=reset_provider if callable(reset_provider) else None,
         )
+
         def dispatch(transcript: str):
             messages = self.connection.core.handle_transcript(session_id, transcript)
             metadata = getattr(provider, "diagnostics", None)
-            self.diagnostic_recorder(
-                transcript,
-                metadata if isinstance(metadata, Mapping) else None,
-                messages,
-            )
+            if transcript:
+                self.diagnostic_recorder(
+                    transcript,
+                    metadata if isinstance(metadata, Mapping) else None,
+                    messages,
+                )
             return messages
 
         bridge = SecureAudioCommandBridge(transcriber, dispatch)
@@ -211,6 +211,7 @@ class SecureSerialGateway(SerialGateway):
         last_trust_check = 0.0
         audio_runtime: _SecureSerialAudioRuntime | None = None
         rehandshake_requested = False
+        line_buffer = bytearray()
         try:
             self._refresh_trusted_devices()
             while not self._stop.is_set():
@@ -229,19 +230,36 @@ class SecureSerialGateway(SerialGateway):
                     if not secure_core.device_is_trusted():
                         LOGGER.warning("secure serial device was revoked")
                         break
-                raw = connection.read_until(b"\n", MAX_LINE_BYTES + 1)
-                if not raw:
+                fragment = connection.read_until(
+                    b"\n",
+                    MAX_LINE_BYTES + 1 - len(line_buffer),
+                )
+                if not fragment:
                     continue
-                if raw.startswith(b"#"):
-                    continue
-                if len(raw) > MAX_LINE_BYTES:
+                line_buffer.extend(fragment)
+                if len(line_buffer) > MAX_LINE_BYTES:
+                    line_buffer.clear()
                     connection.reset_input_buffer()
                     LOGGER.warning("secure serial message exceeded the configured limit")
                     break
+                if not line_buffer.endswith(b"\n"):
+                    continue
+                raw = bytes(line_buffer)
+                line_buffer.clear()
+                if is_serial_diagnostic(raw):
+                    continue
                 try:
                     payload = _strict_json(raw.decode("utf-8"))
                 except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
-                    LOGGER.warning("secure serial message was not valid JSON")
+                    first_byte = raw[0] if raw else -1
+                    LOGGER.warning(
+                        "secure serial message was not valid JSON "
+                        "(bytes=%d, first=0x%02x, newline=%s, nul=%s)",
+                        len(raw),
+                        first_byte,
+                        True,
+                        b"\x00" in raw,
+                    )
                     break
 
                 if not secure_core.authenticated:
@@ -285,9 +303,7 @@ class SecureSerialGateway(SerialGateway):
                         responses = secure_core.process_frame(payload)
                         self._update_voice_ready(secure_core)
                         if secure_core.last_message_type == "confirm":
-                            self._voice_diagnostic_store.update_from_messages(
-                                secure_core.last_core_responses
-                            )
+                            self._voice_diagnostic_store.update_from_messages(secure_core.last_core_responses)
                         if secure_core.last_message_type == "hold_start":
                             if audio_runtime is None:
                                 raise AudioFrameError("secure audio is disabled")

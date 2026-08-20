@@ -289,6 +289,29 @@ class SecureAudioTests(unittest.TestCase):
         finally:
             transcriber.close()
 
+    def test_command_bridge_keeps_the_session_for_an_exact_empty_transcript(self):
+        sender = SecureAudioSender(self._session("client"), "stream-no-speech")
+        frame = sender.seal_chunk(b"\x01\x02" * 4, final=True)
+        dispatched: list[str] = []
+        transcriber = SecureAudioTranscriber(
+            SecureAudioReceiver(self._session("server")),
+            lambda _view, _is_final: "",
+            AudioCaptureGate(),
+        )
+        bridge = SecureAudioCommandBridge(
+            transcriber,
+            lambda transcript: dispatched.append(transcript) or [{"type": "ui_state"}],
+        )
+        self.assertTrue(transcriber.consumer.gate.mark_codec_ready(True))
+        bridge.begin_capture(display_ready=True, consented=True, secure_transport_ready=True)
+
+        self.assertTrue(bridge.consume_frame(frame))
+        _summary, messages = bridge.finalize()
+
+        self.assertEqual(dispatched, [""])
+        self.assertEqual(messages, [{"type": "ui_state"}])
+        self.assertEqual(transcriber.consumer.receiver.session.seal(b"ok")["sequence"], 0)
+
     def test_transcriber_resets_provider_state_when_capture_is_cancelled(self):
         sender = SecureAudioSender(self._session("client"), "stream-transcript-reset")
         frame = sender.seal_chunk(b"\x01\x02" * 4, final=False)

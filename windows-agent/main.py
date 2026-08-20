@@ -52,7 +52,7 @@ from tools.league import MAX_MATCH_WAIT_SECONDS, LeagueClientError, with_client,
 from tools.media import send_media_action
 from tools.readiness import inspect_readiness
 from tools.security_policy import LOCAL_CONFIRMATION_PATHS
-from tools.system import get_network_status, get_power_status, get_system_status, lock_pc
+from tools.system import get_network_status, get_power_status, get_system_status, lock_pc, suspend_pc
 from tools.text_policy import validate_bounded_text
 from tools.timers import TimerManager, TimerNotFoundError, validate_timer_id
 from tools.urls import validate_external_url
@@ -781,6 +781,11 @@ def api_system_status():
 @app.post("/system/lock")
 def api_lock_pc():
     return lock_pc()
+
+
+@app.post("/system/sleep")
+def api_sleep_pc():
+    return suspend_pc()
 
 
 @app.get("/system/power")

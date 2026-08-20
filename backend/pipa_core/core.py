@@ -92,6 +92,7 @@ _DEVICE_CONFIRMATION_SUMMARIES = {
     "league_search": "Buscar una partida en League.",
     "league_cancel": "Cancelar la búsqueda de League.",
     "system_lock": "Bloquear el ordenador.",
+    "system_sleep": "Suspender el ordenador.",
     "open_url": "Abrir una URL validada.",
 }
 _PRE_HELLO_MESSAGE_TYPES = frozenset({"ping", "device_status", "device_hello", "abort"})
@@ -478,6 +479,12 @@ class PipaCore:
                     message="El dispositivo aún no está listo.",
                 )
             ]
+        if not isinstance(transcript, str) or not transcript.strip():
+            # Whisper can validly return no text after removing a false VAD
+            # activation. This is not a protocol error and must not break the
+            # encrypted session or execute a command.
+            session.set_state("idle")
+            return [session.ui_message()]
         if session.state == "confirm":
             return [
                 server_message(
@@ -516,10 +523,7 @@ class PipaCore:
             if self.voice_wake_phrase is not None:
                 now = time.monotonic()
                 detected, remainder = split_voice_wake_phrase(bounded, self.voice_wake_phrase)
-                armed = (
-                    session.voice_wake_armed_until is not None
-                    and session.voice_wake_armed_until >= now
-                )
+                armed = session.voice_wake_armed_until is not None and session.voice_wake_armed_until >= now
                 if detected:
                     if not remainder:
                         session.voice_wake_armed_until = now + VOICE_WAKE_FOLLOW_UP_SECONDS
@@ -545,11 +549,7 @@ class PipaCore:
 
         intent = parse_catalog_intent(bounded, catalog_commands) if catalog_commands is not None else None
         if intent is None:
-            intent = (
-                parse_voice_intent(bounded, catalog_commands)
-                if voice
-                else parse_text_intent(bounded)
-            )
+            intent = parse_voice_intent(bounded, catalog_commands) if voice else parse_text_intent(bounded)
         if self.command_catalog_authoritative and catalog_commands is not None and intent is not None:
             enabled_tools = {command.get("tool_name") for command in catalog_commands}
             if intent.tool_name not in enabled_tools:
@@ -820,6 +820,7 @@ class PipaCore:
             "open_url": "URL abierta en el navegador.",
             "open_app": "Aplicación abierta.",
             "system_lock": "Ordenador bloqueado.",
+            "system_sleep": "Suspensión iniciada.",
         }
         if tool_name == "system_power":
             percent = result.get("percent")

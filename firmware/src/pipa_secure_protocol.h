@@ -52,9 +52,14 @@ class PipaSecureProtocol {
   static constexpr size_t kMaxCiphertext = kMaxOutboundLine;
   static constexpr size_t kMaxKeyBytes = 32;
   static constexpr uint32_t kHandshakeRetryMs = 5000;
+  #if defined(PIPA_ALWAYS_LISTENING_ENABLED) && PIPA_ALWAYS_LISTENING_ENABLED
+  static constexpr uint32_t kHeartbeatMs = 5000;
+  static constexpr uint32_t kServerTimeoutMs = 15000;
+  #else
   static constexpr uint32_t kHeartbeatMs = 30000;
-  static constexpr uint32_t kStatusMs = 60000;
   static constexpr uint32_t kServerTimeoutMs = 90000;
+  #endif
+  static constexpr uint32_t kStatusMs = 60000;
 
   void readTransport();
   void handleLine(const String& line);

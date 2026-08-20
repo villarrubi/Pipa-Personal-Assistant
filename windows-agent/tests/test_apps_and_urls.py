@@ -345,6 +345,16 @@ class AppsAndUrlsTests(unittest.TestCase):
         self.assertNotIn("private detail", str(result))
         ctypes.windll.user32.LockWorkStation.assert_called_once_with()
 
+    @patch.object(system.threading, "Timer")
+    @patch.object(system.platform, "system", return_value="Windows")
+    def test_suspend_is_scheduled_after_its_response(self, _platform_system, timer):
+        result = system.suspend_pc()
+
+        self.assertTrue(result["success"])
+        timer.assert_called_once_with(1.0, system._suspend_windows)
+        self.assertTrue(timer.return_value.daemon)
+        timer.return_value.start.assert_called_once_with()
+
 
 if __name__ == "__main__":
     unittest.main()

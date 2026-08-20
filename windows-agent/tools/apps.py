@@ -271,9 +271,7 @@ def save_apps(apps: Any) -> dict[str, dict[str, Any]]:
 def _normalized_app_label(value: str) -> str:
     decomposed = unicodedata.normalize("NFKD", value.casefold())
     folded = "".join(character for character in decomposed if not unicodedata.combining(character))
-    folded = " ".join(
-        "".join(character if character.isalnum() else " " for character in folded).split()
-    )
+    folded = " ".join("".join(character if character.isalnum() else " " for character in folded).split())
     # ASR can insert a harmless connector in requests such as "abre en la
     # calculadora". Discard it only at the start of the app argument; the
     # resulting label must still resolve to the configured app allowlist.
@@ -307,7 +305,6 @@ def find_app(app_name: str) -> tuple[str | None, dict[str, Any] | None]:
         return None, None
     app_id = ranked[0][0]
     return app_id, apps[app_id]
-
 
 
 def open_app(app_name: str):

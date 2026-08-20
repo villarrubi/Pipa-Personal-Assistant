@@ -35,6 +35,11 @@ class IntegrationIntentTests(unittest.TestCase):
         self.assertEqual(split_voice_wake_phrase("Pipa, ¿me escuchas?", "Pipa me escuchas"), (True, ""))
         self.assertFalse(split_voice_wake_phrase("abre la calculadora", "Pipa me escuchas")[0])
 
+    def test_suspend_command_accepts_natural_windows_phrases(self):
+        for phrase in ("suspende el ordenador", "pon el PC en suspensión"):
+            with self.subTest(phrase=phrase):
+                self.assert_intent(phrase, "system_sleep", {})
+
     def test_web_search_is_bounded_to_a_query(self):
         self.assert_intent(
             "búscame en internet documentación de Pipa",

@@ -30,7 +30,7 @@ from tools.discord import (
 )
 from tools.league import MAX_MATCH_WAIT_SECONDS, resolve_queue_id, with_client, with_client_or_launch
 from tools.media import send_media_action
-from tools.system import get_network_status, get_power_status, get_system_status, lock_pc
+from tools.system import get_network_status, get_power_status, get_system_status, lock_pc, suspend_pc
 from tools.text_policy import validate_bounded_text
 from tools.timers import MAX_TIMER_SECONDS, TimerManager, validate_timer_id
 from tools.urls import validate_external_url
@@ -502,6 +502,13 @@ def build_agent_catalog(timer_manager: TimerManager) -> ToolCatalog:
                 lambda _args: lock_pc(),
                 safety="unsafe",
                 confirm_summary=_unsafe_summary("Bloquear el ordenador"),
+                argument_validator=no_arguments,
+            ),
+            ToolDefinition(
+                "system_sleep",
+                lambda _args: suspend_pc(),
+                safety="unsafe",
+                confirm_summary=_unsafe_summary("Suspender el ordenador"),
                 argument_validator=no_arguments,
             ),
             ToolDefinition("timer_create", timer_create, argument_validator=timer_create_arguments),

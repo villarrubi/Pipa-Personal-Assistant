@@ -321,6 +321,8 @@ def _parser() -> argparse.ArgumentParser:
     timer_cancel.add_argument("timer_id")
     lock = commands.add_parser("lock", help="Bloquea el PC.")
     add_confirmation_flag(lock)
+    sleep = commands.add_parser("sleep", help="Suspende el PC en S3.")
+    add_confirmation_flag(sleep)
     return parser
 
 
@@ -482,6 +484,8 @@ def _route(arguments: argparse.Namespace) -> tuple[str, str, dict[str, object] |
         return "DELETE", f"/timers/{quote(timer_id, safe='')}", None
     if command == "lock":
         return "POST", "/system/lock", {}
+    if command == "sleep":
+        return "POST", "/system/sleep", {}
     raise RuntimeError(f"Comando no soportado: {command}")
 
 

@@ -55,6 +55,25 @@ class LocalSttTests(unittest.TestCase):
         with self.assertRaises(LocalSttError):
             LocalSpeechTranscriber(model_name="remote/custom-model")
 
+    def test_no_speech_returns_an_exact_empty_transcript_and_zeroes_audio(self):
+        class SilentModel:
+            def __init__(self):
+                self.audio = None
+
+            def transcribe(self, audio, **_options):
+                self.audio = audio
+                return iter([]), SimpleNamespace(language_probability=1.0)
+
+        provider = LocalSpeechTranscriber(model_directory=ROOT / ".platformio-preflight" / "stt-test")
+        model = SilentModel()
+        with patch.object(provider, "_model", return_value=model):
+            transcript = provider(memoryview(b"\x00\x01\x00\xff" * 4000), True)
+
+        self.assertEqual(transcript, "")
+        self.assertEqual(provider.diagnostics["segment_count"], 0)
+        self.assertEqual(provider._pcm, bytearray())
+        self.assertTrue((model.audio == 0).all())
+
 
 if __name__ == "__main__":
     unittest.main()

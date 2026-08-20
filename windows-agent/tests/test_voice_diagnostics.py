@@ -21,9 +21,7 @@ class VoiceDiagnosticStoreTests(unittest.TestCase):
                 "language_probability": 0.99,
                 "private": "must-not-escape",
             },
-            messages=[
-                {"protocol_version": 1, "type": "tool_result", "tool_name": "system_status"}
-            ],
+            messages=[{"protocol_version": 1, "type": "tool_result", "tool_name": "system_status"}],
         )
 
         result = store.snapshot()

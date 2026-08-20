@@ -346,12 +346,18 @@ El gateway se mantiene desactivado si esa variable no existe.
 - En `voice-v2-handsfree`, el punto verde de la cara indica standby local. La
   voz inicia el stream automáticamente, el silencio lo finaliza y el agente
   exige la frase configurada mediante `PIPA_VOICE_WAKE_PHRASE`.
+- Si desaparece el agente durante 15 segundos y Wi-Fi está disponible, una
+  intervención envía Wake-on-LAN y queda temporalmente en PSRAM. Cuando vuelve
+  USB v2 se cifra, se entrega y se sobrescribe; nunca sale por UDP ni llega a
+  flash. Como el ESP32 detecta actividad y no palabras, un ruido puede despertar
+  el PC, pero no superar la frase de activación del agente.
 - Si la frase produce una acción externa, aparece después su confirmación y se
   necesita otro toque para ejecutarla.
 - Si una confirmación caduca, se rechaza o se cancela, el estado visual vuelve
   a `idle` y el identificador anterior se elimina.
-- Wake-on-LAN nunca desbloquea Windows; solo puede encender o despertar un PC
-  configurado para aceptarlo.
+- Wake-on-LAN nunca desbloquea Windows; despierta de suspensión un PC
+  configurado para aceptarlo. El encendido desde apagado S5 depende de
+  BIOS/controlador y Windows no lo garantiza.
 - El identificador de confirmación se conserva tras transmitir el toque y solo
   se limpia al recibir el resultado o un nuevo estado; así un fallo de
   transporte permite reintentar el mismo toque sin crear otra acción.

@@ -46,6 +46,14 @@ El payload descifrado es PCM little-endian mono de 16 bits. Los límites son
 un límite adicional de 30 segundos para ruido continuo o fallos de endpoint;
 un bloque no puede estar vacío ni tener un número impar de bytes.
 
+Si Windows está suspendido y no existe sesión USB autenticada, el firmware
+opt-in puede retener una intervención en la PSRAM volátil del ESP32-S3 y enviar
+Wake-on-LAN. No transmite esa memoria por Wi-Fi ni la escribe en flash: espera
+a recuperar USB v2, cifra cada bloque con la sesión nueva, lo entrega al agente
+y sobrescribe los bytes enviados. La frase de activación se valida después en
+el STT local; un sonido distinto puede despertar el PC, pero no ejecutar una
+orden.
+
 El receptor exige el bloque cero, el mismo `stream_id`, secuencias contiguas y
 un único marcador `final`. Un bloque repetido, adelantado, cambiado,
 demasiado grande o asociado a otra sesión cierra la sesión segura y descarta

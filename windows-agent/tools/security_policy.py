@@ -29,6 +29,7 @@ CONFIRMATION_TOOL_PATHS = {
     "discord_call": "/discord/contact/call",
     "open_codex": "/codex/open",
     "system_lock": "/system/lock",
+    "system_sleep": "/system/sleep",
 }
 
 LOCAL_CONFIRMATION_PATHS = frozenset(CONFIRMATION_TOOL_PATHS.values())
@@ -58,5 +59,6 @@ CLI_CONFIRMATION_COMMANDS = frozenset(
         "league-search",
         "league-cancel",
         "lock",
+        "sleep",
     }
 )

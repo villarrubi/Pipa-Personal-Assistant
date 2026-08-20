@@ -204,6 +204,19 @@ foreach ($required in @('[env:voice-v2-handsfree]', '-DPIPA_ALWAYS_LISTENING_ENA
         throw "El entorno manos libres no conserva su activacion explicita: $required"
     }
 }
+foreach ($required in @(
+    'MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT',
+    'clearDeferredAudio()',
+    'maybeWakePc();',
+    'deferred_upload_pending'
+)) {
+    if ($firmwareMain.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El modo manos libres no conserva su buffer volatil de Wake-on-LAN: $required"
+    }
+}
+if ($firmwareProtocol.IndexOf('offline_wake_buffer', [System.StringComparison]::Ordinal) -lt 0) {
+    throw 'El dispositivo no anuncia la capacidad acotada de audio diferido.'
+}
 foreach ($required in @('is_secure_audio_frame', 'SecureAudioCommandBridge', 'SecureAudioReceiver')) {
     if ($secureSerialGateway.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
         throw "El gateway V2 no integra el receptor de audio autenticado: $required"

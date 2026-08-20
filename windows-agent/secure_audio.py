@@ -629,6 +629,13 @@ class SecureAudioTranscriber:
             return
         if result is None:
             return
+        # A local STT engine can legitimately produce an exact empty string
+        # when its own VAD removes the whole capture. Preserve that as a
+        # benign no-speech result so room noise cannot tear down the shared
+        # encrypted control session. Whitespace and unsafe text still fail.
+        if result == "":
+            self._transcript = ""
+            return
         try:
             self._transcript = validate_bounded_text(result, "La transcripción", 4000).strip()
         except ValueError as error:

@@ -205,6 +205,30 @@ class SerialProtocolSessionTests(unittest.TestCase):
         response = json.loads(connection.writes[0].decode("utf-8"))
         self.assertEqual(response["type"], "challenge")
 
+    def test_serial_gateway_accumulates_timeout_fragments_until_newline(self):
+        gateway = SerialGateway(self.core, "COM7")
+        request = (
+            json.dumps(
+                {"protocol_version": 1, "type": "challenge_request", "device_id": "waveshare-01"}
+            ).encode("utf-8")
+            + b"\n"
+        )
+        connection = FakeSerialConnection(
+            [
+                b"# partial",
+                b" diagnostic\n",
+                b"[ 123][E][driver.cpp:1] bounded diagnostic\n",
+                request[:1],
+                request[1:],
+            ],
+            gateway,
+        )
+
+        gateway._serve_connection(connection)
+
+        self.assertEqual(len(connection.writes), 1)
+        self.assertEqual(json.loads(connection.writes[0])["type"], "challenge")
+
     def test_repeated_invalid_serial_messages_close_without_reflecting_input(self):
         gateway = SerialGateway(self.core, "COM7")
         malicious = b'{"type":"' + (b"x" * 4000) + b'"}\n'

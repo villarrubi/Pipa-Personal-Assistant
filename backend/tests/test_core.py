@@ -289,6 +289,13 @@ class CoreTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertNotIn("result", result)
 
+    def test_empty_voice_transcript_returns_to_idle_without_an_error(self):
+        outputs = self.core.handle_transcript(self.session_id, "")
+
+        self.assertEqual(outputs, [self.core.sessions.get(self.session_id).ui_message()])
+        self.assertEqual(outputs[0]["state"], "idle")
+        self.assertNotIn("code", outputs[0])
+
     def test_voice_wake_phrase_ignores_room_speech_and_accepts_inline_or_follow_up_commands(self):
         self.core.voice_wake_phrase = "Pipa me escuchas"
 
