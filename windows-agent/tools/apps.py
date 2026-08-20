@@ -274,7 +274,10 @@ def _normalized_app_label(value: str) -> str:
     folded = " ".join(
         "".join(character if character.isalnum() else " " for character in folded).split()
     )
-    return re.sub(r"^(?:el|la|los|las|un|una)\s+", "", folded)
+    # ASR can insert a harmless connector in requests such as "abre en la
+    # calculadora". Discard it only at the start of the app argument; the
+    # resulting label must still resolve to the configured app allowlist.
+    return re.sub(r"^(?:(?:en|a)\s+)?(?:el|la|los|las|un|una)\s+", "", folded)
 
 
 def find_app(app_name: str) -> tuple[str | None, dict[str, Any] | None]:

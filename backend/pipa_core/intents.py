@@ -955,6 +955,7 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
     # typed intents.
     configured_process = re.fullmatch(
         r"(?:abre|abrir|inicia|iniciar|ejecuta|ejecutar) "
+        r"(?:(?:en|a) )?"
         r"(?:(?:el|la|un|una) )?(?:(?:proceso|programa|app|aplicaci[oó]n) )?(.+)",
         original,
         flags=re.IGNORECASE,

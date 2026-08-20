@@ -309,6 +309,7 @@ class IntegrationIntentTests(unittest.TestCase):
     def test_voice_requests_accept_polite_fillers_articles_and_dictation_punctuation(self):
         for phrase in (
             "Abre la calculadora.",
+            "Abre en la calculadora.",
             "¿Podrías abrirme la calculadora, por favor?",
             "Pipa, quiero que abras la calculadora.",
         ):

@@ -162,6 +162,7 @@ class AppsAndUrlsTests(unittest.TestCase):
         load_apps.return_value = {"calculator": calculator, "chrome": chrome}
 
         self.assertEqual(find_app("la calculadora.")[0], "calculator")
+        self.assertEqual(find_app("en la calculadora.")[0], "calculator")
         self.assertEqual(find_app("calculador")[0], "calculator")
         self.assertEqual(find_app("google crhome")[0], "chrome")
 
