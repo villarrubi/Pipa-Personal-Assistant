@@ -16,11 +16,15 @@
 #include "pipa_secure_protocol.h"
 #include "pipa_display.h"
 #include "pipa_audio.h"
+#include "pipa_voice_activity.h"
 #include "pipa_power.h"
 #include "wake_on_lan.h"
 
 #if PIPA_AUDIO_CAPTURE_ENABLED && !PIPA_SECURE_SESSION_ENABLED
 #error "Microphone capture requires the encrypted secure-session-v2 transport."
+#endif
+#if PIPA_ALWAYS_LISTENING_ENABLED && !PIPA_AUDIO_CAPTURE_ENABLED
+#error "Hands-free monitoring requires the encrypted microphone capture path."
 #endif
 
 #if defined(PIPA_SECURE_SESSION_VECTOR_TEST)
@@ -39,8 +43,14 @@ constexpr uint32_t kPowerSampleMs = 30000;
 constexpr size_t kSerialRxBufferSize = 12 * 1024;
 #if PIPA_AUDIO_CAPTURE_ENABLED
 constexpr size_t kAudioChunkBytes = 4096;
+#if PIPA_ALWAYS_LISTENING_ENABLED
+constexpr uint16_t kMaxAudioChunks = 256;
+constexpr uint32_t kMaxCaptureMs = 30000;
+constexpr uint8_t kPreRollChunks = 3;
+#else
 constexpr uint16_t kMaxAudioChunks = 64;
 constexpr uint32_t kMaxCaptureMs = 8000;
+#endif
 #endif
 
 pipa::DeviceIdentity identity;
@@ -75,7 +85,14 @@ bool audio_stream_active = false;
 uint16_t audio_chunks_sent = 0;
 uint32_t audio_started_at = 0;
 uint32_t audio_stream_counter = 0;
-uint8_t audio_chunk[kAudioChunkBytes] = {};
+alignas(int16_t) uint8_t audio_chunk[kAudioChunkBytes] = {};
+#if PIPA_ALWAYS_LISTENING_ENABLED
+pipa::PipaVoiceActivityDetector voice_activity;
+uint8_t pre_roll[kPreRollChunks][kAudioChunkBytes] = {};
+size_t pre_roll_lengths[kPreRollChunks] = {};
+uint8_t pre_roll_next = 0;
+uint8_t pre_roll_count = 0;
+#endif
 #endif
 
 void log(const String& message) {
@@ -146,12 +163,20 @@ void pollTouch() {
 #if PIPA_AUDIO_CAPTURE_ENABLED
     } else if (audio_stream_active || audio_start_pending || protocol.ui().state == "listening") {
       audio_stop_requested = true;
+#if PIPA_ALWAYS_LISTENING_ENABLED
+    } else {
+      protocol.sendGesture("tap");
+#else
     } else if (audio.stateMachine().canAdvertiseAudio()) {
       audio_start_pending = protocol.sendHoldStart();
       audio_stop_requested = false;
-#endif
     } else {
       protocol.sendGesture("tap");
+#endif
+#else
+    } else {
+      protocol.sendGesture("tap");
+#endif
     }
   } else {
     maybeWakePc();
@@ -159,6 +184,62 @@ void pollTouch() {
 }
 
 #if PIPA_AUDIO_CAPTURE_ENABLED
+#if PIPA_ALWAYS_LISTENING_ENABLED
+void clearPreRoll() {
+  memset(pre_roll, 0, sizeof(pre_roll));
+  memset(pre_roll_lengths, 0, sizeof(pre_roll_lengths));
+  pre_roll_next = 0;
+  pre_roll_count = 0;
+}
+
+void rememberPreRoll(const uint8_t* samples, size_t length) {
+  if (samples == nullptr || length == 0 || length > kAudioChunkBytes) return;
+  memset(pre_roll[pre_roll_next], 0, kAudioChunkBytes);
+  memcpy(pre_roll[pre_roll_next], samples, length);
+  pre_roll_lengths[pre_roll_next] = length;
+  pre_roll_next = static_cast<uint8_t>((pre_roll_next + 1) % kPreRollChunks);
+  if (pre_roll_count < kPreRollChunks) ++pre_roll_count;
+}
+
+bool sendPreRoll() {
+  const uint8_t first = static_cast<uint8_t>(
+      (pre_roll_next + kPreRollChunks - pre_roll_count) % kPreRollChunks);
+  for (uint8_t offset = 0; offset < pre_roll_count; ++offset) {
+    const uint8_t index = static_cast<uint8_t>((first + offset) % kPreRollChunks);
+    const size_t length = pre_roll_lengths[index];
+    if (length == 0 || audio_chunks_sent >= kMaxAudioChunks ||
+        !protocol.sendAudioChunk(pre_roll[index], length, false)) {
+      return false;
+    }
+    ++audio_chunks_sent;
+  }
+  clearPreRoll();
+  return true;
+}
+
+void maintainHandsFreeMonitor() {
+  if (audio_start_pending || audio_stream_active) return;
+  if (!protocol.authenticated() || protocol.ui().state != "idle" || !audio.canMonitor()) {
+    voice_activity.resetUtterance();
+    clearPreRoll();
+    return;
+  }
+  const size_t captured = audio.readMonitorMonoPcm(audio_chunk, sizeof(audio_chunk));
+  if (captured == 0) return;
+  rememberPreRoll(audio_chunk, captured);
+  const auto event = voice_activity.process(
+      reinterpret_cast<const int16_t*>(audio_chunk), captured / sizeof(int16_t));
+  if (event == pipa::PipaVoiceActivityEvent::kSpeechStarted) {
+    audio_start_pending = protocol.sendHoldStart();
+    audio_stop_requested = false;
+    if (!audio_start_pending) {
+      voice_activity.resetUtterance();
+      clearPreRoll();
+    }
+  }
+}
+#endif
+
 void stopAudioCapture(bool transport_ok) {
   memset(audio_chunk, 0, sizeof(audio_chunk));
   if (!transport_ok) protocol.abortAudioStream();
@@ -169,6 +250,10 @@ void stopAudioCapture(bool transport_ok) {
   audio_stream_active = false;
   audio_chunks_sent = 0;
   audio_started_at = 0;
+#if PIPA_ALWAYS_LISTENING_ENABLED
+  voice_activity.resetUtterance();
+  clearPreRoll();
+#endif
 }
 
 void maintainAudioCapture() {
@@ -194,6 +279,12 @@ void maintainAudioCapture() {
     }
     audio_stream_active = true;
     audio_started_at = millis();
+#if PIPA_ALWAYS_LISTENING_ENABLED
+    if (!sendPreRoll()) {
+      stopAudioCapture(false);
+      return;
+    }
+#endif
   }
 
   if (!audio_stream_active) return;
@@ -204,7 +295,14 @@ void maintainAudioCapture() {
     return;
   }
 
-  const bool final = audio_stop_requested || millis() - audio_started_at >= kMaxCaptureMs ||
+  bool speech_ended = false;
+#if PIPA_ALWAYS_LISTENING_ENABLED
+  speech_ended = voice_activity.process(
+      reinterpret_cast<const int16_t*>(audio_chunk), captured / sizeof(int16_t)) ==
+      pipa::PipaVoiceActivityEvent::kSpeechEnded;
+#endif
+  const bool final = audio_stop_requested || speech_ended ||
+      millis() - audio_started_at >= kMaxCaptureMs ||
       audio_chunks_sent + 1 >= kMaxAudioChunks;
   const bool sent = protocol.sendAudioChunk(audio_chunk, captured, final);
   memset(audio_chunk, 0, sizeof(audio_chunk));
@@ -222,6 +320,10 @@ void maintainAudioCapture() {
     audio_stream_active = false;
     audio_chunks_sent = 0;
     audio_started_at = 0;
+#if PIPA_ALWAYS_LISTENING_ENABLED
+    voice_activity.resetUtterance();
+    clearPreRoll();
+#endif
   }
 }
 #endif
@@ -295,6 +397,9 @@ void loop() {
   maintainPower();
   pollTouch();
 #if PIPA_AUDIO_CAPTURE_ENABLED
+#if PIPA_ALWAYS_LISTENING_ENABLED
+  maintainHandsFreeMonitor();
+#endif
   maintainAudioCapture();
 #endif
   delay(10);

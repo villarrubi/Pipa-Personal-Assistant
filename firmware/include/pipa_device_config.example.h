@@ -7,6 +7,12 @@
 // The PC's Ethernet/Wi-Fi MAC address, six hexadecimal bytes.
 #define PIPA_PC_MAC "00:00:00:00:00:00"
 
+// Keep disabled in ordinary voice-v2 builds. The dedicated hands-free
+// environment enables persistent local VAD explicitly at compile time.
+#ifndef PIPA_ALWAYS_LISTENING_ENABLED
+#define PIPA_ALWAYS_LISTENING_ENABLED 0
+#endif
+
 // USB CDC is the default authenticated transport after Windows starts.
 #define PIPA_DEVICE_ID "waveshare-01"
 #define PIPA_FIRMWARE_VERSION "0.1.0"

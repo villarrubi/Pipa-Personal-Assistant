@@ -9,7 +9,7 @@ public enum PipaSecureAudioContract {
     public static let channels = 1
     public static let bitsPerSample = 16
     public static let maxChunkBytes = 4_096
-    public static let maxChunks = 64
+    public static let maxChunks = 256
     public static let maxStreamBytes = maxChunkBytes * maxChunks
     public static let aadPrefix = Data("pipa/audio/v2\0".utf8)
 

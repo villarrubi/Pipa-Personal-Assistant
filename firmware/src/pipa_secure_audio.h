@@ -37,7 +37,7 @@ class PipaSecureAudio {
   static constexpr uint8_t kBitsPerSample = 16;
   static constexpr size_t kBytesPerSample = 2;
   static constexpr size_t kMaxChunkBytes = 4096;
-  static constexpr size_t kMaxChunks = 64;
+  static constexpr size_t kMaxChunks = 256;
   static constexpr size_t kMaxStreamBytes = kMaxChunkBytes * kMaxChunks;
   static constexpr size_t kMaxStreamIdLength = 64;
   static constexpr size_t kMaxAdditionalDataBytes = 1024;

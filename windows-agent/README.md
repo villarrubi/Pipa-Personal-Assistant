@@ -746,17 +746,28 @@ llegó a una herramienta. Antes de Whisper, el agente elimina el componente DC
 y normaliza de forma acotada el nivel para compensar voces bajas sin depender
 de una API externa.
 
-Para usar Pipa en modo manos libres, configura `PIPA_VOICE_AUTO_CONFIRM=1` en
-las variables de usuario y reinicia el agente. Solo afecta a órdenes recibidas
-por voz: las acciones que normalmente piden confirmación se ejecutan después
-de la captura, mientras que las peticiones escritas y las APIs mantienen sus
-controles habituales. Este modo debe usarse únicamente cuando el entorno
-físico sea de confianza.
+Para usar Pipa en modo manos libres, configura `PIPA_VOICE_WAKE_PHRASE` y,
+si quieres ejecutar las órdenes sin tocar la pantalla,
+`PIPA_VOICE_AUTO_CONFIRM=1` en las variables de usuario. Por ejemplo:
 
-Para hablar, toca una vez la pantalla, di la frase y toca otra vez. La escucha
-termina automáticamente a los ocho segundos. Si la frase pide una acción
-externa y el modo manos libres está desactivado, Pipa muestra su resumen y
-exige un toque adicional de confirmación.
+```powershell
+[Environment]::SetEnvironmentVariable('PIPA_VOICE_WAKE_PHRASE', 'Pipa me escuchas', 'User')
+[Environment]::SetEnvironmentVariable('PIPA_VOICE_AUTO_CONFIRM', '1', 'User')
+```
+
+Después reinicia el agente. Con el firmware `voice-v2-handsfree`, el punto
+verde de la cara indica que el VAD local está en espera. Di «Pipa, ¿me
+escuchas?» y la orden en la misma intervención, o espera a que muestre «Te
+escucho» y di la orden. La captura empieza al detectar voz y termina tras el
+silencio; 30 segundos son solo un límite de seguridad, no una espera fija.
+El audio de la habitación que no comienza por la frase de activación se
+descarta sin ejecutar nada.
+
+La confirmación automática solo afecta a órdenes recibidas por voz: las
+peticiones escritas y las APIs mantienen sus controles habituales. Debe
+usarse únicamente cuando el entorno físico sea de confianza. Con el firmware
+`voice-v2` anterior, la interacción táctil sigue disponible y la captura
+manual conserva su límite de ocho segundos.
 El adaptador de voz elimina artículos, fórmulas de cortesía y puntuación de
 dictado, y compara de forma aproximada las frases fijas del catálogo y los
 alias de aplicaciones. Solo acepta una coincidencia con puntuación alta y

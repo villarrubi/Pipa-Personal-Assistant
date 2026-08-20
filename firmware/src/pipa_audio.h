@@ -35,8 +35,10 @@ class PipaAudio {
   bool begin(TwoWire& wire);
   bool beginCapture(bool display_ready, bool consented, bool secure_transport_ready);
   size_t readMonoPcm(uint8_t* output, size_t output_capacity);
+  size_t readMonitorMonoPcm(uint8_t* output, size_t output_capacity);
   bool finishCapture();
   void cancelCapture();
+  bool canMonitor() const;
   const AudioProbeStatus& status() const { return status_; }
   PipaAudioStateMachine& stateMachine() { return state_machine_; }
   const PipaAudioStateMachine& stateMachine() const { return state_machine_; }

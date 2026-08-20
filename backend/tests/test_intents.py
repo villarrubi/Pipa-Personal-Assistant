@@ -13,6 +13,7 @@ from backend.pipa_core.intents import (  # noqa: E402
     parse_catalog_intent,
     parse_text_intent,
     parse_voice_intent,
+    split_voice_wake_phrase,
 )
 
 
@@ -22,6 +23,17 @@ class IntegrationIntentTests(unittest.TestCase):
         self.assertIsNotNone(intent, text)
         self.assertEqual(intent.tool_name, tool_name)
         self.assertEqual(intent.arguments, arguments)
+
+    def test_voice_wake_phrase_accepts_dictation_punctuation_and_keeps_the_command(self):
+        detected, remainder = split_voice_wake_phrase(
+            "Pipa, ¿me escuchas? Abre la calculadora.",
+            "Pipa me escuchas",
+        )
+
+        self.assertTrue(detected)
+        self.assertEqual(remainder, "abre la calculadora")
+        self.assertEqual(split_voice_wake_phrase("Pipa, ¿me escuchas?", "Pipa me escuchas"), (True, ""))
+        self.assertFalse(split_voice_wake_phrase("abre la calculadora", "Pipa me escuchas")[0])
 
     def test_web_search_is_bounded_to_a_query(self):
         self.assert_intent(

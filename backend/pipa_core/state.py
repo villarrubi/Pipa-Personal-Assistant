@@ -34,6 +34,7 @@ class DeviceSession:
     audio_state: str | None = None
     battery_percent: int | None = None
     wifi_rssi: int | None = None
+    voice_wake_armed_until: float | None = None
 
     def touch(self) -> None:
         self.last_seen_at = int(time.time())

@@ -65,6 +65,9 @@ $requiredFragments = @(
     'run_pio_with_retry waveshare-185c-v1',
     'run_pio_with_retry secure-session-v2',
     'run_pio_with_retry secure-session-vector',
+    'firmware/src/pipa_voice_activity.cpp',
+    'run_pio_with_retry voice-v2',
+    'run_pio_with_retry voice-v2-handsfree',
     'run_pio_with_retry audio-i2s-lab',
     'gh-action-pip-audit',
     'inputs: windows-agent/requirements-dev.txt'

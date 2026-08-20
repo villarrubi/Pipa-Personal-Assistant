@@ -289,6 +289,36 @@ class CoreTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertNotIn("result", result)
 
+    def test_voice_wake_phrase_ignores_room_speech_and_accepts_inline_or_follow_up_commands(self):
+        self.core.voice_wake_phrase = "Pipa me escuchas"
+
+        ignored = self.core.handle_transcript(self.session_id, "siguiente canción")
+        self.assertEqual(ignored[0]["type"], "ui_state")
+        self.assertEqual(ignored[0]["state"], "idle")
+        self.assertIsNone(ignored[0]["caption"])
+
+        inline = self.core.handle_transcript(
+            self.session_id,
+            "Pipa, ¿me escuchas? Siguiente canción.",
+        )
+        self.assertTrue(next(item for item in inline if item["type"] == "tool_result")["success"])
+
+        awake = self.core.handle_transcript(self.session_id, "Pipa, ¿me escuchas?")
+        self.assertEqual(awake[0]["state"], "idle")
+        self.assertEqual(awake[0]["caption"], "Te escucho.")
+        follow_up = self.core.handle_transcript(self.session_id, "siguiente canción")
+        self.assertTrue(next(item for item in follow_up if item["type"] == "tool_result")["success"])
+
+    def test_hands_free_capability_fails_closed_without_a_wake_phrase(self):
+        session = self.core.sessions.get(self.session_id)
+        assert session is not None
+        session.capabilities = (*session.capabilities, "hands_free")
+
+        outputs = self.core.handle_transcript(self.session_id, "siguiente canción")
+
+        self.assertEqual(outputs[0]["state"], "idle")
+        self.assertEqual(outputs[0]["caption"], "Configura la frase de activación.")
+
     def test_final_transcript_rejects_disguised_or_unbounded_text(self):
         for transcript in ("comando\u202eoculto", "a" * 4001):
             with self.subTest(transcript=transcript[:16]):

@@ -11,6 +11,11 @@
 #include <esp_log.h>
 
 #include "board_pins.h"
+#if __has_include("pipa_device_config.local.h")
+#include "pipa_device_config.local.h"
+#else
+#include "pipa_device_config.h"
+#endif
 #include "vendor/esp_lcd_st77916.h"
 
 namespace pipa {
@@ -420,6 +425,14 @@ void PipaDisplay::drawRow(
         const int32_t mouth_delta = static_cast<int32_t>(y) - mouth_y;
         if (mouth_delta >= -3 && mouth_delta <= 3) row_buffer[x] = kBlack;
       }
+#if PIPA_ALWAYS_LISTENING_ENABLED
+      // A small persistent green light distinguishes microphone standby from
+      // a build whose audio path is disabled. Full capture still switches to
+      // the unmistakable LISTEN screen before any PCM leaves the device.
+      const int32_t mic_dx = static_cast<int32_t>(x) - center;
+      const int32_t mic_dy = static_cast<int32_t>(y) - 286;
+      if (mic_dx * mic_dx + mic_dy * mic_dy <= 7 * 7) row_buffer[x] = kGreen;
+#endif
     }
   } else {
     const int32_t outer_radius = 142;

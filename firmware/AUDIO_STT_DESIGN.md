@@ -76,8 +76,9 @@ en la placa.
    logs, NVS, la pantalla ni artefactos de diagnóstico.
 5. Al cancelar, terminar, desconectar o caducar la sesión se pone a cero la
    memoria temporal antes de liberarla. Un error no devuelve datos del buffer.
-6. La pantalla muestra un estado de escucha inequívoco. Sin indicador visible
-   y confirmación de la acción no se captura.
+6. La pantalla muestra un indicador de standby en el build manos libres y un
+   estado `LISTEN` inequívoco durante el stream. Sin configuración explícita,
+   pantalla operativa y transporte autenticado no se envía audio.
 7. El amplificador permanece apagado durante la sonda, el arranque, los errores
    y la captura, salvo que una futura prueba de reproducción lo habilite de
    manera explícita.
@@ -92,10 +93,20 @@ idioma español y `compute_type=int8`. El modelo predeterminado es `base` y se
 guarda bajo `%LOCALAPPDATA%\Pipa\models`; no se usa una API de voz ni se crean
 WAV temporales.
 
-El flujo de uso es: un toque inicia la escucha, el usuario habla y un segundo
-toque la finaliza. También termina automáticamente a los ocho segundos. La
-transcripción final pasa por el mismo parser, catálogo y confirmaciones que el
-texto; una acción externa continúa exigiendo otro toque de confirmación.
+`voice-v2` conserva el flujo manual: un toque inicia la escucha, el usuario
+habla y un segundo toque la finaliza, con un máximo de ocho segundos.
+`voice-v2-handsfree` es una variante explícita: un VAD local adapta su umbral
+al ruido de la sala, conserva unos 384 ms de pre-roll solo en RAM, inicia el
+stream cifrado al detectar voz y lo finaliza tras unos 896 ms de silencio. El
+límite de 30 segundos es únicamente una barrera ante ruido continuo o un fallo
+de endpoint, no la duración normal de escucha.
+
+El agente ignora las conversaciones que no empiecen por la frase local
+configurada. Acepta la instrucción en la misma transcripción o arma durante un
+intervalo corto la siguiente frase después de «Pipa, ¿me escuchas?». La
+transcripción final pasa por el mismo parser, catálogo y barreras de ejecución
+que el texto. El punto verde de la cara indica monitorización local; la
+pantalla `LISTEN` aparece antes de que cualquier PCM salga cifrado por USB.
 
 ## Ruta implementada
 

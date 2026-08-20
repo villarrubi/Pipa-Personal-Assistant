@@ -140,6 +140,7 @@ $safeTemplateDefines = @{
     'PIPA_PC_MAC' = '"00:00:00:00:00:00"'
     'PIPA_SECURE_SERVER_PUBLIC_KEY' = '""'
     'PIPA_SECURE_SESSION_ENABLED' = '0'
+    'PIPA_ALWAYS_LISTENING_ENABLED' = '0'
 }
 foreach ($entry in $safeTemplateDefines.GetEnumerator()) {
     $templatePattern = '(?m)^\s*#define\s+' + [regex]::Escape($entry.Key) + '\s+' + [regex]::Escape($entry.Value) + '\s*$'
@@ -153,12 +154,24 @@ function Get-StringDefine {
         [Parameter(Mandatory)] [string]$Name
     )
 
-    $pattern = '(?m)^\s*#define\s+' + [regex]::Escape($Name) + '\s+"(?<value>[^"]*)"\s*$'
+    $pattern = '(?m)^\s*#define\s+' + [regex]::Escape($Name) +
+        '\s+"(?<value>(?:\\["\\]|\\[0-7]{3}|[^"\\])*)"\s*$'
     $match = [regex]::Match($config, $pattern)
     if (-not $match.Success) {
         throw "Falta la definicion $Name en la configuracion del firmware."
     }
-    return $match.Groups['value'].Value
+    return [regex]::Replace(
+        $match.Groups['value'].Value,
+        '\\(?<escape>["\\]|[0-7]{3})',
+        {
+            param($escapeMatch)
+            $escape = $escapeMatch.Groups['escape'].Value
+            if ($escape -eq '"' -or $escape -eq '\') {
+                return $escape
+            }
+            return [char][Convert]::ToInt32($escape, 8)
+        }
+    )
 }
 
 function Get-IntegerDefine {

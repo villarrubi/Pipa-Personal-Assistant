@@ -43,7 +43,7 @@ foreach ($required in @(
     'AUDIO_PROTOCOL_VERSION = 2',
     'AUDIO_AAD_PREFIX = b"pipa/audio/v2\x00"',
     'MAX_AUDIO_CHUNK_BYTES = 4096',
-    'MAX_AUDIO_CHUNKS = 64',
+    'MAX_AUDIO_CHUNKS = 256',
     'MAX_AUDIO_STREAM_BYTES = MAX_AUDIO_CHUNK_BYTES * MAX_AUDIO_CHUNKS',
     'session.seal(samples, additional_data=',
     'class AudioCaptureGate:',
@@ -62,7 +62,7 @@ foreach ($required in @(
 
 foreach ($required in @(
     'kMaxChunkBytes = 4096',
-    'kMaxChunks = 64',
+    'kMaxChunks = 256',
     'kMaxStreamBytes = kMaxChunkBytes * kMaxChunks',
     'kMaxStreamIdLength = 64',
     'kMaxAdditionalDataBytes = 1024'
@@ -79,7 +79,7 @@ foreach ($required in @(
     'protocolVersion = 2',
     'aadPrefix = Data("pipa/audio/v2\0".utf8)',
     'maxChunkBytes = 4_096',
-    'maxChunks = 64',
+    'maxChunks = 256',
     'sealBinary(',
     'chunkIndex < PipaSecureAudioContract.maxChunks - 1 || isFinal'
 )) {
@@ -197,6 +197,11 @@ foreach ($required in @('pipa_secure_audio.h', 'PipaSecureAudioSender', 'beginAu
 foreach ($required in @('[env:voice-v2]', '-DPIPA_SECURE_SESSION_ENABLED=1', '-DPIPA_AUDIO_CAPTURE_ENABLED=1')) {
     if ($firmwarePlatform.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
         throw "El entorno voice-v2 no conserva su activación segura: $required"
+    }
+}
+foreach ($required in @('[env:voice-v2-handsfree]', '-DPIPA_ALWAYS_LISTENING_ENABLED=1')) {
+    if ($firmwarePlatform.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El entorno manos libres no conserva su activacion explicita: $required"
     }
 }
 foreach ($required in @('is_secure_audio_frame', 'SecureAudioCommandBridge', 'SecureAudioReceiver')) {

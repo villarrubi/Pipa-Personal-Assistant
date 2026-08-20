@@ -51,7 +51,9 @@ audio, identidad criptográfica y comunicación USB CDC con el ordenador.
 
 El firmware compila para las revisiones V1 y V2. En la V2, el entorno opt-in
 `voice-v2` captura los micrófonos ES7210, cifra el audio por USB y usa
-reconocimiento español local en Windows; el altavoz sigue desactivado.
+reconocimiento español local en Windows; `voice-v2-handsfree` añade VAD,
+pre-roll efímero, final por silencio y frase de activación obligatoria. El
+altavoz sigue desactivado.
 
 ## Arquitectura
 
@@ -78,7 +80,7 @@ configuración local explícita.
 | Integraciones | Aplicaciones, navegador, multimedia, temporizadores, League, WhatsApp y Discord |
 | Panel de control | Procesos, comandos y automatizaciones editables |
 | Gateway Waveshare | USB CDC cifrado V2 y voz local; requiere puerto COM y emparejamiento |
-| Firmware | Builds V1/V2; captura ES7210 opt-in en `voice-v2` |
+| Firmware | Builds V1/V2; captura ES7210 opt-in y variante manos libres con VAD |
 | Cliente iOS | Core, SwiftUI, CryptoKit/Keychain y TCP v2; pendiente de probar en iPhone real |
 | Trusted Unlock | Experimental, desactivado y no sustitutivo de Windows Hello |
 

@@ -1005,6 +1005,19 @@ def _clean_voice_request(text: str) -> str:
     return re.sub(r"\s+(?:por favor|gracias)$", "", normalized).strip()
 
 
+def split_voice_wake_phrase(text: str, wake_phrase: str) -> tuple[bool, str]:
+    """Split a configured wake phrase from the start of a voice transcript."""
+
+    normalized_text = _fold_phrase(" ".join(text.strip().split()))
+    normalized_wake = _fold_phrase(" ".join(wake_phrase.strip().split()))
+    if not normalized_wake or normalized_text == normalized_wake:
+        return normalized_text == normalized_wake and bool(normalized_wake), ""
+    prefix = normalized_wake + " "
+    if normalized_text.startswith(prefix):
+        return True, normalized_text[len(prefix) :].strip()
+    return False, normalized_text
+
+
 def _fixed_catalog_voice_examples(
     commands: Sequence[Mapping[str, Any]] | None,
 ) -> list[tuple[str, str, Mapping[str, object]]]:

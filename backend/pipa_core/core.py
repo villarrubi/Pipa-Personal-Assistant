@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -19,7 +20,12 @@ from .capability_contract import (
     _CAPABILITY_STRING_FIELDS,
 )
 from .confirmations import ConfirmationError
-from .intents import parse_catalog_intent, parse_text_intent, parse_voice_intent
+from .intents import (
+    parse_catalog_intent,
+    parse_text_intent,
+    parse_voice_intent,
+    split_voice_wake_phrase,
+)
 from .memory import MemoryStore
 from .protocol import ClientMessage, server_message
 from .request_binding import compute_request_digest
@@ -65,6 +71,7 @@ MAX_CAPABILITY_GROUPS = 16
 MAX_CAPABILITY_FIELDS = 16
 MAX_CAPABILITY_KEY_LENGTH = 64
 MAX_CAPABILITY_TEXT_LENGTH = 128
+VOICE_WAKE_FOLLOW_UP_SECONDS = 30.0
 _DEVICE_CONFIRMATION_SUMMARIES = {
     "open_app": "Abrir una aplicación configurada.",
     "open_codex": "Abrir Codex.",
@@ -254,6 +261,7 @@ class PipaCore:
         capability_catalog: Callable[[], dict[str, dict[str, Any]]] | None = None,
         command_catalog_authoritative: bool = False,
         voice_auto_confirm: bool = False,
+        voice_wake_phrase: str | None = None,
     ) -> None:
         self.verifier = verifier
         self.router = router
@@ -263,6 +271,10 @@ class PipaCore:
         self.capability_catalog = capability_catalog
         self.command_catalog_authoritative = command_catalog_authoritative
         self.voice_auto_confirm = bool(voice_auto_confirm)
+        phrase = "" if voice_wake_phrase is None else voice_wake_phrase.strip()
+        if phrase:
+            phrase = validate_bounded_text(phrase, "La frase de activación", 80).strip()
+        self.voice_wake_phrase = phrase or None
 
     def create_challenge(self, device_id: str):
         return self.verifier.create_challenge(device_id, operation="session")
@@ -496,6 +508,31 @@ class PipaCore:
                 ),
                 session.ui_message(),
             ]
+
+        if voice:
+            if "hands_free" in session.capabilities and self.voice_wake_phrase is None:
+                session.set_state("idle", caption="Configura la frase de activación.")
+                return [session.ui_message()]
+            if self.voice_wake_phrase is not None:
+                now = time.monotonic()
+                detected, remainder = split_voice_wake_phrase(bounded, self.voice_wake_phrase)
+                armed = (
+                    session.voice_wake_armed_until is not None
+                    and session.voice_wake_armed_until >= now
+                )
+                if detected:
+                    if not remainder:
+                        session.voice_wake_armed_until = now + VOICE_WAKE_FOLLOW_UP_SECONDS
+                        session.set_state("idle", caption="Te escucho.")
+                        return [session.ui_message()]
+                    session.voice_wake_armed_until = None
+                    bounded = remainder
+                elif armed:
+                    session.voice_wake_armed_until = None
+                else:
+                    session.voice_wake_armed_until = None
+                    session.set_state("idle")
+                    return [session.ui_message()]
 
         catalog_commands: list[dict[str, Any]] | None = None
         if self.command_catalog is not None:

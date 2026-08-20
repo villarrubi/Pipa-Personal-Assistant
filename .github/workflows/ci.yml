@@ -143,6 +143,15 @@ jobs:
             firmware/tests/pipa_audio_state_host_test.cpp \
             -o /tmp/pipa_audio_state_host_test
           /tmp/pipa_audio_state_host_test
+      - name: Run voice activity endpoint host test
+        shell: bash
+        run: |
+          set -euo pipefail
+          g++ -std=c++17 -Wall -Wextra -Werror -Ifirmware/src \
+            firmware/src/pipa_voice_activity.cpp \
+            firmware/tests/pipa_voice_activity_host_test.cpp \
+            -o /tmp/pipa_voice_activity_host_test
+          /tmp/pipa_voice_activity_host_test
       - name: Run firmware input policy host test
         shell: bash
         run: |
@@ -212,6 +221,8 @@ jobs:
           run_pio_with_retry waveshare-185c-v1
           run_pio_with_retry secure-session-v2
           run_pio_with_retry secure-session-vector
+          run_pio_with_retry voice-v2
+          run_pio_with_retry voice-v2-handsfree
           run_pio_with_retry audio-i2s-lab
 
   swift-package:

@@ -108,6 +108,29 @@ size_t PipaAudio::readMonoPcm(uint8_t* output, size_t output_capacity) {
 #endif
 }
 
+size_t PipaAudio::readMonitorMonoPcm(uint8_t* output, size_t output_capacity) {
+#if PIPA_AUDIO_CAPTURE_ENABLED
+  if (!canMonitor() || output == nullptr || output_capacity == 0 ||
+      output_capacity > 4096 || output_capacity % 2 != 0) {
+    return 0;
+  }
+  const size_t read = i2s_.readBytes(reinterpret_cast<char*>(output), output_capacity);
+  return read > output_capacity || read % 2 != 0 ? 0 : read;
+#else
+  (void)output;
+  (void)output_capacity;
+  return 0;
+#endif
+}
+
+bool PipaAudio::canMonitor() const {
+#if PIPA_AUDIO_CAPTURE_ENABLED
+  return i2s_ready_ && input_codec_.ready() && state_machine_.canAdvertiseAudio();
+#else
+  return false;
+#endif
+}
+
 bool PipaAudio::finishCapture() {
   return state_machine_.beginDraining() && state_machine_.finishDraining();
 }

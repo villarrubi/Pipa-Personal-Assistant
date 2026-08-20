@@ -168,6 +168,17 @@ Edita solo `pipa_device_config.local.h`:
 #define PIPA_DEVICE_ID "waveshare-01"
 ```
 
+En Windows se puede configurar sin mostrar ni versionar la clave. El script
+elige la unica Ethernet fisica activa y pide la clave con entrada oculta:
+
+```powershell
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\configure_pipa_wol.ps1
+```
+
+Usa una red de 2.4 GHz. El cambio queda solo en
+`pipa_device_config.local.h`; despues hay que recompilar y cargar el firmware.
+
 Nunca edites con valores reales el archivo rastreado
 `include/pipa_device_config.h`: contiene defaults vacíos para que CI compile
 sin secretos.
@@ -206,6 +217,7 @@ foreach ($environment in @(
     'secure-session-vector',
     'secure-session-v2',
     'voice-v2',
+    'voice-v2-handsfree',
     'audio-i2s-lab'
 )) {
     .\firmware\.venv\Scripts\pio.exe run -d firmware -e $environment
@@ -213,8 +225,9 @@ foreach ($environment in @(
 ```
 
 `secure-session-vector` y `secure-session-v2` solo comprueban el camino de
-sesión segura. `voice-v2` es la única imagen que habilita captura y exige que
-la clave pública del agente ya esté provisionada.
+sesión segura. `voice-v2` habilita captura manual y `voice-v2-handsfree` añade
+monitorización local con VAD; ambas exigen que la clave pública del agente ya
+esté provisionada.
 
 Para verificar únicamente la compatibilidad con una placa V1 confirmada:
 
@@ -276,6 +289,23 @@ Para cargar la ruta de voz V2 ya provisionada:
   -t upload --upload-port COM3
 ```
 
+Para el modo manos libres explícito:
+
+```powershell
+[Environment]::SetEnvironmentVariable(
+  'PIPA_VOICE_WAKE_PHRASE',
+  'Pipa me escuchas',
+  'User'
+)
+.\firmware\.venv\Scripts\pio.exe run -d firmware -e voice-v2-handsfree `
+  -t upload --upload-port COM3
+```
+
+La frase se procesa localmente y no se registra. Una activación sin
+instrucción muestra `TE ESCUCHO` y permite decir la orden a continuación. El
+stream termina por silencio; 30 segundos siguen siendo el máximo de seguridad
+ante ruido continuo.
+
 ## Emparejamiento físico
 
 La secuencia completa de validación está en
@@ -313,6 +343,9 @@ El gateway se mantiene desactivado si esa variable no existe.
   confirmación, el toque confirma únicamente esa acción pendiente.
 - En `voice-v2`, un toque en estado inactivo inicia la escucha y un segundo
   toque la finaliza; también termina automáticamente a los ocho segundos.
+- En `voice-v2-handsfree`, el punto verde de la cara indica standby local. La
+  voz inicia el stream automáticamente, el silencio lo finaliza y el agente
+  exige la frase configurada mediante `PIPA_VOICE_WAKE_PHRASE`.
 - Si la frase produce una acción externa, aparece después su confirmación y se
   necesita otro toque para ejecutarla.
 - Si una confirmación caduca, se rechaza o se cancela, el estado visual vuelve

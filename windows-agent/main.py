@@ -53,6 +53,7 @@ from tools.media import send_media_action
 from tools.readiness import inspect_readiness
 from tools.security_policy import LOCAL_CONFIRMATION_PATHS
 from tools.system import get_network_status, get_power_status, get_system_status, lock_pc
+from tools.text_policy import validate_bounded_text
 from tools.timers import TimerManager, TimerNotFoundError, validate_timer_id
 from tools.urls import validate_external_url
 from tools.whatsapp import (
@@ -136,6 +137,19 @@ def _voice_auto_confirm_enabled() -> bool:
     """Read the explicit hands-free voice setting from the user environment."""
 
     return os.environ.get("PIPA_VOICE_AUTO_CONFIRM", "0").strip() == "1"
+
+
+def _voice_wake_phrase() -> str | None:
+    """Read the explicit local wake phrase without logging its contents."""
+
+    value = os.environ.get("PIPA_VOICE_WAKE_PHRASE", "").strip()
+    if not value:
+        return None
+    try:
+        return validate_bounded_text(value, "La frase de activación", 80).strip()
+    except ValueError:
+        LOGGER.error("Configured voice wake phrase is invalid; hands-free commands are gated")
+        return None
 
 
 def _mobile_transport_mode() -> str:
@@ -404,6 +418,7 @@ def _build_pipa_core() -> PipaCore:
         capability_catalog=get_mobile_capabilities,
         command_catalog_authoritative=True,
         voice_auto_confirm=_voice_auto_confirm_enabled(),
+        voice_wake_phrase=_voice_wake_phrase(),
     )
 
 
@@ -914,6 +929,7 @@ def api_pipa_protocol():
         "voice_enabled": bool(_serial_gateway and _serial_gateway.voice_enabled),
         "voice_ready": bool(_serial_gateway and _serial_gateway.voice_ready),
         "voice_auto_confirm": pipa_core.voice_auto_confirm,
+        "voice_wake_phrase_enabled": pipa_core.voice_wake_phrase is not None,
         "mobile_transport": _mobile_transport_mode(),
         "mobile_gateway_configured": _mobile_gateway_is_configured(),
         "mobile_gateway_running": _mobile_gateway_is_running(),

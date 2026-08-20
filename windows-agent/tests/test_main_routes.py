@@ -100,6 +100,11 @@ class MainRouteTests(unittest.TestCase):
         self.assertFalse(response["voice_enabled"])
         self.assertFalse(response["voice_ready"])
         self.assertFalse(response["voice_auto_confirm"])
+        self.assertFalse(response["voice_wake_phrase_enabled"])
+
+    @patch.dict("main.os.environ", {"PIPA_VOICE_WAKE_PHRASE": "Pipa me escuchas"}, clear=True)
+    def test_voice_wake_phrase_is_explicit_and_bounded(self):
+        self.assertEqual(main._voice_wake_phrase(), "Pipa me escuchas")
 
     def test_voice_diagnostics_are_read_only_and_delegate_to_the_gateway(self):
         gateway = SimpleNamespace(

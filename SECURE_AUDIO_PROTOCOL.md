@@ -41,9 +41,10 @@ La trama debe contener exactamente estos campos, sin extensiones implícitas:
 | `stream_id` | string | 1–64 caracteres ASCII `[A-Za-z0-9_-]` |
 
 El payload descifrado es PCM little-endian mono de 16 bits. Los límites son
-4096 bytes por bloque, 64 bloques y 262144 bytes por stream (aproximadamente
-8,192 segundos). Un bloque no puede estar vacío ni tener un número impar de
-bytes.
+4096 bytes por bloque, 256 bloques y 1048576 bytes por stream (aproximadamente
+32,768 segundos). El modo manos libres termina normalmente por silencio y usa
+un límite adicional de 30 segundos para ruido continuo o fallos de endpoint;
+un bloque no puede estar vacío ni tener un número impar de bytes.
 
 El receptor exige el bloque cero, el mismo `stream_id`, secuencias contiguas y
 un único marcador `final`. Un bloque repetido, adelantado, cambiado,
