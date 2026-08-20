@@ -19,7 +19,7 @@ from .capability_contract import (
     _CAPABILITY_STRING_FIELDS,
 )
 from .confirmations import ConfirmationError
-from .intents import parse_catalog_intent, parse_text_intent
+from .intents import parse_catalog_intent, parse_text_intent, parse_voice_intent
 from .memory import MemoryStore
 from .protocol import ClientMessage, server_message
 from .request_binding import compute_request_digest
@@ -473,9 +473,15 @@ class PipaCore:
                 ),
                 session.ui_message(),
             ]
-        return self._route_transcript(session, transcript)
+        return self._route_transcript(session, transcript, voice=True)
 
-    def _route_transcript(self, session, transcript: str) -> list[dict[str, Any]]:
+    def _route_transcript(
+        self,
+        session,
+        transcript: str,
+        *,
+        voice: bool = False,
+    ) -> list[dict[str, Any]]:
         try:
             bounded = validate_bounded_text(transcript, "La transcripción", 4000)
         except ValueError:
@@ -500,7 +506,7 @@ class PipaCore:
 
         intent = parse_catalog_intent(bounded, catalog_commands) if catalog_commands is not None else None
         if intent is None:
-            intent = parse_text_intent(bounded)
+            intent = parse_voice_intent(bounded) if voice else parse_text_intent(bounded)
         if self.command_catalog_authoritative and catalog_commands is not None and intent is not None:
             enabled_tools = {command.get("tool_name") for command in catalog_commands}
             if intent.tool_name not in enabled_tools:

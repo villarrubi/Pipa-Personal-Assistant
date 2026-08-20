@@ -212,6 +212,10 @@ def _parser() -> argparse.ArgumentParser:
     )
     commands.add_parser("commands", help="Muestra frases y acciones disponibles, sin ejecutar nada.")
     commands.add_parser("protocol", help="Muestra herramientas y estado del gateway.")
+    commands.add_parser(
+        "voice-last",
+        help="Muestra la última transcripción física conservada temporalmente en memoria.",
+    )
     commands.add_parser("system-status", help="Consulta el estado resumido del PC.")
     intent = commands.add_parser("intent", help="Comprueba cómo interpreta una frase sin ejecutar nada.")
     intent.add_argument("text", nargs="+", help="Frase que enviaría el dispositivo.")
@@ -383,6 +387,8 @@ def _route(arguments: argparse.Namespace) -> tuple[str, str, dict[str, object] |
         return "GET", "/self-test", None
     if command == "protocol":
         return "GET", "/pipa/protocol", None
+    if command == "voice-last":
+        return "GET", "/voice/diagnostics", None
     if command == "system-status":
         return "GET", "/system/status", None
     if command == "open-app":

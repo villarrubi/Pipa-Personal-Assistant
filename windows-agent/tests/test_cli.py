@@ -165,6 +165,9 @@ class CliTests(unittest.TestCase):
         arguments = pipa_cli._parser().parse_args(["self-test"])
         self.assertEqual(pipa_cli._route(arguments), ("GET", "/self-test", None))
 
+        arguments = pipa_cli._parser().parse_args(["voice-last"])
+        self.assertEqual(pipa_cli._route(arguments), ("GET", "/voice/diagnostics", None))
+
         arguments = pipa_cli._parser().parse_args(["league-search", "solo"])
         self.assertEqual(pipa_cli._route(arguments), ("POST", "/league/search", {"queue": "solo"}))
 

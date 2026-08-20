@@ -123,6 +123,7 @@ La tarea se registra con privilegios limitados y no necesita elevación.
 # Estado y diagnóstico
 python .\windows-agent\pipa_cli.py doctor
 python .\windows-agent\pipa_cli.py readiness
+python .\windows-agent\pipa_cli.py voice-last
 
 # Interpretar o previsualizar sin ejecutar
 python .\windows-agent\pipa_cli.py intent "abre WhatsApp para mama"

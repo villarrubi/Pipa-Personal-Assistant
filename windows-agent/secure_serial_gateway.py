@@ -34,6 +34,7 @@ from secure_identity_store import (
 from secure_session import HandshakeError, SecureIdentity, SecureSessionError
 from secure_session_server import SecureSessionServer
 from trusted_unlock_devices import WindowsRegistryDeviceStore
+from voice_diagnostics import VoiceDiagnosticStore
 
 from backend.pipa_core.connection import AUTHENTICATION_TIMEOUT_SECONDS, SESSION_IDLE_SECONDS
 from backend.pipa_core.core import PipaCore
@@ -59,9 +60,17 @@ _SESSION_RESET_HINT = {"protocol_version": 2, "type": "session_reset"}
 class _SecureSerialAudioRuntime:
     """Bind one consented audio stream to the authenticated Core session."""
 
-    def __init__(self, connection: SecureCoreConnection, provider_factory: Callable[[], Any]) -> None:
+    def __init__(
+        self,
+        connection: SecureCoreConnection,
+        provider_factory: Callable[[], Any],
+        diagnostic_recorder: Callable[
+            [str, Mapping[str, object] | None, list[dict[str, object]]], None
+        ],
+    ) -> None:
         self.connection = connection
         self.provider_factory = provider_factory
+        self.diagnostic_recorder = diagnostic_recorder
         self.bridge: SecureAudioCommandBridge | None = None
 
     def begin(self) -> None:
@@ -92,10 +101,17 @@ class _SecureSerialAudioRuntime:
             gate,
             reset_provider=reset_provider if callable(reset_provider) else None,
         )
-        bridge = SecureAudioCommandBridge(
-            transcriber,
-            lambda transcript: self.connection.core.handle_transcript(session_id, transcript),
-        )
+        def dispatch(transcript: str):
+            messages = self.connection.core.handle_transcript(session_id, transcript)
+            metadata = getattr(provider, "diagnostics", None)
+            self.diagnostic_recorder(
+                transcript,
+                metadata if isinstance(metadata, Mapping) else None,
+                messages,
+            )
+            return messages
+
+        bridge = SecureAudioCommandBridge(transcriber, dispatch)
         bridge.begin_capture(display_ready=True, consented=True, secure_transport_ready=True)
         self.bridge = bridge
 
@@ -156,6 +172,7 @@ class SecureSerialGateway(SerialGateway):
             raise TypeError("speech_provider_factory must be callable")
         self.speech_provider_factory = speech_provider_factory
         self._voice_ready = threading.Event()
+        self._voice_diagnostic_store = VoiceDiagnosticStore()
 
     @property
     def voice_enabled(self) -> bool:
@@ -164,6 +181,24 @@ class SecureSerialGateway(SerialGateway):
     @property
     def voice_ready(self) -> bool:
         return self._voice_ready.is_set()
+
+    def voice_diagnostics(self) -> dict[str, object]:
+        result = self._voice_diagnostic_store.snapshot()
+        result["voice_enabled"] = self.voice_enabled
+        result["voice_ready"] = self.voice_ready
+        return result
+
+    def _record_voice_diagnostic(
+        self,
+        transcript: str,
+        stt_metadata: Mapping[str, object] | None,
+        messages: list[dict[str, object]],
+    ) -> None:
+        self._voice_diagnostic_store.record(
+            transcript,
+            stt_metadata=stt_metadata,
+            messages=messages,
+        )
 
     def _serve_connection(self, connection) -> None:
         secure_core = SecureCoreConnection(
@@ -231,7 +266,9 @@ class SecureSerialGateway(SerialGateway):
                     self._send(connection, server_hello)
                     if self.speech_provider_factory is not None:
                         audio_runtime = _SecureSerialAudioRuntime(
-                            secure_core, self.speech_provider_factory
+                            secure_core,
+                            self.speech_provider_factory,
+                            self._record_voice_diagnostic,
                         )
                     last_activity = time.monotonic()
                     # Force one immediate post-handshake check before the

@@ -54,6 +54,14 @@ class ControlPanelTests(unittest.TestCase):
         self.assertTrue((main.CONTROL_UI_DIR / "pipa-control.css").is_file())
         self.assertTrue((main.CONTROL_UI_DIR / "pipa-control.js").is_file())
 
+    def test_control_panel_shows_the_short_lived_voice_diagnostic(self):
+        html = (main.CONTROL_UI_DIR / "index.html").read_text(encoding="utf-8")
+        script = (main.CONTROL_UI_DIR / "pipa-control.js").read_text(encoding="utf-8")
+
+        self.assertIn('id="voice-diagnostic-transcript"', html)
+        self.assertIn('api("/voice/diagnostics")', script)
+        self.assertIn("textContent", script)
+
     def test_control_writes_need_explicit_confirmation_header(self):
         request = SimpleNamespace(
             method="PUT",

@@ -731,9 +731,26 @@ Comprueba el estado con `pipa_cli.py protocol`. `voice_enabled: true` confirma
 la configuración del agente; `voice_ready: true` confirma además que la placa
 está autenticada y que anunció `audio_capture` con el códec listo.
 
+Después de una captura física, consulta exactamente qué entendió el modelo:
+
+```powershell
+.\windows-agent\.venv\Scripts\python.exe `
+  .\windows-agent\pipa_cli.py voice-last
+```
+
+El mismo resultado aparece en la tarjeta **Última frase que oyó Pipa** del
+panel local. Solo se conserva en memoria durante diez minutos: no se escribe
+la frase ni el PCM en el registro o en un archivo. El diagnóstico incluye el
+nivel pico/RMS, la ganancia aplicada, la probabilidad de idioma y si la frase
+llegó a una herramienta. Antes de Whisper, el agente elimina el componente DC
+y normaliza de forma acotada el nivel para compensar voces bajas sin depender
+de una API externa.
+
 Para hablar, toca una vez la pantalla, di la frase y toca otra vez. La escucha
 termina automáticamente a los ocho segundos. Si la frase pide una acción
 externa, Pipa muestra su resumen y exige un toque adicional de confirmación.
+Los pequeños errores de dictado solo tienen recuperación aproximada en
+consultas fijas y de solo lectura; las acciones externas no se adivinan.
 
 ## Móvil por TCP v2
 

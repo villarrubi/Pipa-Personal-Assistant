@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 import threading
 from pathlib import Path
@@ -17,6 +18,13 @@ COMMAND_HOTWORDS = (
     "Pipa, ordenador, PC, calculadora, navegador, WhatsApp, Discord, "
     "Apple Music, League of Legends, temporizador"
 )
+COMMAND_CONTEXT = (
+    "Órdenes breves para Pipa: estado del ordenador; estado de integraciones; "
+    "estado de la red; abre calculadora; abre navegador; crea un temporizador."
+)
+TARGET_AUDIO_REFERENCE = 0.72
+MAX_AUDIO_GAIN = 8.0
+MIN_AUDIO_REFERENCE = 1.0 / 32768.0
 
 
 class LocalSttError(RuntimeError):
@@ -68,6 +76,13 @@ class LocalSpeechTranscriber:
         self.compute_type = selected_compute
         self.model_directory = Path(model_directory or default_model_directory()).resolve()
         self._pcm = bytearray()
+        self._diagnostics: dict[str, object] = {}
+
+    @property
+    def diagnostics(self) -> dict[str, object]:
+        """Return bounded signal/model metadata without exposing PCM."""
+
+        return dict(self._diagnostics)
 
     def prepare(self) -> None:
         """Download/load the configured model without accepting microphone data."""
@@ -116,6 +131,7 @@ class LocalSpeechTranscriber:
             return model
 
     def _transcribe_final(self) -> str:
+        self._diagnostics = {}
         audio = None
         try:
             import numpy as np
@@ -124,16 +140,66 @@ class LocalSpeechTranscriber:
             # not need to be written to a WAV or another temporary file.
             audio = np.frombuffer(self._pcm, dtype="<i2").astype(np.float32)
             audio *= 1.0 / 32768.0
-            segments, _information = self._model().transcribe(
+            audio -= float(np.mean(audio, dtype=np.float64))
+            absolute = np.abs(audio)
+            peak = float(np.max(absolute))
+            rms = float(np.sqrt(np.mean(np.square(audio), dtype=np.float64)))
+            reference = float(np.percentile(absolute, 99.0))
+            gain = 1.0
+            if reference >= MIN_AUDIO_REFERENCE:
+                gain = min(MAX_AUDIO_GAIN, max(0.5, TARGET_AUDIO_REFERENCE / reference))
+                audio *= gain
+            clipped_percent = float(np.mean(np.abs(audio) >= 0.999)) * 100.0
+            np.clip(audio, -1.0, 1.0, out=audio)
+
+            raw_segments, information = self._model().transcribe(
                 audio,
                 language="es",
                 task="transcribe",
                 beam_size=5,
                 vad_filter=True,
-                vad_parameters={"min_silence_duration_ms": 300, "speech_pad_ms": 150},
+                vad_parameters={
+                    "threshold": 0.35,
+                    "min_speech_duration_ms": 120,
+                    "min_silence_duration_ms": 250,
+                    "speech_pad_ms": 180,
+                },
                 condition_on_previous_text=False,
                 hotwords=COMMAND_HOTWORDS,
+                initial_prompt=COMMAND_CONTEXT,
+                temperature=0.0,
             )
+            segments = list(raw_segments)
+            durations = [
+                max(0.0, float(getattr(segment, "end", 0.0)) - float(getattr(segment, "start", 0.0)))
+                for segment in segments
+            ]
+            weights = [duration if duration > 0 else 1.0 for duration in durations]
+            total_weight = sum(weights)
+            average_log_probability = sum(
+                float(getattr(segment, "avg_logprob", 0.0)) * weight
+                for segment, weight in zip(segments, weights, strict=True)
+            ) / max(1.0, total_weight)
+            no_speech_probability = sum(
+                float(getattr(segment, "no_speech_prob", 0.0)) * weight
+                for segment, weight in zip(segments, weights, strict=True)
+            ) / max(1.0, total_weight)
+            self._diagnostics = {
+                "model": self.model_name,
+                "device": self.device,
+                "audio_duration_ms": round(len(audio) * 1000 / AUDIO_SAMPLE_RATE),
+                "peak_dbfs": _dbfs(peak),
+                "rms_dbfs": _dbfs(rms),
+                "applied_gain_db": round(20.0 * math.log10(gain), 2),
+                "clipped_percent": round(clipped_percent, 4),
+                "segment_count": len(segments),
+                "speech_duration_ms": round(sum(durations) * 1000),
+                "average_log_probability": round(average_log_probability, 4),
+                "no_speech_probability": round(no_speech_probability, 4),
+                "language_probability": round(
+                    float(getattr(information, "language_probability", 0.0)), 4
+                ),
+            }
             transcript = " ".join(segment.text.strip() for segment in segments if segment.text.strip()).strip()
             return validate_bounded_text(transcript, "La transcripción", 4000).strip()
         except (LocalSttError, ValueError):
@@ -144,3 +210,7 @@ class LocalSpeechTranscriber:
             if audio is not None:
                 audio.fill(0)
             self.reset()
+
+
+def _dbfs(amplitude: float) -> float:
+    return round(20.0 * math.log10(max(amplitude, 1.0 / 65536.0)), 2)

@@ -66,6 +66,11 @@ class SerialGateway:
 
         return False
 
+    def voice_diagnostics(self) -> dict[str, object]:
+        """Return no transcript for transports without local speech support."""
+
+        return {"success": True, "available": False, "reason": "voice_disabled"}
+
     def start(self) -> None:
         if self.running:
             return

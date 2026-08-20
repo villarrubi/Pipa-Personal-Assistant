@@ -100,6 +100,22 @@ class MainRouteTests(unittest.TestCase):
         self.assertFalse(response["voice_enabled"])
         self.assertFalse(response["voice_ready"])
 
+    def test_voice_diagnostics_are_read_only_and_delegate_to_the_gateway(self):
+        gateway = SimpleNamespace(
+            voice_diagnostics=lambda: {
+                "success": True,
+                "available": True,
+                "transcript": "estado del ordenador",
+                "recognized": True,
+            }
+        )
+        with patch.object(main, "_serial_gateway", gateway):
+            response = main.api_voice_diagnostics()
+
+        self.assertTrue(response["available"])
+        self.assertTrue(response["recognized"])
+        self.assertEqual(response["transcript"], "estado del ordenador")
+
     @patch("main.open_apple_music", return_value={"success": True, "target": "desktop_app"})
     @patch("main.open_whatsapp_web", return_value={"success": True, "url": "https://web.whatsapp.com/"})
     @patch("main.open_discord_app", return_value={"success": True, "call_started": False})

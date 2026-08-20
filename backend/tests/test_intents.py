@@ -9,7 +9,11 @@ sys.path.insert(0, str(ROOT))
 from tools.agent_catalog import build_agent_catalog  # noqa: E402
 from tools.timers import TimerManager  # noqa: E402
 
-from backend.pipa_core.intents import parse_catalog_intent, parse_text_intent  # noqa: E402
+from backend.pipa_core.intents import (  # noqa: E402
+    parse_catalog_intent,
+    parse_text_intent,
+    parse_voice_intent,
+)
 
 
 class IntegrationIntentTests(unittest.TestCase):
@@ -275,6 +279,23 @@ class IntegrationIntentTests(unittest.TestCase):
         self.assertIsNotNone(intent)
         self.assertEqual(intent.tool_name, "open_app")
         self.assertEqual(intent.arguments, {"name": "calculadora"})
+
+    def test_voice_recovery_accepts_minor_asr_errors_for_read_only_status(self):
+        for phrase in (
+            "estado del ordenado",
+            "dime el estado de ordenador por favor",
+            "oye estado del pc gracias",
+        ):
+            with self.subTest(phrase=phrase):
+                intent = parse_voice_intent(phrase)
+                self.assertIsNotNone(intent)
+                self.assertEqual(intent.tool_name, "system_status")
+                self.assertEqual(intent.arguments, {})
+
+    def test_voice_recovery_does_not_guess_external_or_ambiguous_commands(self):
+        self.assertIsNone(parse_voice_intent("apaga el ordenado"))
+        self.assertIsNone(parse_voice_intent("haz una transferencia bancaria"))
+        self.assertIsNone(parse_text_intent("estado del ordenado"))
 
     def test_media_controls_do_not_select_or_send_external_content(self):
         self.assert_intent(

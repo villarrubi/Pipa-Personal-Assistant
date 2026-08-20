@@ -913,6 +913,22 @@ def api_pipa_protocol():
     }
 
 
+@app.get("/voice/diagnostics")
+def api_voice_diagnostics():
+    """Expose one short-lived transcript only to the local control surface."""
+
+    gateway = _serial_gateway
+    if gateway is None:
+        return {
+            "success": True,
+            "available": False,
+            "reason": "voice_disabled",
+            "voice_enabled": False,
+            "voice_ready": False,
+        }
+    return gateway.voice_diagnostics()
+
+
 @app.post("/pipa/challenge")
 def api_pipa_challenge(request: PipaChallengeRequest):
     try:

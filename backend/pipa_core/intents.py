@@ -6,6 +6,7 @@ import re
 import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from typing import Any
 
 
@@ -952,3 +953,50 @@ def parse_text_intent(text: str) -> ParsedIntent | None:
         return ParsedIntent("open_app", {"app": configured_process.group(1).strip()})
 
     return None
+
+
+_SAFE_VOICE_RECOVERY_PHRASES: tuple[tuple[str, str], ...] = (
+    ("estado del ordenador", "system_status"),
+    ("estado de mi ordenador", "system_status"),
+    ("estado del pc", "system_status"),
+    ("como esta mi ordenador", "system_status"),
+    ("estado de integraciones", "integration_status"),
+    ("estado de las integraciones", "integration_status"),
+    ("estado de bateria", "system_power"),
+    ("nivel de bateria", "system_power"),
+    ("estado de la red", "system_network"),
+    ("estado de internet", "system_network"),
+)
+_MIN_VOICE_RECOVERY_SCORE = 0.86
+_MIN_VOICE_RECOVERY_MARGIN = 0.08
+
+
+def parse_voice_intent(text: str) -> ParsedIntent | None:
+    """Recover small ASR errors only for fixed, read-only status commands."""
+
+    exact = parse_text_intent(text)
+    if exact is not None:
+        return exact
+
+    normalized = _fold_phrase(_strip_optional_wake_name(" ".join(text.strip().split())))
+    normalized = re.sub(r"^(?:oye|hola)\s+", "", normalized)
+    normalized = re.sub(r"^(?:dime|muestra|consulta)\s+(?:(?:cual|como)\s+es\s+)?(?:el\s+)?", "", normalized)
+    normalized = re.sub(r"\s+(?:por favor|gracias)$", "", normalized).strip()
+    if not 8 <= len(normalized) <= 80:
+        return None
+
+    cleaned_exact = parse_text_intent(normalized)
+    if cleaned_exact is not None:
+        return cleaned_exact
+
+    scores: dict[str, float] = {}
+    for phrase, tool_name in _SAFE_VOICE_RECOVERY_PHRASES:
+        score = SequenceMatcher(None, normalized, phrase, autojunk=False).ratio()
+        scores[tool_name] = max(scores.get(tool_name, 0.0), score)
+    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    if not ranked or ranked[0][1] < _MIN_VOICE_RECOVERY_SCORE:
+        return None
+    runner_up = ranked[1][1] if len(ranked) > 1 else 0.0
+    if ranked[0][1] - runner_up < _MIN_VOICE_RECOVERY_MARGIN:
+        return None
+    return ParsedIntent(ranked[0][0], {})

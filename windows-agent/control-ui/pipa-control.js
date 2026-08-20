@@ -78,6 +78,7 @@ function setLoading() {
 
 async function loadOverview(showSuccess = false) {
   setLoading();
+  loadVoiceDiagnostic();
   try {
     const data = await api("/control/overview");
     state.processes = data.processes;
@@ -92,6 +93,38 @@ async function loadOverview(showSuccess = false) {
     $("#process-list").replaceChildren(emptyState("No se pudo cargar la configuración", "Comprueba que el agente siga activo."));
     $("#command-list").replaceChildren(emptyState("Comandos no disponibles", "Vuelve a intentarlo en unos segundos."));
     toast(error.message, true);
+  }
+}
+
+async function loadVoiceDiagnostic() {
+  const card = $("#voice-diagnostic");
+  const status = $("#voice-diagnostic-status");
+  const transcript = $("#voice-diagnostic-transcript");
+  const detail = $("#voice-diagnostic-detail");
+  try {
+    const data = await api("/voice/diagnostics");
+    card.classList.remove("recognized", "unrecognized");
+    if (!data.available) {
+      status.textContent = data.voice_ready ? "Esperando frase" : "Voz no disponible";
+      transcript.textContent = "Pulsa Pipa, habla y vuelve a pulsar para ver aquí la transcripción.";
+      detail.textContent = "La frase se conserva únicamente en memoria durante unos minutos.";
+      return;
+    }
+    const recognized = data.recognized === true;
+    card.classList.add(recognized ? "recognized" : "unrecognized");
+    status.textContent = recognized ? "Comando reconocido" : "No reconocido";
+    transcript.textContent = `“${data.transcript}”`;
+    const stt = data.stt || {};
+    const pieces = [];
+    if (data.tool_name) pieces.push(`Función: ${data.tool_name}`);
+    if (Number.isFinite(stt.peak_dbfs)) pieces.push(`Pico: ${stt.peak_dbfs} dBFS`);
+    if (Number.isFinite(stt.rms_dbfs)) pieces.push(`RMS: ${stt.rms_dbfs} dBFS`);
+    if (Number.isFinite(stt.applied_gain_db)) pieces.push(`Ajuste: ${stt.applied_gain_db} dB`);
+    detail.textContent = pieces.length ? pieces.join(" · ") : "Diagnóstico local disponible durante diez minutos.";
+  } catch (_) {
+    status.textContent = "Sin conexión";
+    transcript.textContent = "No se pudo consultar el diagnóstico de voz.";
+    detail.textContent = "Actualiza la página cuando el agente vuelva a estar disponible.";
   }
 }
 
@@ -410,4 +443,5 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#greeting").textContent = hour < 7 || hour >= 21 ? "Buenas noches." : hour < 14 ? "Buenos días." : "Buenas tardes.";
   bindEvents();
   loadOverview();
+  window.setInterval(loadVoiceDiagnostic, 2500);
 });

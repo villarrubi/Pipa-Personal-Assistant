@@ -21,12 +21,22 @@ class LocalSttTests(unittest.TestCase):
             def transcribe(self, audio, **options):
                 self.audio = audio
                 self.options = options
-                return iter([SimpleNamespace(text=" estado del ordenador ")]), object()
+                return iter(
+                    [
+                        SimpleNamespace(
+                            text=" estado del ordenador ",
+                            start=0.25,
+                            end=1.5,
+                            avg_logprob=-0.15,
+                            no_speech_prob=0.02,
+                        )
+                    ]
+                ), SimpleNamespace(language_probability=0.99)
 
         provider = LocalSpeechTranscriber(model_directory=ROOT / ".platformio-preflight" / "stt-test")
         model = FakeModel()
         with patch.object(provider, "_model", return_value=model):
-            transcript = provider(memoryview(b"\x01\x02" * 8000), True)
+            transcript = provider(memoryview(b"\x00\x01\x00\xff" * 4000), True)
 
         self.assertEqual(transcript, "estado del ordenador")
         self.assertEqual(provider._pcm, bytearray())
@@ -34,6 +44,12 @@ class LocalSttTests(unittest.TestCase):
         self.assertEqual(model.options["language"], "es")
         self.assertTrue(model.options["vad_filter"])
         self.assertIn("ordenador", model.options["hotwords"])
+        self.assertIn("estado del ordenador", model.options["initial_prompt"])
+        self.assertEqual(model.options["temperature"], 0.0)
+        self.assertEqual(provider.diagnostics["segment_count"], 1)
+        self.assertEqual(provider.diagnostics["speech_duration_ms"], 1250)
+        self.assertEqual(provider.diagnostics["language_probability"], 0.99)
+        self.assertGreater(provider.diagnostics["applied_gain_db"], 0)
 
     def test_rejects_unbounded_model_selection(self):
         with self.assertRaises(LocalSttError):

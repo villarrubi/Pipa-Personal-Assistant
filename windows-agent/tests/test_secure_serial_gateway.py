@@ -115,6 +115,12 @@ class SecureSerialGatewayTests(unittest.TestCase):
 
     def test_secure_gateway_transcribes_an_authenticated_audio_stream(self):
         class FakeSpeechProvider:
+            diagnostics = {
+                "model": "base",
+                "peak_dbfs": -16.5,
+                "speech_duration_ms": 1300,
+            }
+
             def __call__(self, _samples, final):
                 return "una frase que no existe" if final else None
 
@@ -204,6 +210,12 @@ class SecureSerialGatewayTests(unittest.TestCase):
         self.assertTrue(any(message.get("state") == "idle" for message in received))
         self.assertFalse(gateway.voice_ready)
         self.assertEqual(self.core.sessions.count(), 0)
+        diagnostic = gateway.voice_diagnostics()
+        self.assertTrue(diagnostic["available"])
+        self.assertFalse(diagnostic["recognized"])
+        self.assertEqual(diagnostic["transcript"], "una frase que no existe")
+        self.assertEqual(diagnostic["error_code"], "unsupported_text_intent")
+        self.assertEqual(diagnostic["stt"]["peak_dbfs"], -16.5)
 
     @patch("webbrowser.open", return_value=True)
     @patch("tools.agent_catalog.resolve_discord_contact")
