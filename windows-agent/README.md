@@ -730,6 +730,9 @@ preparado descarga el modelo a `%LOCALAPPDATA%\Pipa\models`.
 Comprueba el estado con `pipa_cli.py protocol`. `voice_enabled: true` confirma
 la configuración del agente; `voice_ready: true` confirma además que la placa
 está autenticada y que anunció `audio_capture` con el códec listo.
+`voice_local_wake_phrase_ready: true` confirma que el ESP32 montó la partición
+del modelo y habilitó la compuerta offline; si es `false`, el modo manos libres
+falla cerrado y no transmite audio.
 
 Después de una captura física, consulta exactamente qué entendió el modelo:
 
@@ -756,12 +759,13 @@ si quieres ejecutar las órdenes sin tocar la pantalla,
 ```
 
 Después reinicia el agente. Con el firmware `voice-v2-handsfree`, el punto
-verde de la cara indica que el VAD local está en espera. Di «Pipa, ¿me
-escuchas?» y la orden en la misma intervención, o espera a que muestre «Te
-escucho» y di la orden. La captura empieza al detectar voz y termina tras el
-silencio; 30 segundos son solo un límite de seguridad, no una espera fija.
-El audio de la habitación que no comienza por la frase de activación se
-descarta sin ejecutar nada.
+verde de la cara indica que el reconocedor offline está en espera. Di «Pipa,
+¿me escuchas?», haz una pausa natural breve y continúa con la orden en la misma
+intervención. Hasta reconocer la activación, el ESP32 solo sobrescribe un
+contexto circular volátil: no abre el stream, no envía audio y no cambia la
+pantalla a escucha. Después, el VAD termina la instrucción al detectar silencio;
+30 segundos son solo un límite de seguridad, no una espera fija. El STT del PC
+vuelve a comprobar la frase antes de ejecutar nada.
 
 La confirmación automática solo afecta a órdenes recibidas por voz: las
 peticiones escritas y las APIs mantienen sus controles habituales. Debe
@@ -778,12 +782,11 @@ encendido: la batería conserva la placa cuando el puerto pierde alimentación y
 el mismo USB vuelve a ser el canal del agente al despertar.
 
 Después de que Windows lleve al menos 15 segundos suspendido, una intervención
-activa Wake-on-LAN y queda de forma volátil en PSRAM hasta que vuelve USB v2.
-Por ejemplo, «Pipa, ¿me escuchas? abre la calculadora» despierta el equipo y
-entrega después la orden. El ESP32 solo reconoce actividad acústica; la frase
-se comprueba en Windows. Por ello un ruido puede despertar el PC, pero no
-ejecutar una acción. Esta ruta está diseñada para S3. Windows no garantiza
-Wake-on-LAN desde un apagado completo S5.
+que contenga la activación local envía Wake-on-LAN y queda de forma volátil en
+PSRAM hasta que vuelve USB v2. Por ejemplo, «Pipa, ¿me escuchas? abre la
+calculadora» despierta el equipo y entrega después la orden. Una conversación
+sin la activación no abre un stream ni despierta el PC. Esta ruta está diseñada
+para S3. Windows no garantiza Wake-on-LAN desde un apagado completo S5.
 
 Wake-on-LAN no inicia sesión ni desbloquea el escritorio. La voz por sí sola
 no es un factor seguro porque puede reproducirse. Conserva Windows Hello/PIN o

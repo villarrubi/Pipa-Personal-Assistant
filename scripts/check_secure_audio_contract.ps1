@@ -16,11 +16,13 @@ $firmwareMainPath = Join-Path $repoRoot 'firmware/src/main.cpp'
 $firmwareProtocolHeaderPath = Join-Path $repoRoot 'firmware/src/pipa_secure_protocol.h'
 $firmwareProtocolPath = Join-Path $repoRoot 'firmware/src/pipa_secure_protocol.cpp'
 $firmwarePlatformPath = Join-Path $repoRoot 'firmware/platformio.ini'
+$firmwareLocalWakePath = Join-Path $repoRoot 'firmware/src/pipa_local_wake.cpp'
+$firmwareModelScriptPath = Join-Path $repoRoot 'firmware/scripts/add_sr_model.py'
 $secureDiagnosticsPath = Join-Path $repoRoot 'windows-agent/tools/secure_diagnostics.py'
 $secureSerialGatewayPath = Join-Path $repoRoot 'windows-agent/secure_serial_gateway.py'
 $localSttPath = Join-Path $repoRoot 'windows-agent/local_stt.py'
 
-foreach ($path in @($pythonPath, $pythonTestPath, $swiftPath, $fixturePath, $firmwareSessionPath, $firmwareAudioHeaderPath, $firmwareAudioPath, $firmwareMainPath, $firmwareProtocolHeaderPath, $firmwareProtocolPath, $firmwarePlatformPath, $secureSerialGatewayPath, $localSttPath)) {
+foreach ($path in @($pythonPath, $pythonTestPath, $swiftPath, $fixturePath, $firmwareSessionPath, $firmwareAudioHeaderPath, $firmwareAudioPath, $firmwareMainPath, $firmwareProtocolHeaderPath, $firmwareProtocolPath, $firmwarePlatformPath, $firmwareLocalWakePath, $firmwareModelScriptPath, $secureSerialGatewayPath, $localSttPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Falta un artefacto del contrato de audio seguro: $path"
     }
@@ -36,6 +38,8 @@ $firmwareMain = Get-Content -LiteralPath $firmwareMainPath -Raw
 $firmwareProtocolHeader = Get-Content -LiteralPath $firmwareProtocolHeaderPath -Raw
 $firmwareProtocol = Get-Content -LiteralPath $firmwareProtocolPath -Raw
 $firmwarePlatform = Get-Content -LiteralPath $firmwarePlatformPath -Raw
+$firmwareLocalWake = Get-Content -LiteralPath $firmwareLocalWakePath -Raw
+$firmwareModelScript = Get-Content -LiteralPath $firmwareModelScriptPath -Raw
 $secureSerialGateway = Get-Content -LiteralPath $secureSerialGatewayPath -Raw
 $fixtureObject = $fixture | ConvertFrom-Json
 
@@ -199,14 +203,38 @@ foreach ($required in @('[env:voice-v2]', '-DPIPA_SECURE_SESSION_ENABLED=1', '-D
         throw "El entorno voice-v2 no conserva su activación segura: $required"
     }
 }
-foreach ($required in @('[env:voice-v2-handsfree]', '-DPIPA_ALWAYS_LISTENING_ENABLED=1')) {
+foreach ($required in @(
+    '[env:voice-v2-handsfree]',
+    '-DPIPA_ALWAYS_LISTENING_ENABLED=1',
+    '-DPIPA_LOCAL_WAKE_PHRASE_ENABLED=1',
+    'board_build.partitions = esp_sr_16.csv',
+    'extra_scripts = pre:scripts/add_sr_model.py'
+)) {
     if ($firmwarePlatform.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
         throw "El entorno manos libres no conserva su activacion explicita: $required"
     }
 }
 foreach ($required in @(
+    'esp_srmodel_init("model")',
+    'esp_srmodel_filter(impl_->models, ESP_MN_PREFIX, ESP_MN_ENGLISH)',
+    'esp_mn_commands_phoneme_add',
+    'results->command_id[0] == kWakeCommandId',
+    'MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT'
+)) {
+    if ($firmwareLocalWake.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "La compuerta local no conserva su reconocimiento fail-closed: $required"
+    }
+}
+foreach ($required in @('srmodels.bin', '0xC10000', '0x3E0000', 'FLASH_EXTRA_IMAGES')) {
+    if ($firmwareModelScript.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El upload manos libres no conserva su modelo acotado: $required"
+    }
+}
+foreach ($required in @(
     'MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT',
     'clearDeferredAudio()',
+    'local_wake_phrase.process(',
+    'if (activated)',
     'maybeWakePc();',
     'deferred_upload_pending'
 )) {
@@ -214,8 +242,10 @@ foreach ($required in @(
         throw "El modo manos libres no conserva su buffer volatil de Wake-on-LAN: $required"
     }
 }
-if ($firmwareProtocol.IndexOf('offline_wake_buffer', [System.StringComparison]::Ordinal) -lt 0) {
-    throw 'El dispositivo no anuncia la capacidad acotada de audio diferido.'
+foreach ($required in @('local_wake_phrase_ready_', 'local_wake_phrase', 'offline_wake_buffer')) {
+    if (($firmwareProtocolHeader + $firmwareProtocol).IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {
+        throw "El dispositivo no anuncia la compuerta y el audio diferido de forma acotada: $required"
+    }
 }
 foreach ($required in @('is_secure_audio_frame', 'SecureAudioCommandBridge', 'SecureAudioReceiver')) {
     if ($secureSerialGateway.IndexOf($required, [System.StringComparison]::Ordinal) -lt 0) {

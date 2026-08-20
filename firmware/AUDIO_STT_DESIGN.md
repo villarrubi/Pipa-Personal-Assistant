@@ -77,8 +77,9 @@ en la placa.
 5. Al cancelar, terminar, desconectar o caducar la sesión se pone a cero la
    memoria temporal antes de liberarla. Un error no devuelve datos del buffer.
 6. La pantalla muestra un indicador de standby en el build manos libres y un
-   estado `LISTEN` inequívoco durante el stream. Sin configuración explícita,
-   pantalla operativa y transporte autenticado no se envía audio.
+   estado `LISTEN` inequívoco durante el stream. Sin modelo local de activación,
+   configuración explícita, pantalla operativa y transporte autenticado no se
+   envía audio.
 7. El amplificador permanece apagado durante la sonda, el arranque, los errores
    y la captura, salvo que una futura prueba de reproducción lo habilite de
    manera explícita.
@@ -95,28 +96,32 @@ WAV temporales.
 
 `voice-v2` conserva el flujo manual: un toque inicia la escucha, el usuario
 habla y un segundo toque la finaliza, con un máximo de ocho segundos.
-`voice-v2-handsfree` es una variante explícita: un VAD local adapta su umbral
-al ruido de la sala, conserva unos 384 ms de pre-roll solo en RAM, inicia el
-stream cifrado al detectar voz y lo finaliza tras unos 896 ms de silencio. El
-límite de 30 segundos es únicamente una barrera ante ruido continuo o un fallo
-de endpoint, no la duración normal de escucha.
+`voice-v2-handsfree` es una variante explícita. Un VAD ligero analiza niveles
+localmente y solo durante una intervención entrega PCM a MultiNet dentro del
+ESP32, donde se busca una representación fonética de «Pipa me escuchas». El
+contexto circular de dos segundos se sobrescribe en RAM y no se entrega a
+ningún transporte salvo que se reconozca la activación. Después se abre el
+stream cifrado; el mismo VAD adapta su umbral al ruido de la sala y lo finaliza
+tras unos 896 ms de silencio. El límite de 30 segundos es únicamente una
+barrera ante ruido continuo o un fallo de endpoint, no la duración normal de
+escucha.
 
-El agente ignora las conversaciones que no empiecen por la frase local
-configurada. Acepta la instrucción en la misma transcripción o arma durante un
-intervalo corto la siguiente frase después de «Pipa, ¿me escuchas?». La
-transcripción final pasa por el mismo parser, catálogo y barreras de ejecución
-que el texto. El punto verde de la cara indica monitorización local; la
-pantalla `LISTEN` aparece antes de que cualquier PCM salga cifrado por USB.
+Las conversaciones que no contienen la activación nunca salen del ESP32. La
+frase y la instrucción se dicen en la misma intervención, con una pausa natural
+breve entre ambas. El STT español del PC vuelve a exigir y retirar la frase de
+activación antes de pasar la instrucción por el mismo parser, catálogo y
+barreras de ejecución que el texto. El punto verde de la cara indica análisis
+local; la pantalla `LISTEN` aparece antes de que cualquier PCM salga cifrado
+por USB.
 
 ### Suspensión del PC
 
 Tras 15 segundos sin respuestas autenticadas, la variante manos libres da por
-ausente al agente. Si hay Wi-Fi y detecta una intervención, envía Wake-on-LAN
-y guarda como máximo 32,768 segundos de PCM en PSRAM volátil. Al volver USB v2,
-el bloque entra por el mismo receptor autenticado y se sobrescribe
-progresivamente. Nunca se envía audio por UDP ni se escribe en NVS o flash. El
-ESP32 solo detecta actividad, no palabras: un falso positivo puede despertar
-Windows, aunque la frase obligatoria evita que ejecute órdenes.
+ausente al agente. Si hay Wi-Fi y el modelo reconoce la activación, envía
+Wake-on-LAN y guarda como máximo 32,768 segundos de PCM en PSRAM volátil. Al
+volver USB v2, el bloque entra por el mismo receptor autenticado y se
+sobrescribe progresivamente. Nunca se envía audio por UDP ni se escribe en NVS
+o flash. Una conversación ordinaria o un ruido no despiertan Windows.
 
 ## Ruta implementada
 
@@ -124,7 +129,8 @@ Windows, aunque la frase obligatoria evita que ejecute órdenes.
 2. El ES7210 se configura a 16 kHz/16 bits y la entrada estéreo se reduce a
    mono; PA_CTRL permanece apagado.
 3. La placa solo anuncia `audio_capture` si códec e I²S llegan a
-   `CODEC_READY` dentro de una sesión segura V2.
+   `CODEC_READY`; `hands_free` y `local_wake_phrase` requieren además que el
+   modelo offline se haya cargado correctamente.
 4. Cada bloque PCM se cifra con el contrato de
    [SECURE_AUDIO_PROTOCOL.md](../SECURE_AUDIO_PROTOCOL.md).
 5. El agente autentica, ordena y descifra los bloques en memoria, ejecuta STT

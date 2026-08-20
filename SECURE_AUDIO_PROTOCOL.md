@@ -50,9 +50,10 @@ Si Windows está suspendido y no existe sesión USB autenticada, el firmware
 opt-in puede retener una intervención en la PSRAM volátil del ESP32-S3 y enviar
 Wake-on-LAN. No transmite esa memoria por Wi-Fi ni la escribe en flash: espera
 a recuperar USB v2, cifra cada bloque con la sesión nueva, lo entrega al agente
-y sobrescribe los bytes enviados. La frase de activación se valida después en
-el STT local; un sonido distinto puede despertar el PC, pero no ejecutar una
-orden.
+y sobrescribe los bytes enviados. La compuerta offline del dispositivo debe
+reconocer antes la frase de activación; hasta entonces el contexto circular se
+sobrescribe localmente y ningún audio llega al transporte. El STT del PC vuelve
+a validar la frase dentro del stream cifrado antes de interpretar la orden.
 
 El receptor exige el bloque cero, el mismo `stream_id`, secuencias contiguas y
 un único marcador `final`. Un bloque repetido, adelantado, cambiado,

@@ -33,6 +33,7 @@ class PipaSecureProtocol {
   void setHardwareCapabilities(bool display_ready, bool touch_ready, bool audio_probe_ready);
   void setAudioState(PipaAudioState state);
   void setBatteryPercent(int battery_percent);
+  void setLocalWakePhraseReady(bool ready) { local_wake_phrase_ready_ = ready; }
 
   void sendGesture(const char* gesture);
   void sendTextInput(const char* text, const char* source = "voice");
@@ -102,6 +103,7 @@ class PipaSecureProtocol {
   bool audio_probe_ready_ = false;
   PipaAudioState audio_state_ = PipaAudioState::kDisabled;
   int battery_percent_ = -1;
+  bool local_wake_phrase_ready_ = false;
   uint32_t last_handshake_ = 0;
   uint32_t last_heartbeat_ = 0;
   uint32_t last_status_ = 0;

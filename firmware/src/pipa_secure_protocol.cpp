@@ -439,8 +439,11 @@ void PipaSecureProtocol::sendDeviceHello() {
   if (audio_state_ == PipaAudioState::kCodecReady) capabilities.add("audio_capture");
 #endif
 #if PIPA_ALWAYS_LISTENING_ENABLED
-  capabilities.add("hands_free");
-  capabilities.add("offline_wake_buffer");
+  if (local_wake_phrase_ready_) {
+    capabilities.add("hands_free");
+    capabilities.add("local_wake_phrase");
+    capabilities.add("offline_wake_buffer");
+  }
 #endif
   capabilities.add("wol");
   capabilities.add("text_input");

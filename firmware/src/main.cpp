@@ -16,6 +16,7 @@
 #include "pipa_secure_protocol.h"
 #include "pipa_display.h"
 #include "pipa_audio.h"
+#include "pipa_local_wake.h"
 #include "pipa_voice_activity.h"
 #include "pipa_power.h"
 #include "wake_on_lan.h"
@@ -29,6 +30,9 @@
 #endif
 #if PIPA_ALWAYS_LISTENING_ENABLED && !PIPA_AUDIO_CAPTURE_ENABLED
 #error "Hands-free monitoring requires the encrypted microphone capture path."
+#endif
+#if PIPA_ALWAYS_LISTENING_ENABLED && !PIPA_LOCAL_WAKE_PHRASE_ENABLED
+#error "Hands-free monitoring requires an offline activation-phrase gate."
 #endif
 
 #if defined(PIPA_SECURE_SESSION_VECTOR_TEST)
@@ -50,7 +54,11 @@ constexpr size_t kAudioChunkBytes = 4096;
 #if PIPA_ALWAYS_LISTENING_ENABLED
 constexpr uint16_t kMaxAudioChunks = 256;
 constexpr uint32_t kMaxCaptureMs = 30000;
-constexpr uint8_t kPreRollChunks = 3;
+constexpr uint32_t kInstructionStartTimeoutMs = 5000;
+// Volatile rolling context long enough to include the activation phrase. It
+// is overwritten locally and is released to the encrypted stream only after
+// the offline recognizer has fired.
+constexpr uint8_t kPreRollChunks = 16;
 constexpr size_t kDeferredAudioBytes = kMaxAudioChunks * kAudioChunkBytes;
 #else
 constexpr uint16_t kMaxAudioChunks = 64;
@@ -93,6 +101,7 @@ uint32_t audio_stream_counter = 0;
 alignas(int16_t) uint8_t audio_chunk[kAudioChunkBytes] = {};
 #if PIPA_ALWAYS_LISTENING_ENABLED
 pipa::PipaVoiceActivityDetector voice_activity;
+pipa::PipaLocalWakePhrase local_wake_phrase;
 uint8_t pre_roll[kPreRollChunks][kAudioChunkBytes] = {};
 size_t pre_roll_lengths[kPreRollChunks] = {};
 uint8_t pre_roll_next = 0;
@@ -266,6 +275,22 @@ bool sendPreRoll() {
   return true;
 }
 
+bool detectLocalWakePhraseInPreRoll() {
+  const uint8_t first = static_cast<uint8_t>(
+      (pre_roll_next + kPreRollChunks - pre_roll_count) % kPreRollChunks);
+  for (uint8_t offset = 0; offset < pre_roll_count; ++offset) {
+    const uint8_t index = static_cast<uint8_t>((first + offset) % kPreRollChunks);
+    const size_t length = pre_roll_lengths[index];
+    if (length == 0) continue;
+    if (local_wake_phrase.process(
+            reinterpret_cast<const int16_t*>(pre_roll[index]),
+            length / sizeof(int16_t))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void maintainHandsFreeMonitor() {
   if (deferred_capture_active) {
     const size_t captured = audio.readMonitorMonoPcm(audio_chunk, sizeof(audio_chunk));
@@ -274,7 +299,9 @@ void maintainHandsFreeMonitor() {
     const auto event = voice_activity.process(
         reinterpret_cast<const int16_t*>(audio_chunk), captured / sizeof(int16_t));
     memset(audio_chunk, 0, sizeof(audio_chunk));
-    if (!appended || event == pipa::PipaVoiceActivityEvent::kSpeechEnded ||
+    const bool no_instruction = !voice_activity.speechActive() &&
+        millis() - deferred_capture_started_at >= kInstructionStartTimeoutMs;
+    if (!appended || event == pipa::PipaVoiceActivityEvent::kSpeechEnded || no_instruction ||
         millis() - deferred_capture_started_at >= kMaxCaptureMs) {
       deferred_capture_active = false;
       deferred_capture_ready = deferred_audio_length > 0;
@@ -295,9 +322,10 @@ void maintainHandsFreeMonitor() {
   }
 
   if (audio_start_pending || audio_stream_active) return;
-  if (!audio.canMonitor() ||
+  if (!local_wake_phrase.ready() || !audio.canMonitor() ||
       (protocol.authenticated() && protocol.ui().state != "idle") ||
       (!protocol.authenticated() && WiFi.status() != WL_CONNECTED)) {
+    local_wake_phrase.reset();
     voice_activity.resetUtterance();
     clearPreRoll();
     return;
@@ -307,7 +335,19 @@ void maintainHandsFreeMonitor() {
   rememberPreRoll(audio_chunk, captured);
   const auto event = voice_activity.process(
       reinterpret_cast<const int16_t*>(audio_chunk), captured / sizeof(int16_t));
+  bool activated = false;
   if (event == pipa::PipaVoiceActivityEvent::kSpeechStarted) {
+    local_wake_phrase.reset();
+    activated = detectLocalWakePhraseInPreRoll();
+  } else if (event == pipa::PipaVoiceActivityEvent::kSpeech ||
+             event == pipa::PipaVoiceActivityEvent::kSpeechEnded) {
+    activated = local_wake_phrase.process(
+        reinterpret_cast<const int16_t*>(audio_chunk), captured / sizeof(int16_t));
+  }
+  memset(audio_chunk, 0, sizeof(audio_chunk));
+  if (activated) {
+    local_wake_phrase.reset();
+    voice_activity.resetUtterance();
     if (protocol.authenticated()) {
       audio_start_pending = protocol.sendHoldStart();
       audio_stop_requested = false;
@@ -325,6 +365,10 @@ void maintainHandsFreeMonitor() {
         voice_activity.resetUtterance();
       }
     }
+  } else if (event == pipa::PipaVoiceActivityEvent::kSpeechEnded) {
+    local_wake_phrase.reset();
+    voice_activity.resetUtterance();
+    clearPreRoll();
   }
 }
 
@@ -427,12 +471,15 @@ void maintainAudioCapture() {
   }
 
   bool speech_ended = false;
+  bool instruction_start_timed_out = false;
 #if PIPA_ALWAYS_LISTENING_ENABLED
   speech_ended = voice_activity.process(
       reinterpret_cast<const int16_t*>(audio_chunk), captured / sizeof(int16_t)) ==
       pipa::PipaVoiceActivityEvent::kSpeechEnded;
+  instruction_start_timed_out = !voice_activity.speechActive() &&
+      millis() - audio_started_at >= kInstructionStartTimeoutMs;
 #endif
-  const bool final = audio_stop_requested || speech_ended ||
+  const bool final = audio_stop_requested || speech_ended || instruction_start_timed_out ||
       millis() - audio_started_at >= kMaxCaptureMs ||
       audio_chunks_sent + 1 >= kMaxAudioChunks;
   const bool sent = protocol.sendAudioChunk(audio_chunk, captured, final);
@@ -508,6 +555,11 @@ void setup() {
   log(deferred_audio != nullptr
           ? "offline voice buffer ready"
           : "offline voice buffer unavailable; Wake-on-LAN remains touch-only");
+  const bool local_wake_ready = deferred_audio != nullptr && local_wake_phrase.begin();
+  protocol.setLocalWakePhraseReady(local_wake_ready);
+  log(local_wake_ready
+          ? "local activation phrase ready"
+          : "local activation phrase unavailable; hands-free audio disabled");
 #endif
 #endif
   const bool power_ready = power.begin();

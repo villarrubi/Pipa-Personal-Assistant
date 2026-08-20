@@ -172,6 +172,7 @@ class SecureSerialGateway(SerialGateway):
             raise TypeError("speech_provider_factory must be callable")
         self.speech_provider_factory = speech_provider_factory
         self._voice_ready = threading.Event()
+        self._local_wake_phrase_ready = threading.Event()
         self._voice_diagnostic_store = VoiceDiagnosticStore()
 
     @property
@@ -182,10 +183,15 @@ class SecureSerialGateway(SerialGateway):
     def voice_ready(self) -> bool:
         return self._voice_ready.is_set()
 
+    @property
+    def local_wake_phrase_ready(self) -> bool:
+        return self._local_wake_phrase_ready.is_set()
+
     def voice_diagnostics(self) -> dict[str, object]:
         result = self._voice_diagnostic_store.snapshot()
         result["voice_enabled"] = self.voice_enabled
         result["voice_ready"] = self.voice_ready
+        result["local_wake_phrase_ready"] = self.local_wake_phrase_ready
         return result
 
     def _record_voice_diagnostic(
@@ -320,6 +326,7 @@ class SecureSerialGateway(SerialGateway):
             LOGGER.error("unexpected secure serial gateway error", exc_info=True)
         finally:
             self._voice_ready.clear()
+            self._local_wake_phrase_ready.clear()
             if audio_runtime is not None:
                 audio_runtime.close()
             secure_core.close()
@@ -338,6 +345,10 @@ class SecureSerialGateway(SerialGateway):
             self._voice_ready.set()
         else:
             self._voice_ready.clear()
+        if core_session is not None and "local_wake_phrase" in core_session.capabilities:
+            self._local_wake_phrase_ready.set()
+        else:
+            self._local_wake_phrase_ready.clear()
 
     def _refresh_trusted_devices(self) -> None:
         provider = self.trusted_devices_provider

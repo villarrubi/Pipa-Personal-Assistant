@@ -161,7 +161,12 @@ class SecureSerialGatewayTests(unittest.TestCase):
                                 "protocol_version": 1,
                                 "type": "device_hello",
                                 "firmware_version": "voice-test",
-                                "capabilities": ["display", "touch", "audio_capture"],
+                                "capabilities": [
+                                    "display",
+                                    "touch",
+                                    "audio_capture",
+                                    "local_wake_phrase",
+                                ],
                             }
                         )
                     ).encode()
@@ -187,6 +192,7 @@ class SecureSerialGatewayTests(unittest.TestCase):
                 )
             elif message["type"] == "status_ack":
                 self.assertTrue(gateway.voice_ready)
+                self.assertTrue(gateway.local_wake_phrase_ready)
                 connection.lines.append(
                     json.dumps(
                         client_channel.seal_message({"protocol_version": 1, "type": "hold_start"})
@@ -208,6 +214,7 @@ class SecureSerialGatewayTests(unittest.TestCase):
         self.assertTrue(any(message.get("code") == "unsupported_text_intent" for message in received))
         self.assertTrue(any(message.get("state") == "idle" for message in received))
         self.assertFalse(gateway.voice_ready)
+        self.assertFalse(gateway.local_wake_phrase_ready)
         self.assertEqual(self.core.sessions.count(), 0)
         diagnostic = gateway.voice_diagnostics()
         self.assertTrue(diagnostic["available"])

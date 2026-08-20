@@ -141,10 +141,12 @@ limitan a los cuatro valores del protocolo (`tap`, `double_tap`, `swipe_left`,
 `swipe_right`); la pantalla representa el estado recibido y muestra
 `CONFIRM`/`TAP` cuando hay una acción pendiente de confirmación.
 
-No se ha activado ESP-SR como solución de voz española: la documentación
-oficial de MultiNet limita los modelos disponibles a chino e inglés. La ruta
-implementada usa captura I²S y STT español local en Windows, con privacidad,
-consentimiento e indicador de escucha; el micrófono nunca viaja en claro.
+ESP-SR no se usa como STT español completo: la documentación oficial de
+MultiNet limita los modelos disponibles a chino e inglés. En el modo manos
+libres se usa únicamente como compuerta offline con varias aproximaciones
+fonéticas de «Pipa me escuchas»; la instrucción sigue llegando cifrada al STT
+español local de Windows. Antes de esa compuerta no se abre un stream y el
+micrófono nunca viaja en claro.
 Véase la [documentación oficial de reconocimiento de comandos ESP-SR](https://docs.espressif.com/projects/esp-sr/en/latest/esp32s3/speech_command_recognition/README.html).
 
 El contrato de audio, sus estados, límites, política de borrado y criterios de
@@ -226,8 +228,8 @@ foreach ($environment in @(
 
 `secure-session-vector` y `secure-session-v2` solo comprueban el camino de
 sesión segura. `voice-v2` habilita captura manual y `voice-v2-handsfree` añade
-monitorización local con VAD; ambas exigen que la clave pública del agente ya
-esté provisionada.
+la compuerta offline MultiNet y el final por VAD; ambas exigen que la clave
+pública del agente ya esté provisionada.
 
 Para verificar únicamente la compatibilidad con una placa V1 confirmada:
 
@@ -301,10 +303,12 @@ Para el modo manos libres explícito:
   -t upload --upload-port COM3
 ```
 
-La frase se procesa localmente y no se registra. Una activación sin
-instrucción muestra `TE ESCUCHO` y permite decir la orden a continuación. El
-stream termina por silencio; 30 segundos siguen siendo el máximo de seguridad
-ante ruido continuo.
+Este entorno usa la tabla `esp_sr_16.csv` y añade automáticamente
+`srmodels.bin` a la partición `model` durante `upload`; no hay que flashear el
+modelo por separado. Di la frase y la instrucción en la misma intervención,
+con una pausa natural breve. El contexto anterior a la activación solo existe
+en RAM circular y se sobrescribe; el stream termina por silencio y 30 segundos
+siguen siendo el máximo de seguridad ante ruido continuo.
 
 ## Emparejamiento físico
 
@@ -344,13 +348,14 @@ El gateway se mantiene desactivado si esa variable no existe.
 - En `voice-v2`, un toque en estado inactivo inicia la escucha y un segundo
   toque la finaliza; también termina automáticamente a los ocho segundos.
 - En `voice-v2-handsfree`, el punto verde de la cara indica standby local. La
-  voz inicia el stream automáticamente, el silencio lo finaliza y el agente
-  exige la frase configurada mediante `PIPA_VOICE_WAKE_PHRASE`.
+  compuerta offline reconoce la activación, el silencio finaliza la instrucción
+  y el agente vuelve a exigir la frase configurada mediante
+  `PIPA_VOICE_WAKE_PHRASE`.
 - Si desaparece el agente durante 15 segundos y Wi-Fi está disponible, una
-  intervención envía Wake-on-LAN y queda temporalmente en PSRAM. Cuando vuelve
-  USB v2 se cifra, se entrega y se sobrescribe; nunca sale por UDP ni llega a
-  flash. Como el ESP32 detecta actividad y no palabras, un ruido puede despertar
-  el PC, pero no superar la frase de activación del agente.
+  activación local envía Wake-on-LAN y la intervención queda temporalmente en
+  PSRAM. Cuando vuelve USB v2 se cifra, se entrega y se sobrescribe; nunca sale
+  por UDP ni llega a flash. El habla que no active la frase se ignora y no
+  despierta el PC.
 - Si la frase produce una acción externa, aparece después su confirmación y se
   necesita otro toque para ejecutarla.
 - Si una confirmación caduca, se rechaza o se cancela, el estado visual vuelve

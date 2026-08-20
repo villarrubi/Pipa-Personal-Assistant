@@ -933,6 +933,9 @@ def api_pipa_protocol():
         "serial_gateway_security": _serial_security_mode(),
         "voice_enabled": bool(_serial_gateway and _serial_gateway.voice_enabled),
         "voice_ready": bool(_serial_gateway and _serial_gateway.voice_ready),
+        "voice_local_wake_phrase_ready": bool(
+            _serial_gateway and getattr(_serial_gateway, "local_wake_phrase_ready", False)
+        ),
         "voice_auto_confirm": pipa_core.voice_auto_confirm,
         "voice_wake_phrase_enabled": pipa_core.voice_wake_phrase is not None,
         "mobile_transport": _mobile_transport_mode(),

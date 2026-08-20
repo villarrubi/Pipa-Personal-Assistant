@@ -12,6 +12,9 @@
 #ifndef PIPA_ALWAYS_LISTENING_ENABLED
 #define PIPA_ALWAYS_LISTENING_ENABLED 0
 #endif
+#ifndef PIPA_LOCAL_WAKE_PHRASE_ENABLED
+#define PIPA_LOCAL_WAKE_PHRASE_ENABLED 0
+#endif
 
 // USB CDC is the default authenticated transport after Windows starts.
 #define PIPA_DEVICE_ID "waveshare-01"

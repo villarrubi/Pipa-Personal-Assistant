@@ -99,6 +99,7 @@ class MainRouteTests(unittest.TestCase):
         self.assertEqual(response["serial_gateway_security"], "v2")
         self.assertFalse(response["voice_enabled"])
         self.assertFalse(response["voice_ready"])
+        self.assertFalse(response["voice_local_wake_phrase_ready"])
         self.assertFalse(response["voice_auto_confirm"])
         self.assertFalse(response["voice_wake_phrase_enabled"])
 
