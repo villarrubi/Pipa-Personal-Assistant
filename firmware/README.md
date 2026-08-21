@@ -168,7 +168,14 @@ Edita solo `pipa_device_config.local.h`:
 #define PIPA_WIFI_PASSWORD "tu-clave"
 #define PIPA_PC_MAC "AA:BB:CC:DD:EE:FF"
 #define PIPA_DEVICE_ID "waveshare-01"
+#define PIPA_SERVER_WAKE_PHRASE_FALLBACK_ENABLED 0
 ```
+
+La opción de fallback puede activarse para mejorar la detección en español
+cuando el agente ya está autenticado: el VAD inicia una captura cifrada y el
+STT local de Windows valida la frase configurada. El audio que no contiene la
+frase se descarta sin ejecutar nada. Con el PC ausente, el fallback no se usa y
+la frase offline sigue siendo obligatoria antes de Wake-on-LAN.
 
 En Windows se puede configurar sin mostrar ni versionar la clave. El script
 elige la unica Ethernet fisica activa y pide la clave con entrada oculta:
@@ -351,6 +358,10 @@ El gateway se mantiene desactivado si esa variable no existe.
   compuerta offline reconoce la activación, el silencio finaliza la instrucción
   y el agente vuelve a exigir la frase configurada mediante
   `PIPA_VOICE_WAKE_PHRASE`.
+- Si `PIPA_SERVER_WAKE_PHRASE_FALLBACK_ENABLED=1` y existe una sesión USB v2
+  autenticada, el inicio de voz abre la captura cifrada para que el STT español
+  del agente valide la frase. Esto recupera sensibilidad sin permitir órdenes
+  sin frase; las intervenciones ajenas se descartan en memoria.
 - Si desaparece el agente durante 15 segundos y Wi-Fi está disponible, una
   activación local envía Wake-on-LAN y la intervención queda temporalmente en
   PSRAM. Cuando vuelve USB v2 se cifra, se entrega y se sobrescribe; nunca sale

@@ -54,6 +54,10 @@ y sobrescribe los bytes enviados. La compuerta offline del dispositivo debe
 reconocer antes la frase de activación; hasta entonces el contexto circular se
 sobrescribe localmente y ningún audio llega al transporte. El STT del PC vuelve
 a validar la frase dentro del stream cifrado antes de interpretar la orden.
+Cuando el PC ya mantiene una sesión USB v2 autenticada, una configuración local
+opt-in puede iniciar el stream cifrado por VAD y delegar esa primera validación
+al STT español. Ese fallback no se aplica a Wake-on-LAN y el Core descarta toda
+intervención que no contenga la frase configurada.
 
 El receptor exige el bloque cero, el mismo `stream_id`, secuencias contiguas y
 un único marcador `final`. Un bloque repetido, adelantado, cambiado,

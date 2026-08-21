@@ -1064,6 +1064,7 @@ def _fixed_catalog_voice_examples(
 def parse_voice_intent(
     text: str,
     commands: Sequence[Mapping[str, Any]] | None = None,
+    direct_app_aliases: Sequence[str] | None = None,
 ) -> ParsedIntent | None:
     """Resolve natural speech locally, with bounded high-confidence recovery."""
 
@@ -1078,6 +1079,22 @@ def parse_voice_intent(
     cleaned_exact = parse_text_intent(normalized)
     if cleaned_exact is not None:
         return cleaned_exact
+
+    # Once the local wake phrase is removed, a natural request such as
+    # ``Pipa, me escuchas, calculadora`` reaches this function as just
+    # ``calculadora``. Accept only an exact alias from the local allowlist;
+    # never turn arbitrary speech into an application launch.
+    if direct_app_aliases is not None and (
+        commands is None or any(command.get("tool_name") == "open_app" for command in commands)
+    ):
+        direct_app = re.sub(r"^(?:el|la|los|las|un|una)\s+", "", normalized)
+        normalized_aliases = {
+            re.sub(r"^(?:el|la|los|las|un|una)\s+", "", _fold_phrase(alias))
+            for alias in direct_app_aliases
+            if isinstance(alias, str) and alias.strip()
+        }
+        if direct_app and direct_app in normalized_aliases:
+            return ParsedIntent("open_app", {"app": direct_app})
 
     scores: dict[tuple[str, tuple[tuple[str, str], ...]], float] = {}
     payloads: dict[tuple[str, tuple[tuple[str, str], ...]], dict[str, object]] = {}

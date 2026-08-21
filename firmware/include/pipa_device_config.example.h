@@ -1,5 +1,12 @@
 #pragma once
 
+// When enabled, an authenticated PC may receive an encrypted utterance after
+// local voice activity so its Spanish STT can verify the wake phrase. The
+// offline phrase remains mandatory before Wake-on-LAN while the PC is off.
+#ifndef PIPA_SERVER_WAKE_PHRASE_FALLBACK_ENABLED
+#define PIPA_SERVER_WAKE_PHRASE_FALLBACK_ENABLED 0
+#endif
+
 // Copy this file to pipa_device_config.local.h. The copy is ignored by Git.
 #define PIPA_WIFI_SSID ""
 #define PIPA_WIFI_PASSWORD ""

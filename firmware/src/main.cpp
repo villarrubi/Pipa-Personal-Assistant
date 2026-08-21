@@ -339,6 +339,14 @@ void maintainHandsFreeMonitor() {
   if (event == pipa::PipaVoiceActivityEvent::kSpeechStarted) {
     local_wake_phrase.reset();
     activated = detectLocalWakePhraseInPreRoll();
+#if PIPA_SERVER_WAKE_PHRASE_FALLBACK_ENABLED
+    // MultiNet only ships an English acoustic model on this board and can
+    // intermittently miss the Spanish wake phrase. When the authenticated
+    // local agent is available, let its stronger Spanish STT verify the wake
+    // phrase instead. This fallback never wakes a powered-off PC and the core
+    // still discards speech that does not contain the configured phrase.
+    if (!activated && protocol.authenticated()) activated = true;
+#endif
   } else if (event == pipa::PipaVoiceActivityEvent::kSpeech ||
              event == pipa::PipaVoiceActivityEvent::kSpeechEnded) {
     activated = local_wake_phrase.process(

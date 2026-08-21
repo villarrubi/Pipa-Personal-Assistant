@@ -356,6 +356,26 @@ class IntegrationIntentTests(unittest.TestCase):
         self.assertIsNone(parse_voice_intent("haz una transferencia bancaria"))
         self.assertIsNone(parse_text_intent("estado del ordenado"))
 
+    def test_voice_opens_only_an_exactly_configured_app_alias_without_a_verb(self):
+        for phrase in ("calculadora", "la calculadora", "bloc de notas"):
+            with self.subTest(phrase=phrase):
+                intent = parse_voice_intent(
+                    phrase,
+                    [{"tool_name": "open_app"}],
+                    direct_app_aliases=("calculadora", "bloc de notas"),
+                )
+                self.assertIsNotNone(intent)
+                self.assertEqual(intent.tool_name, "open_app")
+                self.assertIn(intent.arguments["app"], {"calculadora", "bloc de notas"})
+
+        self.assertIsNone(
+            parse_voice_intent(
+                "haz una transferencia bancaria",
+                [{"tool_name": "open_app"}],
+                direct_app_aliases=("calculadora",),
+            )
+        )
+
     def test_media_controls_do_not_select_or_send_external_content(self):
         self.assert_intent(
             "reproduce la canción seleccionada",

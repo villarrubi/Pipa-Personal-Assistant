@@ -152,6 +152,24 @@ def _voice_wake_phrase() -> str | None:
         return None
 
 
+def _voice_app_aliases() -> list[str]:
+    """Return only current local application labels for exact voice matching."""
+
+    try:
+        apps = load_apps()
+    except (AppsConfigError, OSError, ValueError):
+        return []
+
+    aliases: list[str] = []
+    for app_id, app_data in apps.items():
+        if isinstance(app_id, str):
+            aliases.append(app_id)
+        configured_aliases = app_data.get("aliases", []) if isinstance(app_data, dict) else []
+        if isinstance(configured_aliases, list):
+            aliases.extend(alias for alias in configured_aliases if isinstance(alias, str))
+    return aliases
+
+
 def _mobile_transport_mode() -> str:
     return os.environ.get("PIPA_MOBILE_TRANSPORT", "").strip().lower() or "disabled"
 
@@ -419,6 +437,7 @@ def _build_pipa_core() -> PipaCore:
         command_catalog_authoritative=True,
         voice_auto_confirm=_voice_auto_confirm_enabled(),
         voice_wake_phrase=_voice_wake_phrase(),
+        voice_app_aliases=_voice_app_aliases,
     )
 
 

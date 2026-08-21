@@ -263,6 +263,7 @@ class PipaCore:
         command_catalog_authoritative: bool = False,
         voice_auto_confirm: bool = False,
         voice_wake_phrase: str | None = None,
+        voice_app_aliases: Callable[[], list[str]] | None = None,
     ) -> None:
         self.verifier = verifier
         self.router = router
@@ -272,6 +273,7 @@ class PipaCore:
         self.capability_catalog = capability_catalog
         self.command_catalog_authoritative = command_catalog_authoritative
         self.voice_auto_confirm = bool(voice_auto_confirm)
+        self.voice_app_aliases = voice_app_aliases
         phrase = "" if voice_wake_phrase is None else voice_wake_phrase.strip()
         if phrase:
             phrase = validate_bounded_text(phrase, "La frase de activación", 80).strip()
@@ -549,7 +551,20 @@ class PipaCore:
 
         intent = parse_catalog_intent(bounded, catalog_commands) if catalog_commands is not None else None
         if intent is None:
-            intent = parse_voice_intent(bounded, catalog_commands) if voice else parse_text_intent(bounded)
+            if voice:
+                direct_app_aliases = None
+                if self.voice_app_aliases is not None:
+                    try:
+                        direct_app_aliases = self.voice_app_aliases()
+                    except (OSError, ValueError):
+                        direct_app_aliases = []
+                intent = parse_voice_intent(
+                    bounded,
+                    catalog_commands,
+                    direct_app_aliases=direct_app_aliases,
+                )
+            else:
+                intent = parse_text_intent(bounded)
         if self.command_catalog_authoritative and catalog_commands is not None and intent is not None:
             enabled_tools = {command.get("tool_name") for command in catalog_commands}
             if intent.tool_name not in enabled_tools:

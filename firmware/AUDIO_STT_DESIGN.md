@@ -137,6 +137,12 @@ o flash. Una conversación ordinaria o un ruido no despiertan Windows.
    local y borra los buffers temporales.
 6. El Core interpreta la frase y conserva todas sus barreras de confirmación.
 
+Como opción local, `PIPA_SERVER_WAKE_PHRASE_FALLBACK_ENABLED=1` permite que una
+sesión USB v2 ya autenticada empiece la captura al detectar voz. Así el STT
+español del agente valida la frase cuando MultiNet la pierde. Sin agente, la
+compuerta offline continúa siendo obligatoria y es la única que puede iniciar
+Wake-on-LAN.
+
 ## Criterios de aceptación
 
 - Sin placa o con revisión incorrecta: no hay captura, reproducción ni
