@@ -1,5 +1,6 @@
 #include "pipa_display.h"
 
+#include "pipa_avatar_asset.h"
 #include "pipa_display_text.h"
 
 #include <driver/spi_master.h>
@@ -37,12 +38,10 @@ constexpr uint16_t kOrange = 0xFBE0;
 constexpr uint16_t kRed = 0xF86D;
 constexpr uint16_t kGreen = 0x57EA;
 constexpr uint16_t kLavender = 0xDE3F;
-constexpr uint16_t kHair = 0x412D;
-constexpr uint16_t kSkin = 0xFE54;
-constexpr uint16_t kJacket = 0x3698;
-constexpr uint16_t kMouth = 0x700E;
 
-constexpr int8_t kBreathingOffsets[] = {0, 1, 2, 1, 0, -1, -2, -1};
+constexpr int16_t kPortraitScale = 4;
+constexpr int16_t kPortraitLeft = 84;
+constexpr int16_t kPortraitTop = 78;
 
 void fillCircle(uint16_t* row_buffer, uint16_t y, int16_t center_x, int16_t center_y,
                 int16_t radius, uint16_t color) {
@@ -50,17 +49,6 @@ void fillCircle(uint16_t* row_buffer, uint16_t y, int16_t center_x, int16_t cent
   if (abs(dy) > radius) return;
   const int32_t width = static_cast<int32_t>(sqrtf(
       static_cast<float>(radius * radius - dy * dy)));
-  const int16_t start = max<int16_t>(0, center_x - width);
-  const int16_t end = min<int16_t>(PipaDisplay::kWidth - 1, center_x + width);
-  for (int16_t x = start; x <= end; ++x) row_buffer[x] = color;
-}
-
-void fillEllipse(uint16_t* row_buffer, uint16_t y, int16_t center_x, int16_t center_y,
-                 int16_t radius_x, int16_t radius_y, uint16_t color) {
-  const int16_t dy = static_cast<int16_t>(y) - center_y;
-  if (abs(dy) > radius_y) return;
-  const float normalized = static_cast<float>(dy) / radius_y;
-  const int16_t width = static_cast<int16_t>(radius_x * sqrtf(1.0f - normalized * normalized));
   const int16_t start = max<int16_t>(0, center_x - width);
   const int16_t end = min<int16_t>(PipaDisplay::kWidth - 1, center_x + width);
   for (int16_t x = start; x <= end; ++x) row_buffer[x] = color;
@@ -111,75 +99,60 @@ void drawSpark(uint16_t* row_buffer, uint16_t y, int16_t center_x, int16_t cente
   }
 }
 
+void drawPortrait(uint16_t* row_buffer, uint16_t y, uint16_t frame, int16_t bob) {
+  const int16_t top = kPortraitTop + bob;
+  if (y < top || y >= top + kValPortraitFrameHeight * kPortraitScale) return;
+
+  const uint16_t source_y = static_cast<uint16_t>((y - top) / kPortraitScale);
+  for (uint16_t source_x = 0; source_x < kValPortraitFrameWidth; ++source_x) {
+    const uint16_t color = pgm_read_word(
+        &kValPortraitFrames[frame][source_y * kValPortraitFrameWidth + source_x]);
+    if (color == kValPortraitTransparent) continue;
+    const int16_t left = kPortraitLeft + source_x * kPortraitScale;
+    for (int16_t pixel = 0; pixel < kPortraitScale; ++pixel) {
+      const int16_t x = left + pixel;
+      if (x >= 0 && x < PipaDisplay::kWidth) row_buffer[x] = color;
+    }
+  }
+}
+
 void drawAvatar(uint16_t* row_buffer, uint16_t y, const char* label, uint16_t frame) {
   const bool listening = strcmp(label, "LISTEN") == 0;
   const bool thinking = strcmp(label, "THINK") == 0;
   const bool speaking = strcmp(label, "SPEAK") == 0;
   const bool confirming = strcmp(label, "CONFIRM") == 0;
-  const int16_t bob = kBreathingOffsets[frame % (sizeof(kBreathingOffsets) / sizeof(kBreathingOffsets[0]))];
-
-  fillEllipse(row_buffer, y, 180, 292 + bob, 108, 76, kJacket);
-  fillEllipse(row_buffer, y, 180, 305 + bob, 72, 52, kPanelBlue);
-  fillRect(row_buffer, y, 164, 192 + bob, 196, 230 + bob, kSkin);
-
-  const int16_t head_y = 137 + bob;
-  fillCircle(row_buffer, y, 180, head_y - 3, 68, kHair);
-  fillCircle(row_buffer, y, 180, head_y + 6, 56, kSkin);
-  fillCircle(row_buffer, y, 126, head_y + 26, 18, kHair);
-  fillCircle(row_buffer, y, 234, head_y + 26, 18, kHair);
-  fillEllipse(row_buffer, y, 180, head_y - 37, 55, 28, kHair);
-  fillCircle(row_buffer, y, 135, head_y - 2, 14, kHair);
-  fillCircle(row_buffer, y, 225, head_y - 2, 14, kHair);
-
-  const uint16_t eye_color = kMouth;
-  const uint16_t blink_phase = frame % 48;
-  const bool blink = blink_phase == 43 || blink_phase == 44;
-  const int16_t look_x = listening ? -3 : thinking ? 3 : 0;
-  if (blink) {
-    fillRect(row_buffer, y, 151 + look_x, head_y - 2, 164 + look_x, head_y, eye_color);
-    fillRect(row_buffer, y, 196 + look_x, head_y - 2, 209 + look_x, head_y, eye_color);
-  } else {
-    fillCircle(row_buffer, y, 158 + look_x, head_y - 1, 5, eye_color);
-    fillCircle(row_buffer, y, 202 + look_x, head_y - 1, 5, eye_color);
-  }
-  fillCircle(row_buffer, y, 146, head_y + 22, 4, kRed);
-  fillCircle(row_buffer, y, 214, head_y + 22, 4, kRed);
-
-  const bool open_mouth = speaking && (frame % 4 < 2);
-  if (open_mouth) {
-    fillEllipse(row_buffer, y, 180, head_y + 35, 14, 10, eye_color);
-    fillEllipse(row_buffer, y, 180, head_y + 33, 8, 3, kWhite);
-  } else {
-    fillRect(row_buffer, y, 169, head_y + 32, 191, head_y + 35, eye_color);
-    fillCircle(row_buffer, y, 169, head_y + 33, 2, eye_color);
-    fillCircle(row_buffer, y, 191, head_y + 33, 2, eye_color);
-  }
+  const int16_t bob = static_cast<int16_t>((frame % 8 < 4) ? 1 : 0);
+  const int16_t center_y = 174 + bob;
+  uint16_t portrait_frame = static_cast<uint16_t>((frame / 3) % 6);
 
   if (listening) {
     const int16_t pulse = static_cast<int16_t>((frame % 8) * 2);
-    drawCircleOutline(row_buffer, y, 180, head_y + 5, 76 + pulse, kCyan);
-    fillCircle(row_buffer, y, 250, head_y + 4, 12, kSkin);
-    fillCircle(row_buffer, y, 252, head_y + 4, 5, kCyan);
-    drawSpark(row_buffer, y, 103, head_y - 30, 5 + frame % 3, kCyan);
+    portrait_frame = static_cast<uint16_t>((frame / 2) % 6);
+    drawCircleOutline(row_buffer, y, 180, center_y, 112 + pulse, kCyan);
+    fillCircle(row_buffer, y, 302, center_y, 10, kCyan);
+    drawSpark(row_buffer, y, 66, 76 + bob, 5 + frame % 3, kCyan);
   } else if (thinking) {
-    drawCircleOutline(row_buffer, y, 180, head_y + 5, 76, kOrange);
-    const int16_t dot_x = 155 + static_cast<int16_t>((frame % 12) * 5);
-    fillCircle(row_buffer, y, dot_x, 250, 5, kOrange);
-    fillCircle(row_buffer, y, dot_x + 25, 250, 5, kOrange);
-    fillCircle(row_buffer, y, dot_x + 50, 250, 5, kOrange);
+    portrait_frame = static_cast<uint16_t>(6 + (frame / 2) % 6);
+    drawCircleOutline(row_buffer, y, 180, center_y, 112, kOrange);
+    const int16_t dot_x = 139 + static_cast<int16_t>((frame % 12) * 7);
+    fillCircle(row_buffer, y, dot_x, 286, 5, kOrange);
+    fillCircle(row_buffer, y, dot_x + 25, 286, 5, kOrange);
+    fillCircle(row_buffer, y, dot_x + 50, 286, 5, kOrange);
   } else if (speaking) {
-    drawCircleOutline(row_buffer, y, 180, head_y + 5, 76, kGreen);
-    const int16_t wave = static_cast<int16_t>(frame % 4);
-    drawCircleOutline(row_buffer, y, 180, head_y + 5, 86 + wave * 3, kGreen);
+    portrait_frame = static_cast<uint16_t>(frame % kValPortraitFrameCount);
+    drawCircleOutline(row_buffer, y, 180, center_y, 112, kGreen);
+    drawCircleOutline(row_buffer, y, 180, center_y, 123 + static_cast<int16_t>(frame % 4) * 3, kGreen);
   } else if (confirming) {
-    drawCircleOutline(row_buffer, y, 180, head_y + 5, 76, kRed);
-    fillCircle(row_buffer, y, 252, 235 + bob, 15, kSkin);
-    fillRect(row_buffer, y, 245, 222 + bob, 259, 232 + bob, kSkin);
+    portrait_frame = static_cast<uint16_t>(12 + (frame / 2) % 6);
+    drawCircleOutline(row_buffer, y, 180, center_y, 112, kRed);
+    fillCircle(row_buffer, y, 286, center_y + 48, 12, kRed);
   } else {
-    drawCircleOutline(row_buffer, y, 180, head_y + 5, 76, kLavender);
-    drawSpark(row_buffer, y, 102, 84 + bob, 5 + frame % 3, kLavender);
-    drawSpark(row_buffer, y, 263, 116 - bob, 4, kLavender);
+    drawCircleOutline(row_buffer, y, 180, center_y, 112, kLavender);
+    drawSpark(row_buffer, y, 66, 76 + bob, 5 + frame % 3, kLavender);
+    drawSpark(row_buffer, y, 294, 92 - bob, 4, kLavender);
   }
+
+  drawPortrait(row_buffer, y, portrait_frame, bob);
 }
 
 static const st77916_lcd_init_cmd_t vendor_specific_init_new[] = {
