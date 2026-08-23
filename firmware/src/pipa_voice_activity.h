@@ -19,9 +19,9 @@ enum class PipaVoiceActivityEvent : uint8_t {
 class PipaVoiceActivityDetector {
  public:
   static constexpr uint8_t kCalibrationChunks = 16;
-  static constexpr uint8_t kStartChunks = 2;
+  static constexpr uint8_t kStartChunks = 1;
   static constexpr uint8_t kEndSilenceChunks = 7;
-  static constexpr uint32_t kMinimumSpeechRms = 450;
+  static constexpr uint32_t kMinimumSpeechRms = 240;
   static constexpr uint32_t kMaximumAdaptiveThreshold = 6000;
 
   PipaVoiceActivityEvent process(const int16_t* samples, size_t sample_count);

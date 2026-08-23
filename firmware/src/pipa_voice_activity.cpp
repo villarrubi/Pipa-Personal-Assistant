@@ -56,7 +56,10 @@ PipaVoiceActivityEvent PipaVoiceActivityDetector::process(
     return PipaVoiceActivityEvent::kSilence;
   }
 
-  uint32_t threshold = std::max(kMinimumSpeechRms, noise_floor_rms_ * 3U);
+  // The onboard ES7210 is now deliberately run with more headroom.  A
+  // two-times floor catches normal speech and a nearby speaker without
+  // turning every tiny ADC fluctuation into a capture.
+  uint32_t threshold = std::max(kMinimumSpeechRms, noise_floor_rms_ * 2U);
   threshold = std::min(threshold, kMaximumAdaptiveThreshold);
   const bool voiced = last_rms_ >= threshold;
 

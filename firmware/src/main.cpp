@@ -51,6 +51,10 @@ constexpr uint32_t kPowerSampleMs = 30000;
 constexpr size_t kSerialRxBufferSize = 12 * 1024;
 #if PIPA_AUDIO_CAPTURE_ENABLED
 constexpr size_t kAudioChunkBytes = 4096;
+// Whisper is much more reliable when a short wake-only utterance includes a
+// little trailing silence.  Keep the capture open briefly after VAD ends so
+// "Pipa me escuchas" is not reduced to a one-second fragment.
+constexpr uint32_t kMinimumCaptureMs = 1800;
 #if PIPA_ALWAYS_LISTENING_ENABLED
 constexpr uint16_t kMaxAudioChunks = 256;
 constexpr uint32_t kMaxCaptureMs = 8000;
@@ -99,6 +103,7 @@ bool firmware_ready = false;
 bool audio_start_pending = false;
 bool audio_stop_requested = false;
 bool audio_stream_active = false;
+bool audio_speech_ended = false;
 uint16_t audio_chunks_sent = 0;
 uint32_t audio_started_at = 0;
 uint32_t audio_stream_counter = 0;
@@ -390,6 +395,7 @@ void finishAudioCapture() {
   audio_start_pending = false;
   audio_stop_requested = false;
   audio_stream_active = false;
+  audio_speech_ended = false;
   audio_chunks_sent = 0;
   audio_started_at = 0;
   voice_activity.resetUtterance();
@@ -408,6 +414,7 @@ void stopAudioCapture(bool transport_ok) {
   audio_start_pending = false;
   audio_stop_requested = false;
   audio_stream_active = false;
+  audio_speech_ended = false;
   audio_chunks_sent = 0;
   audio_started_at = 0;
 #if PIPA_ALWAYS_LISTENING_ENABLED
@@ -439,6 +446,7 @@ void maintainAudioCapture() {
       return;
     }
     audio_stream_active = true;
+    audio_speech_ended = false;
     audio_started_at = millis();
 #if PIPA_ALWAYS_LISTENING_ENABLED
     if (!deferred_upload_pending && !sendPreRoll()) {
@@ -482,16 +490,18 @@ void maintainAudioCapture() {
     return;
   }
 
-  bool speech_ended = false;
   bool instruction_start_timed_out = false;
 #if PIPA_ALWAYS_LISTENING_ENABLED
-  speech_ended = voice_activity.process(
+  const auto voice_event = voice_activity.process(
       reinterpret_cast<const int16_t*>(audio_chunk), captured / sizeof(int16_t)) ==
       pipa::PipaVoiceActivityEvent::kSpeechEnded;
-  instruction_start_timed_out = !voice_activity.speechActive() &&
+  audio_speech_ended = audio_speech_ended || voice_event;
+  instruction_start_timed_out = !audio_speech_ended && !voice_activity.speechActive() &&
       millis() - audio_started_at >= kInstructionStartTimeoutMs;
 #endif
-  const bool final = audio_stop_requested || speech_ended || instruction_start_timed_out ||
+  const bool minimum_capture_elapsed = millis() - audio_started_at >= kMinimumCaptureMs;
+  const bool final = audio_stop_requested ||
+      (audio_speech_ended && minimum_capture_elapsed) || instruction_start_timed_out ||
       millis() - audio_started_at >= kMaxCaptureMs ||
       audio_chunks_sent + 1 >= kMaxAudioChunks;
   const bool sent = protocol.sendAudioChunk(audio_chunk, captured, final);
@@ -511,6 +521,7 @@ void maintainAudioCapture() {
     audio_start_pending = false;
     audio_stop_requested = false;
     audio_stream_active = false;
+    audio_speech_ended = false;
     audio_chunks_sent = 0;
     audio_started_at = 0;
 #endif

@@ -27,8 +27,6 @@ int main() {
   }
   assert(!detector.speechActive());
   assert(detector.process(voice.data(), voice.size()) ==
-         pipa::PipaVoiceActivityEvent::kSilence);
-  assert(detector.process(voice.data(), voice.size()) ==
          pipa::PipaVoiceActivityEvent::kSpeechStarted);
   assert(detector.speechActive());
   assert(detector.process(voice.data(), voice.size()) ==
@@ -59,8 +57,6 @@ int main() {
   }
   assert(high_gain_detector.noiseFloorRms() >= 2400);
   assert(high_gain_detector.process(loud_room.data(), loud_room.size()) ==
-         pipa::PipaVoiceActivityEvent::kSilence);
-  assert(high_gain_detector.process(nearby_voice.data(), nearby_voice.size()) ==
          pipa::PipaVoiceActivityEvent::kSilence);
   assert(high_gain_detector.process(nearby_voice.data(), nearby_voice.size()) ==
          pipa::PipaVoiceActivityEvent::kSpeechStarted);
