@@ -1021,11 +1021,19 @@ def split_voice_wake_phrase(text: str, wake_phrase: str) -> tuple[bool, str]:
 
     normalized_text = _fold_phrase(" ".join(text.strip().split()))
     normalized_wake = _fold_phrase(" ".join(wake_phrase.strip().split()))
-    if not normalized_wake or normalized_text == normalized_wake:
-        return normalized_text == normalized_wake and bool(normalized_wake), ""
-    prefix = normalized_wake + " "
-    if normalized_text.startswith(prefix):
-        return True, normalized_text[len(prefix) :].strip()
+    # Whisper occasionally drops the final ``s`` in this particular Spanish
+    # phrase.  Keep this narrowly scoped to the configured phrase and only
+    # accept the same phrase with that one inflectional variation; arbitrary
+    # fuzzy matching here would make room speech arm the command path.
+    wake_forms = (normalized_wake,)
+    if normalized_wake == "pipa me escuchas":
+        wake_forms += ("pipa me escucha",)
+    if not normalized_wake or normalized_text in wake_forms:
+        return normalized_text in wake_forms and bool(normalized_wake), ""
+    for wake_form in wake_forms:
+        prefix = wake_form + " "
+        if normalized_text.startswith(prefix):
+            return True, normalized_text[len(prefix) :].strip()
     return False, normalized_text
 
 

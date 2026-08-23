@@ -59,9 +59,10 @@ constexpr uint32_t kInstructionStartTimeoutMs = 2000;
 // is overwritten locally and is released to the encrypted stream only after
 // the offline recognizer has fired.
 constexpr uint8_t kPreRollChunks = 16;
-// MultiNet should see enough context to recover a softly spoken first
-// syllable, but not the full two seconds of room silence kept for Whisper.
-constexpr uint8_t kLocalWakeModelPreRollChunks = 8;
+// MultiNet should see the whole phrase, including a softly spoken first
+// syllable.  The rolling buffer already keeps two seconds of context; use it
+// all for the local recognizer instead of feeding it only the last second.
+constexpr uint8_t kLocalWakeModelPreRollChunks = kPreRollChunks;
 constexpr size_t kDeferredAudioBytes = kMaxAudioChunks * kAudioChunkBytes;
 #else
 constexpr uint16_t kMaxAudioChunks = 64;

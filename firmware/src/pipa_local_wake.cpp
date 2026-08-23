@@ -35,6 +35,9 @@ constexpr const char* kWakePhraseVariants[] = {
     "peepa meh escoochahs",
     "peepa may ess coo chahs",
     "peepa meh ess coo chahs",
+    "peepah may escoochas",
+    "peepah meh escoochas",
+    "piper may escoochas",
     "pipa me escuchas",
 };
 

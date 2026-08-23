@@ -144,6 +144,19 @@ void drawActivity(uint16_t* row_buffer, uint16_t y, const char* label, uint16_t 
   drawLogo(row_buffer, y, frame);
 }
 
+// The custom ST77916 QSPI panel driver sends the framebuffer bytes as they
+// are laid out in memory.  ESP32 is little-endian, while RGB565 pixels on
+// this panel are MSB first.  The generic panel driver's data_endian field is
+// not applied by our local vendor driver, so normalize each completed row at
+// the transfer boundary.  Without this, black/white remain correct but
+// cyan, violet and the logo's navy pixels turn into unrelated colours.
+void swapRgb565Bytes(uint16_t* row_buffer) {
+  for (uint16_t x = 0; x < PipaDisplay::kWidth; ++x) {
+    const uint16_t value = row_buffer[x];
+    row_buffer[x] = static_cast<uint16_t>((value << 8) | (value >> 8));
+  }
+}
+
 static const st77916_lcd_init_cmd_t vendor_specific_init_new[] = {
   {0xF0, (uint8_t []){0x28}, 1, 0},
   {0xF2, (uint8_t []){0x28}, 1, 0},
@@ -494,6 +507,7 @@ void PipaDisplay::render(const UiSnapshot& snapshot) {
         background,
         accent,
         animation_frame_);
+    swapRgb565Bytes(row_buffer);
     if (esp_lcd_panel_draw_bitmap(panel_, 0, y, kWidth, y + 1, row_buffer) != ESP_OK) {
       ESP_LOGE(kTag, "LCD row transfer failed");
       ready_ = false;
