@@ -31,6 +31,10 @@ constexpr size_t kMaximumModelFrameSamples = 1024;
 constexpr const char* kWakePhraseVariants[] = {
     "peepa may escoochas",
     "peepa meh escoochas",
+    "peepa may escoochahs",
+    "peepa meh escoochahs",
+    "peepa may ess coo chahs",
+    "peepa meh ess coo chahs",
     "pipa me escuchas",
 };
 

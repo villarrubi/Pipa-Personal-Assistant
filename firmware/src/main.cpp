@@ -59,6 +59,9 @@ constexpr uint32_t kInstructionStartTimeoutMs = 5000;
 // is overwritten locally and is released to the encrypted stream only after
 // the offline recognizer has fired.
 constexpr uint8_t kPreRollChunks = 16;
+// MultiNet should see enough context to recover a softly spoken first
+// syllable, but not the full two seconds of room silence kept for Whisper.
+constexpr uint8_t kLocalWakeModelPreRollChunks = 8;
 constexpr size_t kDeferredAudioBytes = kMaxAudioChunks * kAudioChunkBytes;
 #else
 constexpr uint16_t kMaxAudioChunks = 64;
@@ -276,9 +279,10 @@ bool sendPreRoll() {
 }
 
 bool detectLocalWakePhraseInPreRoll() {
+  const uint8_t model_chunks = min(pre_roll_count, kLocalWakeModelPreRollChunks);
   const uint8_t first = static_cast<uint8_t>(
-      (pre_roll_next + kPreRollChunks - pre_roll_count) % kPreRollChunks);
-  for (uint8_t offset = 0; offset < pre_roll_count; ++offset) {
+      (pre_roll_next + kPreRollChunks - model_chunks) % kPreRollChunks);
+  for (uint8_t offset = 0; offset < model_chunks; ++offset) {
     const uint8_t index = static_cast<uint8_t>((first + offset) % kPreRollChunks);
     const size_t length = pre_roll_lengths[index];
     if (length == 0) continue;

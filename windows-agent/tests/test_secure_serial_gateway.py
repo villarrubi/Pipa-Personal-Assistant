@@ -36,6 +36,7 @@ class FakeSecureSerialConnection:
         self.gateway = gateway
         self.on_write = on_write
         self.writes = []
+        self.closed = False
 
     def __enter__(self):
         return self
@@ -56,6 +57,9 @@ class FakeSecureSerialConnection:
 
     def reset_input_buffer(self):
         pass
+
+    def close(self):
+        self.closed = True
 
 
 class SecureSerialGatewayTests(unittest.TestCase):
@@ -107,6 +111,7 @@ class SecureSerialGatewayTests(unittest.TestCase):
         )
         self.gateway._serve_connection(connection)
 
+        self.assertTrue(connection.closed)
         self.assertEqual(len(connection.writes), 2)
         returned_server_hello = json.loads(connection.writes[0].decode("utf-8"))
         self.assertEqual(returned_server_hello["server_id"], self.server_identity.identity_id)

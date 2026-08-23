@@ -330,6 +330,13 @@ class SecureSerialGateway(SerialGateway):
             if audio_runtime is not None:
                 audio_runtime.close()
             secure_core.close()
+            # The base worker immediately retries after a failed or stale
+            # handshake. Always release the physical handle first; otherwise
+            # the next open attempt fails forever until the agent exits.
+            try:
+                connection.close()
+            except Exception:
+                LOGGER.warning("secure serial connection did not close cleanly")
 
     def _update_voice_ready(self, connection: SecureCoreConnection) -> None:
         session_id = connection.core_session_id
