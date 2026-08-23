@@ -1,7 +1,7 @@
 #include "pipa_display.h"
 
-#include "pipa_avatar_asset.h"
 #include "pipa_display_text.h"
+#include "pipa_logo_asset.h"
 
 #include <driver/spi_master.h>
 #include <esp_check.h>
@@ -25,23 +25,21 @@ namespace {
 constexpr char kTag[] = "pipa_display";
 constexpr uint32_t kSpiClockHz = 80U * 1000U * 1000U;
 constexpr size_t kMaxTransferBytes = PipaDisplay::kWidth * sizeof(uint16_t);
+constexpr uint16_t kBlack = 0x0000;
 constexpr uint16_t kWhite = 0xFFFF;
 constexpr uint32_t kAnimationFrameMs = 120;
 constexpr uint16_t kInk = 0x0884;
-constexpr uint16_t kPanelBlue = 0x10C7;
-constexpr uint16_t kPanelTeal = 0x0C56;
-constexpr uint16_t kPanelViolet = 0x2118;
-constexpr uint16_t kPanelAmber = 0x2924;
-constexpr uint16_t kPanelRed = 0x310B;
+constexpr uint16_t kPanelTeal = 0xD7F0;
+constexpr uint16_t kPanelViolet = 0xDDFB;
+constexpr uint16_t kPanelAmber = 0xFFE0;
+constexpr uint16_t kPanelRed = 0xFDD5;
 constexpr uint16_t kCyan = 0x6F7D;
 constexpr uint16_t kOrange = 0xFBE0;
 constexpr uint16_t kRed = 0xF86D;
 constexpr uint16_t kGreen = 0x57EA;
 constexpr uint16_t kLavender = 0xDE3F;
 
-constexpr int16_t kPortraitScale = 4;
-constexpr int16_t kPortraitLeft = 84;
-constexpr int16_t kPortraitTop = 78;
+constexpr int8_t kLogoAnimationOffsets[] = {0, 1, 2, 1, 0, -1, -2, -1};
 
 void fillCircle(uint16_t* row_buffer, uint16_t y, int16_t center_x, int16_t center_y,
                 int16_t radius, uint16_t color) {
@@ -99,60 +97,51 @@ void drawSpark(uint16_t* row_buffer, uint16_t y, int16_t center_x, int16_t cente
   }
 }
 
-void drawPortrait(uint16_t* row_buffer, uint16_t y, uint16_t frame, int16_t bob) {
-  const int16_t top = kPortraitTop + bob;
-  if (y < top || y >= top + kValPortraitFrameHeight * kPortraitScale) return;
+void drawLogo(uint16_t* row_buffer, uint16_t y, uint16_t frame) {
+  const int16_t offset = kLogoAnimationOffsets[frame % 8];
+  const int16_t source_y = static_cast<int16_t>(y) - offset;
+  if (source_y < 0 || source_y >= kPipaLogoHeight) return;
 
-  const uint16_t source_y = static_cast<uint16_t>((y - top) / kPortraitScale);
-  for (uint16_t source_x = 0; source_x < kValPortraitFrameWidth; ++source_x) {
+  for (uint16_t x = 0; x < PipaDisplay::kWidth; ++x) {
+    const int16_t source_x = static_cast<int16_t>(x) - offset;
+    if (source_x < 0 || source_x >= kPipaLogoWidth) continue;
     const uint16_t color = pgm_read_word(
-        &kValPortraitFrames[frame][source_y * kValPortraitFrameWidth + source_x]);
-    if (color == kValPortraitTransparent) continue;
-    const int16_t left = kPortraitLeft + source_x * kPortraitScale;
-    for (int16_t pixel = 0; pixel < kPortraitScale; ++pixel) {
-      const int16_t x = left + pixel;
-      if (x >= 0 && x < PipaDisplay::kWidth) row_buffer[x] = color;
-    }
+        &kPipaLogoPixels[source_y * kPipaLogoWidth + source_x]);
+    if (color != kPipaLogoTransparent) row_buffer[x] = color;
   }
 }
 
-void drawAvatar(uint16_t* row_buffer, uint16_t y, const char* label, uint16_t frame) {
+void drawActivity(uint16_t* row_buffer, uint16_t y, const char* label, uint16_t frame) {
   const bool listening = strcmp(label, "LISTEN") == 0;
   const bool thinking = strcmp(label, "THINK") == 0;
   const bool speaking = strcmp(label, "SPEAK") == 0;
   const bool confirming = strcmp(label, "CONFIRM") == 0;
-  const int16_t bob = static_cast<int16_t>((frame % 8 < 4) ? 1 : 0);
-  const int16_t center_y = 174 + bob;
-  uint16_t portrait_frame = static_cast<uint16_t>((frame / 3) % 6);
+  const int16_t center_y = 180;
 
   if (listening) {
     const int16_t pulse = static_cast<int16_t>((frame % 8) * 2);
-    portrait_frame = static_cast<uint16_t>((frame / 2) % 6);
-    drawCircleOutline(row_buffer, y, 180, center_y, 112 + pulse, kCyan);
-    fillCircle(row_buffer, y, 302, center_y, 10, kCyan);
-    drawSpark(row_buffer, y, 66, 76 + bob, 5 + frame % 3, kCyan);
+    drawCircleOutline(row_buffer, y, 180, center_y, 164 + pulse, kCyan);
+    fillCircle(row_buffer, y, 322, center_y, 8, kCyan);
+    drawSpark(row_buffer, y, 28, 32, 5 + frame % 3, kCyan);
   } else if (thinking) {
-    portrait_frame = static_cast<uint16_t>(6 + (frame / 2) % 6);
-    drawCircleOutline(row_buffer, y, 180, center_y, 112, kOrange);
-    const int16_t dot_x = 139 + static_cast<int16_t>((frame % 12) * 7);
-    fillCircle(row_buffer, y, dot_x, 286, 5, kOrange);
-    fillCircle(row_buffer, y, dot_x + 25, 286, 5, kOrange);
-    fillCircle(row_buffer, y, dot_x + 50, 286, 5, kOrange);
+    drawCircleOutline(row_buffer, y, 180, center_y, 164, kOrange);
+    const int16_t dot_x = 136 + static_cast<int16_t>((frame % 12) * 7);
+    fillCircle(row_buffer, y, dot_x, 344, 4, kOrange);
+    fillCircle(row_buffer, y, dot_x + 25, 344, 4, kOrange);
+    fillCircle(row_buffer, y, dot_x + 50, 344, 4, kOrange);
   } else if (speaking) {
-    portrait_frame = static_cast<uint16_t>(frame % kValPortraitFrameCount);
-    drawCircleOutline(row_buffer, y, 180, center_y, 112, kGreen);
-    drawCircleOutline(row_buffer, y, 180, center_y, 123 + static_cast<int16_t>(frame % 4) * 3, kGreen);
+    drawCircleOutline(row_buffer, y, 180, center_y, 164, kGreen);
+    drawCircleOutline(row_buffer, y, 180, center_y, 170 + static_cast<int16_t>(frame % 4) * 2, kGreen);
   } else if (confirming) {
-    portrait_frame = static_cast<uint16_t>(12 + (frame / 2) % 6);
-    drawCircleOutline(row_buffer, y, 180, center_y, 112, kRed);
-    fillCircle(row_buffer, y, 286, center_y + 48, 12, kRed);
+    drawCircleOutline(row_buffer, y, 180, center_y, 164, kRed);
+    fillCircle(row_buffer, y, 322, center_y, 8, kRed);
   } else {
-    drawCircleOutline(row_buffer, y, 180, center_y, 112, kLavender);
-    drawSpark(row_buffer, y, 66, 76 + bob, 5 + frame % 3, kLavender);
-    drawSpark(row_buffer, y, 294, 92 - bob, 4, kLavender);
+    drawCircleOutline(row_buffer, y, 180, center_y, 164, kLavender);
+    drawSpark(row_buffer, y, 28, 32, 5 + frame % 3, kLavender);
+    drawSpark(row_buffer, y, 332, 48, 4, kLavender);
   }
 
-  drawPortrait(row_buffer, y, portrait_frame, bob);
+  drawLogo(row_buffer, y, frame);
 }
 
 static const st77916_lcd_init_cmd_t vendor_specific_init_new[] = {
@@ -480,7 +469,7 @@ void PipaDisplay::render(const UiSnapshot& snapshot) {
   last_animation_at_ = now;
 
   const uint16_t background = colorForState(snapshot.state);
-  const uint16_t accent = snapshot.state == "confirm" ? kRed : kWhite;
+  const uint16_t accent = colorForState(snapshot.state) == kBlack ? kWhite : kInk;
   const char* label = "IDLE";
   if (snapshot.state == "listening") label = "LISTEN";
   else if (snapshot.state == "thinking") label = "THINK";
@@ -527,31 +516,39 @@ void PipaDisplay::drawRow(
     uint16_t animation_frame) {
   for (uint16_t x = 0; x < kWidth; ++x) row_buffer[x] = background;
 
-  drawAvatar(row_buffer, y, label, animation_frame);
+  drawActivity(row_buffer, y, label, animation_frame);
 
-  const bool idle_face = strcmp(label, "IDLE") == 0 && confirmation_line_one[0] == '\0';
-  if (idle_face) {
+  const bool idle_state = strcmp(label, "IDLE") == 0;
+  const bool has_caption = confirmation_line_one[0] != '\0';
+  if (idle_state && !has_caption) {
 #if PIPA_ALWAYS_LISTENING_ENABLED
     // A small persistent green light distinguishes microphone standby from a
     // build whose audio path is disabled.
     fillCircle(row_buffer, y, kWidth / 2, 344, 7, kGreen);
 #endif
-    drawTextAt(row_buffer, y, 18, "PIPA", kLavender, 2);
-  } else {
+  } else if (!idle_state) {
     drawTextAt(row_buffer, y, 18, label, accent, 2);
   }
   if (strcmp(label, "CONFIRM") == 0) {
+    const uint16_t card = background == kBlack ? kInk : kWhite;
+    const uint16_t card_text = background == kBlack ? kWhite : kInk;
+    fillRect(row_buffer, y, 0, 242, kWidth - 1, 349, card);
+    fillRect(row_buffer, y, 0, 242, kWidth - 1, 246, kRed);
     if (confirmation_line_one[0] != '\0') {
-      drawTextAt(row_buffer, y, 252, confirmation_line_one, kWhite, 2);
+      drawTextAt(row_buffer, y, 256, confirmation_line_one, card_text, 2);
     }
     if (confirmation_line_two[0] != '\0') {
-      drawTextAt(row_buffer, y, 270, confirmation_line_two, kWhite, 2);
+      drawTextAt(row_buffer, y, 276, confirmation_line_two, card_text, 2);
     }
-    drawTextAt(row_buffer, y, 314, "TAP", kWhite, 3);
-  } else if (confirmation_line_one[0] != '\0') {
-    drawTextAt(row_buffer, y, 300, confirmation_line_one, kWhite, 2);
+    drawTextAt(row_buffer, y, 316, "TAP", card_text, 3);
+  } else if (has_caption) {
+    const uint16_t card = background == kBlack ? kInk : kWhite;
+    const uint16_t card_text = background == kBlack ? kWhite : kInk;
+    fillRect(row_buffer, y, 0, 278, kWidth - 1, 349, card);
+    fillRect(row_buffer, y, 0, 278, kWidth - 1, 282, kCyan);
+    drawTextAt(row_buffer, y, 292, confirmation_line_one, card_text, 2);
     if (confirmation_line_two[0] != '\0') {
-      drawTextAt(row_buffer, y, 318, confirmation_line_two, kWhite, 2);
+      drawTextAt(row_buffer, y, 316, confirmation_line_two, card_text, 2);
     }
   }
 }
@@ -598,13 +595,12 @@ void PipaDisplay::splitSummary(const String& summary, String& first, String& sec
 }
 
 uint16_t PipaDisplay::colorForState(const String& state) {
-  if (state == "listening") return kPanelBlue;
+  if (state == "listening") return kWhite;
   if (state == "thinking") return kPanelAmber;
   if (state == "confirm") return kPanelRed;
   if (state == "speaking") return kPanelTeal;
   if (state == "focus") return kPanelViolet;
-  if (state == "dashboard") return kPanelBlue;
-  return kInk;
+  return kBlack;
 }
 
 const uint8_t* PipaDisplay::glyph(char character) {
