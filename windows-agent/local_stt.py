@@ -15,12 +15,17 @@ DEFAULT_MODEL = "base"
 SUPPORTED_MODELS = frozenset({"tiny", "base", "small"})
 MIN_AUDIO_BYTES = AUDIO_SAMPLE_RATE  # 0.5 seconds of 16-bit mono PCM
 COMMAND_HOTWORDS = (
-    "Pipa, ordenador, PC, calculadora, navegador, WhatsApp, Discord, "
-    "Apple Music, League of Legends, temporizador"
+    "Pipa, Pipa me escuchas, ordenador, PC, Codex, calculadora, navegador, "
+    "Chrome, WhatsApp, Discord, Apple Music, League of Legends, LoL, "
+    "temporizador, volumen, batería, red, silencia, suspende"
 )
 COMMAND_CONTEXT = (
-    "Órdenes breves para Pipa: estado del ordenador; estado de integraciones; "
-    "estado de la red; abre calculadora; abre navegador; crea un temporizador."
+    "Órdenes breves en español para Pipa: Pipa me escuchas; estado del ordenador; "
+    "estado de integraciones; estado de la red; estado de batería; abre calculadora; "
+    "abre navegador; abre Codex; abre WhatsApp; abre Discord; abre Apple Music; "
+    "abre League of Legends; busca en internet; pon el volumen; silencia el ordenador; "
+    "activa el sonido; siguiente canción; crea, lista o cancela un temporizador; "
+    "bloquea o suspende el ordenador."
 )
 TARGET_AUDIO_REFERENCE = 0.72
 MAX_AUDIO_GAIN = 8.0
@@ -144,6 +149,7 @@ class LocalSpeechTranscriber:
             # not need to be written to a WAV or another temporary file.
             audio = np.frombuffer(self._pcm, dtype="<i2").astype(np.float32)
             audio *= 1.0 / 32768.0
+            raw_clipped_percent = float(np.mean(np.abs(audio) >= (32767.0 / 32768.0))) * 100.0
             audio -= float(np.mean(audio, dtype=np.float64))
             absolute = np.abs(audio)
             peak = float(np.max(absolute))
@@ -194,6 +200,8 @@ class LocalSpeechTranscriber:
                 "audio_duration_ms": round(len(audio) * 1000 / AUDIO_SAMPLE_RATE),
                 "peak_dbfs": _dbfs(peak),
                 "rms_dbfs": _dbfs(rms),
+                "reference_dbfs": _dbfs(reference),
+                "raw_clipped_percent": round(raw_clipped_percent, 4),
                 "applied_gain_db": round(20.0 * math.log10(gain), 2),
                 "clipped_percent": round(clipped_percent, 4),
                 "segment_count": len(segments),

@@ -44,12 +44,27 @@ class LocalSttTests(unittest.TestCase):
         self.assertEqual(model.options["language"], "es")
         self.assertTrue(model.options["vad_filter"])
         self.assertIn("ordenador", model.options["hotwords"])
+        self.assertIn("Pipa me escuchas", model.options["hotwords"])
         self.assertIn("estado del ordenador", model.options["initial_prompt"])
         self.assertEqual(model.options["temperature"], 0.0)
         self.assertEqual(provider.diagnostics["segment_count"], 1)
         self.assertEqual(provider.diagnostics["speech_duration_ms"], 1250)
         self.assertEqual(provider.diagnostics["language_probability"], 0.99)
         self.assertGreater(provider.diagnostics["applied_gain_db"], 0)
+        self.assertIn("reference_dbfs", provider.diagnostics)
+        self.assertIn("raw_clipped_percent", provider.diagnostics)
+
+    def test_reports_adc_saturation_before_normalization(self):
+        class FakeModel:
+            def transcribe(self, _audio, **_options):
+                return iter([]), SimpleNamespace(language_probability=1.0)
+
+        provider = LocalSpeechTranscriber(model_directory=ROOT / ".platformio-preflight" / "stt-test")
+        saturated_pcm = b"\xff\x7f\x00\x80" * 4000
+        with patch.object(provider, "_model", return_value=FakeModel()):
+            provider(memoryview(saturated_pcm), True)
+
+        self.assertEqual(provider.diagnostics["raw_clipped_percent"], 100.0)
 
     def test_rejects_unbounded_model_selection(self):
         with self.assertRaises(LocalSttError):
