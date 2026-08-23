@@ -27,6 +27,7 @@ class PipaSecureProtocol {
 
   void begin();
   void poll();
+  void maintainUi(uint32_t now_ms);
   bool authenticated() const { return authenticated_; }
   const UiSnapshot& ui() const { return ui_; }
 
@@ -108,6 +109,7 @@ class PipaSecureProtocol {
   uint32_t last_heartbeat_ = 0;
   uint32_t last_status_ = 0;
   uint32_t last_server_message_ = 0;
+  uint32_t transient_idle_started_at_ = 0;
 #if PIPA_AUDIO_CAPTURE_ENABLED
   PipaSecureAudioSender* audio_sender_ = nullptr;
 #endif

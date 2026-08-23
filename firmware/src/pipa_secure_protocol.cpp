@@ -102,6 +102,21 @@ void PipaSecureProtocol::poll() {
   }
 }
 
+void PipaSecureProtocol::maintainUi(uint32_t now_ms) {
+  if (ui_.state != "idle" || ui_.caption.isEmpty()) {
+    transient_idle_started_at_ = 0;
+    return;
+  }
+  if (transient_idle_started_at_ == 0) {
+    transient_idle_started_at_ = now_ms;
+    return;
+  }
+  if (now_ms - transient_idle_started_at_ >= kTransientIdleCaptionMs) {
+    ui_.caption.clear();
+    transient_idle_started_at_ = 0;
+  }
+}
+
 void PipaSecureProtocol::sendGesture(const char* gesture) {
   if (!authenticated_ || !isSafeGesture(gesture)) return;
   JsonDocument document;
@@ -581,6 +596,7 @@ void PipaSecureProtocol::updateUi(JsonObjectConst object) {
   }
   const char* caption = object["caption"] | "";
   ui_.caption = isSafeDisplayText(caption, 256) ? String(caption).substring(0, 256) : String();
+  transient_idle_started_at_ = 0;
   if (ui_.state != "confirm") {
     ui_.confirmation_id.clear();
     ui_.confirmation_summary.clear();
@@ -598,6 +614,7 @@ void PipaSecureProtocol::resetHandshake() {
   ui_.confirmation_summary.clear();
   ui_.caption.clear();
   ui_.state = "idle";
+  transient_idle_started_at_ = 0;
 }
 
 void PipaSecureProtocol::log(const String& message) {

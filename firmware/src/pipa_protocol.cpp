@@ -68,6 +68,21 @@ void PipaProtocol::poll() {
   }
 }
 
+void PipaProtocol::maintainUi(uint32_t now_ms) {
+  if (ui_.state != "idle" || ui_.caption.isEmpty()) {
+    transient_idle_started_at_ = 0;
+    return;
+  }
+  if (transient_idle_started_at_ == 0) {
+    transient_idle_started_at_ = now_ms;
+    return;
+  }
+  if (now_ms - transient_idle_started_at_ >= kTransientIdleCaptionMs) {
+    ui_.caption.clear();
+    transient_idle_started_at_ = 0;
+  }
+}
+
 void PipaProtocol::sendGesture(const char* gesture) {
   if (!authenticated_ || !isSafeGesture(gesture)) return;
   JsonDocument document;
@@ -338,6 +353,7 @@ void PipaProtocol::updateUi(JsonObject object) {
   }
   const char* caption = object["caption"] | "";
   ui_.caption = isSafeDisplayText(caption, 256) ? String(caption).substring(0, 256) : String();
+  transient_idle_started_at_ = 0;
   if (ui_.state != "confirm") {
     ui_.confirmation_id.clear();
     ui_.confirmation_summary.clear();
@@ -349,6 +365,7 @@ void PipaProtocol::clearSessionUi() {
   ui_.caption.clear();
   ui_.confirmation_id.clear();
   ui_.confirmation_summary.clear();
+  transient_idle_started_at_ = 0;
 }
 
 void PipaProtocol::sendJson(JsonDocument& document) {

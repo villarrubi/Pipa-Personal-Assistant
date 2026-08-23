@@ -15,6 +15,11 @@ struct UiSnapshot {
   String confirmation_summary;
 };
 
+// Result and error captions are informational, not interaction modes. Keep
+// them briefly visible and then restore the normal idle face locally even if
+// the server has no new event to send.
+constexpr uint32_t kTransientIdleCaptionMs = 3000;
+
 class PipaProtocol {
  public:
   PipaProtocol(
@@ -25,6 +30,7 @@ class PipaProtocol {
 
   void begin();
   void poll();
+  void maintainUi(uint32_t now_ms);
   bool authenticated() const { return authenticated_; }
   const UiSnapshot& ui() const { return ui_; }
 
@@ -76,6 +82,7 @@ class PipaProtocol {
   uint32_t last_heartbeat_ = 0;
   uint32_t last_status_ = 0;
   uint32_t last_server_message_ = 0;
+  uint32_t transient_idle_started_at_ = 0;
 };
 
 }  // namespace pipa

@@ -595,6 +595,7 @@ void loop() {
     return;
   }
   protocol.poll();
+  protocol.maintainUi(millis());
   display.render(protocol.ui());
   maintainWifi();
   maintainPower();
