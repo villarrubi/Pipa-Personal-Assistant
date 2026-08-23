@@ -25,7 +25,8 @@ class PipaDisplay {
       const char* confirmation_line_one,
       const char* confirmation_line_two,
       uint16_t background,
-      uint16_t accent);
+      uint16_t accent,
+      uint16_t animation_frame);
   void drawTextAt(
       uint16_t* row_buffer,
       uint16_t y,
@@ -47,6 +48,8 @@ class PipaDisplay {
   String last_state_;
   String last_caption_;
   String last_confirmation_id_;
+  uint32_t last_animation_at_ = 0;
+  uint16_t animation_frame_ = 0;
   bool ready_ = false;
 };
 

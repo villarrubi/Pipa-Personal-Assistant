@@ -24,16 +24,163 @@ namespace {
 constexpr char kTag[] = "pipa_display";
 constexpr uint32_t kSpiClockHz = 80U * 1000U * 1000U;
 constexpr size_t kMaxTransferBytes = PipaDisplay::kWidth * sizeof(uint16_t);
-constexpr uint16_t kBlack = 0x0000;
 constexpr uint16_t kWhite = 0xFFFF;
-constexpr uint16_t kBlue = 0x2D9F;
+constexpr uint32_t kAnimationFrameMs = 120;
+constexpr uint16_t kInk = 0x0884;
+constexpr uint16_t kPanelBlue = 0x10C7;
+constexpr uint16_t kPanelTeal = 0x0C56;
+constexpr uint16_t kPanelViolet = 0x2118;
+constexpr uint16_t kPanelAmber = 0x2924;
+constexpr uint16_t kPanelRed = 0x310B;
+constexpr uint16_t kCyan = 0x6F7D;
 constexpr uint16_t kOrange = 0xFBE0;
-constexpr uint16_t kRed = 0xF800;
-constexpr uint16_t kGreen = 0x07E0;
-constexpr uint16_t kPurple = 0xA81F;
-constexpr uint16_t kSlate = 0x39C7;
-constexpr uint16_t kFace = 0xFFE0;
-constexpr uint8_t kTextScale = 3;
+constexpr uint16_t kRed = 0xF86D;
+constexpr uint16_t kGreen = 0x57EA;
+constexpr uint16_t kLavender = 0xDE3F;
+constexpr uint16_t kHair = 0x412D;
+constexpr uint16_t kSkin = 0xFE54;
+constexpr uint16_t kJacket = 0x3698;
+constexpr uint16_t kMouth = 0x700E;
+
+constexpr int8_t kBreathingOffsets[] = {0, 1, 2, 1, 0, -1, -2, -1};
+
+void fillCircle(uint16_t* row_buffer, uint16_t y, int16_t center_x, int16_t center_y,
+                int16_t radius, uint16_t color) {
+  const int16_t dy = static_cast<int16_t>(y) - center_y;
+  if (abs(dy) > radius) return;
+  const int32_t width = static_cast<int32_t>(sqrtf(
+      static_cast<float>(radius * radius - dy * dy)));
+  const int16_t start = max<int16_t>(0, center_x - width);
+  const int16_t end = min<int16_t>(PipaDisplay::kWidth - 1, center_x + width);
+  for (int16_t x = start; x <= end; ++x) row_buffer[x] = color;
+}
+
+void fillEllipse(uint16_t* row_buffer, uint16_t y, int16_t center_x, int16_t center_y,
+                 int16_t radius_x, int16_t radius_y, uint16_t color) {
+  const int16_t dy = static_cast<int16_t>(y) - center_y;
+  if (abs(dy) > radius_y) return;
+  const float normalized = static_cast<float>(dy) / radius_y;
+  const int16_t width = static_cast<int16_t>(radius_x * sqrtf(1.0f - normalized * normalized));
+  const int16_t start = max<int16_t>(0, center_x - width);
+  const int16_t end = min<int16_t>(PipaDisplay::kWidth - 1, center_x + width);
+  for (int16_t x = start; x <= end; ++x) row_buffer[x] = color;
+}
+
+void fillRect(uint16_t* row_buffer, uint16_t y, int16_t left, int16_t top,
+              int16_t right, int16_t bottom, uint16_t color) {
+  if (y < top || y > bottom) return;
+  const int16_t start = max<int16_t>(0, left);
+  const int16_t end = min<int16_t>(PipaDisplay::kWidth - 1, right);
+  for (int16_t x = start; x <= end; ++x) row_buffer[x] = color;
+}
+
+void drawCircleOutline(uint16_t* row_buffer, uint16_t y, int16_t center_x, int16_t center_y,
+                       int16_t radius, uint16_t color) {
+  const int16_t dy = static_cast<int16_t>(y) - center_y;
+  if (abs(dy) > radius) return;
+  const int32_t outer_width = static_cast<int32_t>(sqrtf(
+      static_cast<float>(radius * radius - dy * dy)));
+  const int16_t inner_radius = radius - 3;
+  if (abs(dy) <= inner_radius) {
+    const int32_t inner_width = static_cast<int32_t>(sqrtf(
+        static_cast<float>(inner_radius * inner_radius - dy * dy)));
+    if (outer_width == 0) {
+      if (center_x >= 0 && center_x < PipaDisplay::kWidth) row_buffer[center_x] = color;
+      return;
+    }
+    const int16_t left = max<int16_t>(0, center_x - outer_width);
+    const int16_t right = min<int16_t>(PipaDisplay::kWidth - 1, center_x + outer_width);
+    const int16_t inner_left = max<int16_t>(0, center_x - inner_width);
+    const int16_t inner_right = min<int16_t>(PipaDisplay::kWidth - 1, center_x + inner_width);
+    for (int16_t x = left; x <= right; ++x) {
+      if (x < inner_left || x > inner_right) row_buffer[x] = color;
+    }
+    return;
+  }
+  const int16_t left = max<int16_t>(0, center_x - outer_width);
+  const int16_t right = min<int16_t>(PipaDisplay::kWidth - 1, center_x + outer_width);
+  for (int16_t x = left; x <= right; ++x) row_buffer[x] = color;
+}
+
+void drawSpark(uint16_t* row_buffer, uint16_t y, int16_t center_x, int16_t center_y,
+               int16_t size, uint16_t color) {
+  if (y == center_y) {
+    fillRect(row_buffer, y, center_x - size, y, center_x + size, y, color);
+  } else if (y == center_y - size || y == center_y + size) {
+    if (center_x >= 0 && center_x < PipaDisplay::kWidth) row_buffer[center_x] = color;
+  }
+}
+
+void drawAvatar(uint16_t* row_buffer, uint16_t y, const char* label, uint16_t frame) {
+  const bool listening = strcmp(label, "LISTEN") == 0;
+  const bool thinking = strcmp(label, "THINK") == 0;
+  const bool speaking = strcmp(label, "SPEAK") == 0;
+  const bool confirming = strcmp(label, "CONFIRM") == 0;
+  const int16_t bob = kBreathingOffsets[frame % (sizeof(kBreathingOffsets) / sizeof(kBreathingOffsets[0]))];
+
+  fillEllipse(row_buffer, y, 180, 292 + bob, 108, 76, kJacket);
+  fillEllipse(row_buffer, y, 180, 305 + bob, 72, 52, kPanelBlue);
+  fillRect(row_buffer, y, 164, 192 + bob, 196, 230 + bob, kSkin);
+
+  const int16_t head_y = 137 + bob;
+  fillCircle(row_buffer, y, 180, head_y - 3, 68, kHair);
+  fillCircle(row_buffer, y, 180, head_y + 6, 56, kSkin);
+  fillCircle(row_buffer, y, 126, head_y + 26, 18, kHair);
+  fillCircle(row_buffer, y, 234, head_y + 26, 18, kHair);
+  fillEllipse(row_buffer, y, 180, head_y - 37, 55, 28, kHair);
+  fillCircle(row_buffer, y, 135, head_y - 2, 14, kHair);
+  fillCircle(row_buffer, y, 225, head_y - 2, 14, kHair);
+
+  const uint16_t eye_color = kMouth;
+  const uint16_t blink_phase = frame % 48;
+  const bool blink = blink_phase == 43 || blink_phase == 44;
+  const int16_t look_x = listening ? -3 : thinking ? 3 : 0;
+  if (blink) {
+    fillRect(row_buffer, y, 151 + look_x, head_y - 2, 164 + look_x, head_y, eye_color);
+    fillRect(row_buffer, y, 196 + look_x, head_y - 2, 209 + look_x, head_y, eye_color);
+  } else {
+    fillCircle(row_buffer, y, 158 + look_x, head_y - 1, 5, eye_color);
+    fillCircle(row_buffer, y, 202 + look_x, head_y - 1, 5, eye_color);
+  }
+  fillCircle(row_buffer, y, 146, head_y + 22, 4, kRed);
+  fillCircle(row_buffer, y, 214, head_y + 22, 4, kRed);
+
+  const bool open_mouth = speaking && (frame % 4 < 2);
+  if (open_mouth) {
+    fillEllipse(row_buffer, y, 180, head_y + 35, 14, 10, eye_color);
+    fillEllipse(row_buffer, y, 180, head_y + 33, 8, 3, kWhite);
+  } else {
+    fillRect(row_buffer, y, 169, head_y + 32, 191, head_y + 35, eye_color);
+    fillCircle(row_buffer, y, 169, head_y + 33, 2, eye_color);
+    fillCircle(row_buffer, y, 191, head_y + 33, 2, eye_color);
+  }
+
+  if (listening) {
+    const int16_t pulse = static_cast<int16_t>((frame % 8) * 2);
+    drawCircleOutline(row_buffer, y, 180, head_y + 5, 76 + pulse, kCyan);
+    fillCircle(row_buffer, y, 250, head_y + 4, 12, kSkin);
+    fillCircle(row_buffer, y, 252, head_y + 4, 5, kCyan);
+    drawSpark(row_buffer, y, 103, head_y - 30, 5 + frame % 3, kCyan);
+  } else if (thinking) {
+    drawCircleOutline(row_buffer, y, 180, head_y + 5, 76, kOrange);
+    const int16_t dot_x = 155 + static_cast<int16_t>((frame % 12) * 5);
+    fillCircle(row_buffer, y, dot_x, 250, 5, kOrange);
+    fillCircle(row_buffer, y, dot_x + 25, 250, 5, kOrange);
+    fillCircle(row_buffer, y, dot_x + 50, 250, 5, kOrange);
+  } else if (speaking) {
+    drawCircleOutline(row_buffer, y, 180, head_y + 5, 76, kGreen);
+    const int16_t wave = static_cast<int16_t>(frame % 4);
+    drawCircleOutline(row_buffer, y, 180, head_y + 5, 86 + wave * 3, kGreen);
+  } else if (confirming) {
+    drawCircleOutline(row_buffer, y, 180, head_y + 5, 76, kRed);
+    fillCircle(row_buffer, y, 252, 235 + bob, 15, kSkin);
+    fillRect(row_buffer, y, 245, 222 + bob, 259, 232 + bob, kSkin);
+  } else {
+    drawCircleOutline(row_buffer, y, 180, head_y + 5, 76, kLavender);
+    drawSpark(row_buffer, y, 102, 84 + bob, 5 + frame % 3, kLavender);
+    drawSpark(row_buffer, y, 263, 116 - bob, 4, kLavender);
+  }
+}
 
 static const st77916_lcd_init_cmd_t vendor_specific_init_new[] = {
   {0xF0, (uint8_t []){0x28}, 1, 0},
@@ -347,11 +494,17 @@ bool PipaDisplay::begin(Tca9554* io_expander) {
 }
 
 void PipaDisplay::render(const UiSnapshot& snapshot) {
-  if (!ready_ ||
-      (snapshot.state == last_state_ && snapshot.caption == last_caption_ &&
-       snapshot.confirmation_id == last_confirmation_id_)) {
+  if (!ready_) {
     return;
   }
+
+  const uint32_t now = millis();
+  const bool changed = snapshot.state != last_state_ || snapshot.caption != last_caption_ ||
+      snapshot.confirmation_id != last_confirmation_id_;
+  if (!changed && now - last_animation_at_ < kAnimationFrameMs) return;
+  if (changed) animation_frame_ = 0;
+  else ++animation_frame_;
+  last_animation_at_ = now;
 
   const uint16_t background = colorForState(snapshot.state);
   const uint16_t accent = snapshot.state == "confirm" ? kRed : kWhite;
@@ -377,7 +530,8 @@ void PipaDisplay::render(const UiSnapshot& snapshot) {
         summary_line_one.c_str(),
         summary_line_two.c_str(),
         background,
-        accent);
+        accent,
+        animation_frame_);
     if (esp_lcd_panel_draw_bitmap(panel_, 0, y, kWidth, y + 1, row_buffer) != ESP_OK) {
       ESP_LOGE(kTag, "LCD row transfer failed");
       ready_ = false;
@@ -396,73 +550,35 @@ void PipaDisplay::drawRow(
     const char* confirmation_line_one,
     const char* confirmation_line_two,
     uint16_t background,
-    uint16_t accent) {
+    uint16_t accent,
+    uint16_t animation_frame) {
   for (uint16_t x = 0; x < kWidth; ++x) row_buffer[x] = background;
 
-  const int32_t center = kWidth / 2;
-  const int32_t dy = static_cast<int32_t>(y) - center;
+  drawAvatar(row_buffer, y, label, animation_frame);
+
   const bool idle_face = strcmp(label, "IDLE") == 0 && confirmation_line_one[0] == '\0';
   if (idle_face) {
-    constexpr int32_t kFaceRadius = 112;
-    constexpr int32_t kEyeRadius = 9;
-    constexpr int32_t kEyeY = 148;
-    const int32_t distance = dy * dy;
-    for (uint16_t x = 0; x < kWidth; ++x) {
-      const int32_t dx = static_cast<int32_t>(x) - center;
-      const int32_t squared = dx * dx + distance;
-      if (squared <= kFaceRadius * kFaceRadius) row_buffer[x] = kFace;
-
-      const int32_t left_eye_dx = static_cast<int32_t>(x) - 142;
-      const int32_t right_eye_dx = static_cast<int32_t>(x) - 218;
-      const int32_t eye_dy = static_cast<int32_t>(y) - kEyeY;
-      if ((left_eye_dx * left_eye_dx + eye_dy * eye_dy <= kEyeRadius * kEyeRadius) ||
-          (right_eye_dx * right_eye_dx + eye_dy * eye_dy <= kEyeRadius * kEyeRadius)) {
-        row_buffer[x] = kBlack;
-      }
-
-      if (dx >= -55 && dx <= 55) {
-        const int32_t mouth_y = 232 - (dx * dx) / 120;
-        const int32_t mouth_delta = static_cast<int32_t>(y) - mouth_y;
-        if (mouth_delta >= -3 && mouth_delta <= 3) row_buffer[x] = kBlack;
-      }
 #if PIPA_ALWAYS_LISTENING_ENABLED
-      // A small persistent green light distinguishes microphone standby from
-      // a build whose audio path is disabled. Full capture still switches to
-      // the unmistakable LISTEN screen before any PCM leaves the device.
-      const int32_t mic_dx = static_cast<int32_t>(x) - center;
-      const int32_t mic_dy = static_cast<int32_t>(y) - 286;
-      if (mic_dx * mic_dx + mic_dy * mic_dy <= 7 * 7) row_buffer[x] = kGreen;
+    // A small persistent green light distinguishes microphone standby from a
+    // build whose audio path is disabled.
+    fillCircle(row_buffer, y, kWidth / 2, 344, 7, kGreen);
 #endif
-    }
+    drawTextAt(row_buffer, y, 18, "PIPA", kLavender, 2);
   } else {
-    const int32_t outer_radius = 142;
-    const int32_t inner_radius = 128;
-    const int32_t distance = dy * dy;
-    for (uint16_t x = 0; x < kWidth; ++x) {
-      const int32_t dx = static_cast<int32_t>(x) - center;
-      const int32_t squared = dx * dx + distance;
-      if (squared <= outer_radius * outer_radius && squared >= inner_radius * inner_radius) {
-        row_buffer[x] = accent;
-      }
-    }
-  }
-
-  const uint16_t text_y = 142;
-  if (!idle_face && y >= text_y && y < text_y + 7 * kTextScale) {
-    drawTextAt(row_buffer, y, text_y, label, kWhite, kTextScale);
+    drawTextAt(row_buffer, y, 18, label, accent, 2);
   }
   if (strcmp(label, "CONFIRM") == 0) {
     if (confirmation_line_one[0] != '\0') {
-      drawTextAt(row_buffer, y, 194, confirmation_line_one, kWhite, 2);
+      drawTextAt(row_buffer, y, 252, confirmation_line_one, kWhite, 2);
     }
     if (confirmation_line_two[0] != '\0') {
-      drawTextAt(row_buffer, y, 212, confirmation_line_two, kWhite, 2);
+      drawTextAt(row_buffer, y, 270, confirmation_line_two, kWhite, 2);
     }
-    drawTextAt(row_buffer, y, 252, "TAP", kWhite, 3);
+    drawTextAt(row_buffer, y, 314, "TAP", kWhite, 3);
   } else if (confirmation_line_one[0] != '\0') {
-    drawTextAt(row_buffer, y, 194, confirmation_line_one, kWhite, 2);
+    drawTextAt(row_buffer, y, 300, confirmation_line_one, kWhite, 2);
     if (confirmation_line_two[0] != '\0') {
-      drawTextAt(row_buffer, y, 212, confirmation_line_two, kWhite, 2);
+      drawTextAt(row_buffer, y, 318, confirmation_line_two, kWhite, 2);
     }
   }
 }
@@ -509,13 +625,13 @@ void PipaDisplay::splitSummary(const String& summary, String& first, String& sec
 }
 
 uint16_t PipaDisplay::colorForState(const String& state) {
-  if (state == "listening") return kBlue;
-  if (state == "thinking") return kOrange;
-  if (state == "confirm") return 0x4208;
-  if (state == "speaking") return kGreen;
-  if (state == "focus") return kPurple;
-  if (state == "dashboard") return kSlate;
-  return kBlack;
+  if (state == "listening") return kPanelBlue;
+  if (state == "thinking") return kPanelAmber;
+  if (state == "confirm") return kPanelRed;
+  if (state == "speaking") return kPanelTeal;
+  if (state == "focus") return kPanelViolet;
+  if (state == "dashboard") return kPanelBlue;
+  return kInk;
 }
 
 const uint8_t* PipaDisplay::glyph(char character) {
