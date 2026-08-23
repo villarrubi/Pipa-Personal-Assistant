@@ -21,7 +21,7 @@ int main() {
   const auto quiet = alternating(100);
   const auto voice = alternating(3000);
 
-  for (int index = 0; index < 12; ++index) {
+  for (uint8_t index = 0; index < pipa::PipaVoiceActivityDetector::kCalibrationChunks; ++index) {
     assert(detector.process(quiet.data(), quiet.size()) ==
            pipa::PipaVoiceActivityEvent::kSilence);
   }
@@ -46,5 +46,29 @@ int main() {
   assert(detector.lastRms() == 0);
   assert(!detector.speechActive());
   assert(detector.process(nullptr, 0) == pipa::PipaVoiceActivityEvent::kSilence);
+
+  // A high-gain microphone must learn a loud but steady room before it can
+  // distinguish a nearby voice. This is the regression that previously kept
+  // a hands-free capture open until its 30-second emergency limit.
+  pipa::PipaVoiceActivityDetector high_gain_detector;
+  const auto loud_room = alternating(2500);
+  const auto nearby_voice = alternating(9000);
+  for (uint8_t index = 0; index < pipa::PipaVoiceActivityDetector::kCalibrationChunks; ++index) {
+    assert(high_gain_detector.process(loud_room.data(), loud_room.size()) ==
+           pipa::PipaVoiceActivityEvent::kSilence);
+  }
+  assert(high_gain_detector.noiseFloorRms() >= 2400);
+  assert(high_gain_detector.process(loud_room.data(), loud_room.size()) ==
+         pipa::PipaVoiceActivityEvent::kSilence);
+  assert(high_gain_detector.process(nearby_voice.data(), nearby_voice.size()) ==
+         pipa::PipaVoiceActivityEvent::kSilence);
+  assert(high_gain_detector.process(nearby_voice.data(), nearby_voice.size()) ==
+         pipa::PipaVoiceActivityEvent::kSpeechStarted);
+  for (uint8_t index = 1; index < pipa::PipaVoiceActivityDetector::kEndSilenceChunks; ++index) {
+    assert(high_gain_detector.process(loud_room.data(), loud_room.size()) ==
+           pipa::PipaVoiceActivityEvent::kSpeech);
+  }
+  assert(high_gain_detector.process(loud_room.data(), loud_room.size()) ==
+         pipa::PipaVoiceActivityEvent::kSpeechEnded);
   return 0;
 }

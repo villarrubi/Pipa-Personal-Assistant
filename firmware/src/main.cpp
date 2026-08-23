@@ -53,8 +53,8 @@ constexpr size_t kSerialRxBufferSize = 12 * 1024;
 constexpr size_t kAudioChunkBytes = 4096;
 #if PIPA_ALWAYS_LISTENING_ENABLED
 constexpr uint16_t kMaxAudioChunks = 256;
-constexpr uint32_t kMaxCaptureMs = 30000;
-constexpr uint32_t kInstructionStartTimeoutMs = 5000;
+constexpr uint32_t kMaxCaptureMs = 8000;
+constexpr uint32_t kInstructionStartTimeoutMs = 2000;
 // Volatile rolling context long enough to include the activation phrase. It
 // is overwritten locally and is released to the encrypted stream only after
 // the offline recognizer has fired.
@@ -359,7 +359,6 @@ void maintainHandsFreeMonitor() {
   memset(audio_chunk, 0, sizeof(audio_chunk));
   if (activated) {
     local_wake_phrase.reset();
-    voice_activity.resetUtterance();
     if (protocol.authenticated()) {
       audio_start_pending = protocol.sendHoldStart();
       audio_stop_requested = false;

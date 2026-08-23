@@ -39,6 +39,23 @@ PipaVoiceActivityEvent PipaVoiceActivityDetector::process(
     const int16_t* samples,
     size_t sample_count) {
   last_rms_ = rmsWithoutDc(samples, sample_count);
+  if (samples == nullptr || sample_count == 0) return PipaVoiceActivityEvent::kSilence;
+
+  // The codec's production gain can put ordinary room noise above the fixed
+  // minimum. Calibrate before classifying anything; otherwise the detector
+  // can enter speech on its first chunks and never get a chance to learn the
+  // real floor. A quarter-weighted update converges within about two seconds.
+  if (calibration_chunks_ < kCalibrationChunks) {
+    noise_floor_rms_ = calibration_chunks_ == 0
+        ? last_rms_
+        : (noise_floor_rms_ * 3U + last_rms_) / 4U;
+    ++calibration_chunks_;
+    voiced_chunks_ = 0;
+    silent_chunks_ = 0;
+    speech_active_ = false;
+    return PipaVoiceActivityEvent::kSilence;
+  }
+
   uint32_t threshold = std::max(kMinimumSpeechRms, noise_floor_rms_ * 3U);
   threshold = std::min(threshold, kMaximumAdaptiveThreshold);
   const bool voiced = last_rms_ >= threshold;

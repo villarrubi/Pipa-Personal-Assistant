@@ -18,6 +18,7 @@ enum class PipaVoiceActivityEvent : uint8_t {
 // capture can start and finish without a touch or a fixed normal duration.
 class PipaVoiceActivityDetector {
  public:
+  static constexpr uint8_t kCalibrationChunks = 16;
   static constexpr uint8_t kStartChunks = 2;
   static constexpr uint8_t kEndSilenceChunks = 7;
   static constexpr uint32_t kMinimumSpeechRms = 450;
@@ -37,6 +38,7 @@ class PipaVoiceActivityDetector {
   uint32_t last_rms_ = 0;
   uint8_t voiced_chunks_ = 0;
   uint8_t silent_chunks_ = 0;
+  uint8_t calibration_chunks_ = 0;
   bool speech_active_ = false;
 };
 
