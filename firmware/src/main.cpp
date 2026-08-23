@@ -346,6 +346,7 @@ void maintainHandsFreeMonitor() {
   const auto event = voice_activity.process(
       reinterpret_cast<const int16_t*>(audio_chunk), captured / sizeof(int16_t));
   bool activated = false;
+  bool server_fallback_activated = false;
   if (event == pipa::PipaVoiceActivityEvent::kSpeechStarted) {
     local_wake_phrase.reset();
     activated = detectLocalWakePhraseInPreRoll();
@@ -355,7 +356,10 @@ void maintainHandsFreeMonitor() {
     // local agent is available, let its stronger Spanish STT verify the wake
     // phrase instead. This fallback never wakes a powered-off PC and the core
     // still discards speech that does not contain the configured phrase.
-    if (!activated && protocol.authenticated()) activated = true;
+    if (!activated && protocol.authenticated()) {
+      activated = true;
+      server_fallback_activated = true;
+    }
 #endif
   } else if (event == pipa::PipaVoiceActivityEvent::kSpeech ||
              event == pipa::PipaVoiceActivityEvent::kSpeechEnded) {
@@ -366,11 +370,25 @@ void maintainHandsFreeMonitor() {
   if (activated) {
     local_wake_phrase.reset();
     if (protocol.authenticated()) {
-      audio_start_pending = protocol.sendHoldStart();
-      audio_stop_requested = false;
-      if (!audio_start_pending) {
-        voice_activity.resetUtterance();
-        clearPreRoll();
+      if (server_fallback_activated) {
+        // The fallback fires on the first voiced block because the board's
+        // offline model does not reliably recognize Spanish. Buffer the full
+        // utterance before opening the serial stream so the encrypted clip
+        // still contains the wake phrase and not only the louder command.
+        clearDeferredAudio();
+        if (movePreRollToDeferredAudio()) {
+          deferred_capture_active = true;
+          deferred_capture_started_at = millis();
+        } else {
+          voice_activity.resetUtterance();
+        }
+      } else {
+        audio_start_pending = protocol.sendHoldStart();
+        audio_stop_requested = false;
+        if (!audio_start_pending) {
+          voice_activity.resetUtterance();
+          clearPreRoll();
+        }
       }
     } else {
       clearDeferredAudio();

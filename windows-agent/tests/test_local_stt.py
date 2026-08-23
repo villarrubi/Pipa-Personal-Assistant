@@ -42,7 +42,7 @@ class LocalSttTests(unittest.TestCase):
         self.assertEqual(provider._pcm, bytearray())
         self.assertTrue((model.audio == 0).all())
         self.assertEqual(model.options["language"], "es")
-        self.assertTrue(model.options["vad_filter"])
+        self.assertFalse(model.options["vad_filter"])
         self.assertIn("ordenador", model.options["hotwords"])
         self.assertIn("Pipa me escuchas", model.options["hotwords"])
         self.assertIn("estado del ordenador", model.options["initial_prompt"])

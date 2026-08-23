@@ -28,7 +28,11 @@ COMMAND_CONTEXT = (
     "bloquea o suspende el ordenador."
 )
 TARGET_AUDIO_REFERENCE = 0.72
-MAX_AUDIO_GAIN = 8.0
+# The device already segments speech before it reaches Whisper.  Keep a
+# little more headroom for a nearby speaker or a quiet desktop speaker, while
+# still clipping only after the gain has been applied and recorded in the
+# diagnostics below.
+MAX_AUDIO_GAIN = 10.0
 MIN_AUDIO_REFERENCE = 1.0 / 32768.0
 
 
@@ -162,18 +166,18 @@ class LocalSpeechTranscriber:
             clipped_percent = float(np.mean(np.abs(audio) >= 0.999)) * 100.0
             np.clip(audio, -1.0, 1.0, out=audio)
 
+            # The firmware has already performed endpoint detection and sends
+            # a bounded clip with rolling pre-roll. Running Whisper's second
+            # VAD here can discard a softly spoken wake phrase at the start of
+            # that clip while keeping only the louder command that follows.
+            # Keep the clip intact; Core still requires the exact wake phrase
+            # before routing any voice command.
             raw_segments, information = self._model().transcribe(
                 audio,
                 language="es",
                 task="transcribe",
                 beam_size=5,
-                vad_filter=True,
-                vad_parameters={
-                    "threshold": 0.35,
-                    "min_speech_duration_ms": 120,
-                    "min_silence_duration_ms": 250,
-                    "speech_pad_ms": 180,
-                },
+                vad_filter=False,
                 condition_on_previous_text=False,
                 hotwords=COMMAND_HOTWORDS,
                 initial_prompt=COMMAND_CONTEXT,

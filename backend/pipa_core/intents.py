@@ -1027,7 +1027,11 @@ def split_voice_wake_phrase(text: str, wake_phrase: str) -> tuple[bool, str]:
     # fuzzy matching here would make room speech arm the command path.
     wake_forms = (normalized_wake,)
     if normalized_wake == "pipa me escuchas":
-        wake_forms += ("pipa me escucha",)
+        # Spanish Whisper models occasionally collapse this exact wake phrase
+        # to the homophone "pisa". Keep the recovery narrowly tied to the
+        # configured phrase and its beginning-of-transcript position; it is
+        # not a general fuzzy command bypass.
+        wake_forms += ("pipa me escucha", "pisa")
     if not normalized_wake or normalized_text in wake_forms:
         return normalized_text in wake_forms and bool(normalized_wake), ""
     for wake_form in wake_forms:

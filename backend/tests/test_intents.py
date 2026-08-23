@@ -38,6 +38,10 @@ class IntegrationIntentTests(unittest.TestCase):
             split_voice_wake_phrase("Pipa me escucha abre la calculadora", "Pipa me escuchas"),
             (True, "abre la calculadora"),
         )
+        self.assertEqual(
+            split_voice_wake_phrase("Pisa, abre Apple Music", "Pipa me escuchas"),
+            (True, "abre apple music"),
+        )
         self.assertFalse(split_voice_wake_phrase("abre la calculadora", "Pipa me escuchas")[0])
 
     def test_suspend_command_accepts_natural_windows_phrases(self):
